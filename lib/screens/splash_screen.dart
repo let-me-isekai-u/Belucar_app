@@ -137,96 +137,112 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     Navigator.pushReplacementNamed(context, "/home");
   }
 
+
+  // Trong _SplashScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
+    // Xác định khoảng trống trên/dưới logo
+    final verticalPadding = mediaQuery.size.height * 0.15;
 
     return Scaffold(
-      // Nền: Sử dụng màu Primary (màu xanh lá)
-      backgroundColor: theme.colorScheme.primary,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 1. Khu vực Logo với hiệu ứng
-            ScaleTransition(
-              scale: Tween<double>(begin: 1.0, end: 1.05).animate(
-                CurvedAnimation(parent: _logoController, curve: Curves.easeInOut),
-              ),
-              child: Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 18,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.asset(
-                    'lib/assets/icons/BeluCar_logo.jpg',
+        backgroundColor: theme.colorScheme.primary,
+        body: Center(
+          // Bỏ SingleChildScrollView vì đây là màn hình cố định
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 40.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Spacer ở trên (tạo cân bằng thị giác)
+                SizedBox(height: verticalPadding),
+
+                // 1. Khu vực Logo với hiệu ứng Scale
+                ScaleTransition(
+                  scale: _scaleAnimation, // Sử dụng Animation đã khai báo
+                  child: Container(
                     width: 140,
                     height: 140,
-                    fit: BoxFit.contain,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20), // Bo góc lớn hơn
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.4), // Bóng đậm hơn
+                          blurRadius: 20,
+                          spreadRadius: 3,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset(
+                        'lib/assets/icons/BeluCar_logo.jpg',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 30),
+                const SizedBox(height: 30),
 
-            // 2. Tên Ứng dụng
-            Text(
-              "BELUCAR",
-              style: theme.textTheme.headlineLarge!.copyWith(
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 3,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withOpacity(0.4),
-                    offset: const Offset(2, 2),
-                    blurRadius: 3,
+                // 2. Tên Ứng dụng
+                Text(
+                  "BELUCAR",
+                  style: theme.textTheme.headlineLarge!.copyWith(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 32, // Đảm bảo kích thước lớn và rõ ràng
+                    color: Colors.white,
+                    letterSpacing: 4, // Tăng khoảng cách chữ cho sự nổi bật
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.4),
+                        offset: const Offset(3, 3),
+                        blurRadius: 5,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+
+                const SizedBox(height: 10),
+
+                // 3. Slogan
+                Text(
+                  "Save tiền đi chơi, đừng save tiền đi xe",
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium!.copyWith( // Dùng titleMedium
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withOpacity(0.9), // Giảm độ trong suốt nhẹ
+                    fontStyle: FontStyle.italic,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+
+                // Spacer ở giữa (đẩy Indicator xuống dưới)
+                const Spacer(),
+
+                // 4. Indicator (Được đẩy xuống gần cuối màn hình hơn)
+                SizedBox(
+                  width: 40, // Kích thước nhỏ gọn hơn
+                  height: 40,
+                  child: CircularProgressIndicator(
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 3, // Giảm độ dày
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                // Spacer ở dưới (tạo cân bằng thị giác)
+                SizedBox(height: verticalPadding / 2),
+              ],
             ),
-
-            const SizedBox(height: 10),
-
-            // 3. Slogan
-            Text(
-              "Save tiền đi chơi, đừng save tiền đi xe",
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleLarge!.copyWith(
-                fontWeight: FontWeight.w500,
-                color: Colors.white,
-                fontStyle: FontStyle.italic,
-                letterSpacing: 0.5,
-              ),
-            ),
-
-            const SizedBox(height: 60),
-
-            // 4. Indicator
-            SizedBox(
-              width: 50,
-              height: 50,
-              child: CircularProgressIndicator(
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                strokeWidth: 4,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        )
     );
-  }
+    }
+
 }

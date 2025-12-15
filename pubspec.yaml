@@ -58,7 +58,7 @@ flutter:
     - lib/assets/icons/vietnam.png
     - lib/assets/icons/BeluCar_logo.jpg
     - lib/assets/icons/ActivityLogo.png
-    - lib/assets/icons/driver_avatar.png
+
 
 #flutter_icons:
 #  android: true

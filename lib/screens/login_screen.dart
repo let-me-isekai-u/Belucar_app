@@ -47,9 +47,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  // ----------------------------------------------------------------------
-  // 🔥 LOGIN API CALL
-  // ----------------------------------------------------------------------
+
+  //LOGIN API CALL
   Future<void> _login() async {
     String phone = phoneController.text.trim();
     String password = passwordController.text.trim();
@@ -136,130 +135,215 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final mediaQuery = MediaQuery.of(context);
+    // Chiều cao cần thiết cho phần background/banner màu chính
+    final backgroundHeight = mediaQuery.size.height * 0.35;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.primary,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 20),
-
-              // ---------- LOGO ----------
-              ScaleTransition(
-                scale: Tween<double>(begin: 1.0, end: 1.05).animate(
-                  CurvedAnimation(
-                    parent: _logoController,
-                    curve: Curves.easeInOut,
-                  ),
-                ),
-                child: Container(
-                  width: 140,
-                  height: 140,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 18,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.asset(
-                      'lib/assets/icons/BeluCar_logo.jpg',
-                      width: 140,
-                      height: 140,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
+      // Bỏ backgroundColor ở đây, sẽ dùng Stack để tạo hiệu ứng lớp
+      body: Stack(
+        children: [
+          // 1. PHẦN BACKGROUND MÀU CHỦ ĐẠO (BANNER TOP)
+          Container(
+            height: backgroundHeight,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(50), // Bo góc lớn
+                bottomRight: Radius.circular(50),
               ),
+            ),
+          ),
 
-              const SizedBox(height: 12),
-              Text(
-                "BeluCar",
-                style: theme.textTheme.headlineLarge?.copyWith(
-                  fontFamily: 'Serif',
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ) ??
-                    const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 40),
-
-              // ---------- INPUTS ----------
-              _buildTextField(
-                  phoneController, "Số điện thoại", Icons.phone, false),
-              const SizedBox(height: 16),
-              _buildTextField(
-                  passwordController, "Mật khẩu", Icons.lock, true),
-              const SizedBox(height: 20),
-
-              // ---------- LOGIN BUTTON ----------
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.colorScheme.secondary,
-                  minimumSize: const Size(double.infinity, 50),
-                  elevation: 5,
-                ),
-                onPressed: _isLoading ? null : _login,
-                child: _isLoading
-                    ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-                    : const Text("ĐĂNG NHẬP"),
-              ),
-
-              const SizedBox(height: 16),
-
-              // ---------- FOOTER LINKS ----------
-              Row(
+          // 2. NỘI DUNG (Center)
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 50, left: 32, right: 32, bottom: 24),
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  TextButton(
-                    onPressed: _goToForgotPassword,
-                    child: const Text(
-                      "Quên mật khẩu?",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _goToRegister,
-                    child: const Text(
-                      "Đăng ký",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
+                  // 2.1 LOGO VÀ TEXT (Hiển thị ngay trên nền màu chính)
+                  _buildLogoSection(theme),
+                  const SizedBox(height: 40),
+
+                  // 2.2 FORM LOGIN (Bên trong Card nổi bật)
+                  _buildLoginFormCard(theme),
                 ],
               ),
-            ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  //WIDGET CON
+
+// Logo và Tên ứng dụng
+  Widget _buildLogoSection(ThemeData theme) {
+    return Column(
+      children: [
+        // ---------- LOGO ----------
+        ScaleTransition(
+          scale: Tween<double>(begin: 1.0, end: 1.05).animate(
+            CurvedAnimation(
+              parent: _logoController,
+              curve: Curves.easeInOut,
+            ),
+          ),
+          child: Container(
+            width: 120, // Kích thước nhỏ hơn 1 chút
+            height: 120,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20), // Bo góc nhiều hơn
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.4), // Bóng đậm hơn
+                  blurRadius: 20,
+                  spreadRadius: 3,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.asset(
+                'lib/assets/icons/BeluCar_logo.jpg',
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+
+      ],
+    );
+  }
+
+// Form Login trong Card
+  Widget _buildLoginFormCard(ThemeData theme) {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20), // Bo góc lớn
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          children: [
+            // THÊM TEXT TẠI ĐÂY VỚI MÀU CHỦ ĐẠO
+            Text(
+              "Đăng nhập BeluCar",
+              style: theme.textTheme.headlineLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+                fontSize: 28,
+                color: theme.colorScheme.primary, // Dùng màu chủ đạo
+              ) ??
+                  const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 28,
+                  ),
+            ),
+            const SizedBox(height: 10),
+
+            // Tiêu đề form
+            Text(
+              "Tiếp tục hành trình của bạn",
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade600, // Làm mờ đi
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ---------- INPUTS ----------
+            _buildTextField(
+              phoneController,
+              "Số điện thoại",
+              Icons.phone,
+              false,
+            ),
+            const SizedBox(height: 16),
+            _buildTextField(
+              passwordController,
+              "Mật khẩu",
+              Icons.lock,
+              true,
+            ),
+            const SizedBox(height: 24),
+
+            // ---------- LOGIN BUTTON ----------
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.secondary,
+                minimumSize: const Size(double.infinity, 50),
+                elevation: 5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                foregroundColor: Colors.white,
+                textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              onPressed: _isLoading ? null : _login,
+              child: _isLoading
+                  ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+                  : const Text("ĐĂNG NHẬP"),
+            ),
+
+            const SizedBox(height: 16),
+
+
+            Row(
+              // Sử dụng spaceBetween để tối đa hóa khoảng cách giữa hai nút
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Bọc bằng Expanded để nút Quên mật khẩu chiếm 1 phần không gian
+                Expanded(
+                  child: TextButton(
+                    onPressed: _goToForgotPassword,
+                    child: Text(
+                      "Quên mật khẩu?",
+                      style: TextStyle(color: theme.colorScheme.primary),
+                      textAlign: TextAlign.start, // Căn lề trái
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8), // Thêm khoảng cách nhỏ giữa 2 nút
+                // Bọc bằng Expanded để nút Đăng ký chiếm 1 phần không gian
+                Expanded(
+                  child: TextButton(
+                    onPressed: _goToRegister,
+                    child: Text(
+                      "Đăng ký Tài khoản",
+                      style: TextStyle(color: theme.colorScheme.secondary),
+                      textAlign: TextAlign.end, // Căn lề phải
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ------------------- TEXTFIELD -------------------
+// Cập nhật lại TextField để có nền trắng, bo góc
   Widget _buildTextField(
       TextEditingController controller,
       String hint,
@@ -272,15 +356,27 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       controller: controller,
       obscureText: isPassword ? _obscurePassword : false,
       keyboardType: isPassword ? TextInputType.text : TextInputType.phone,
+      style: const TextStyle(color: Colors.black87),
       decoration: InputDecoration(
         hintText: hint,
+        labelText: hint,
+        hintStyle: const TextStyle(color: Colors.grey),
+        // Cải tiến: Thêm fill color và bo góc
+        filled: true,
+        fillColor: Colors.grey.shade100,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none, // Bỏ đường viền mặc định
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+        ),
         prefixIcon: Icon(icon, color: theme.colorScheme.primary),
         suffixIcon: isPassword
             ? IconButton(
           icon: Icon(
-            _obscurePassword
-                ? Icons.visibility_off
-                : Icons.visibility,
+            _obscurePassword ? Icons.visibility_off : Icons.visibility,
             color: theme.colorScheme.secondary,
           ),
           onPressed: () {
@@ -291,4 +387,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       ),
     );
   }
+
+
 }

@@ -19,7 +19,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  // 🔥 THÊM BIẾN LƯU URL AVATAR
+  // 🔥 THÊM BIẾN LƯU URL AVATAR (GIỮ NGUYÊN LOGIC CŨ)
   String? _avatarUrl;
 
   bool _loading = true;
@@ -30,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfile();
   }
 
+  // ================= LOGIC API VÀ STATE (GIỮ NGUYÊN) =================
   Future<void> _loadProfile() async {
     print("🔍 [PROFILE] Bắt đầu load profile...");
 
@@ -45,6 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
+      // Logic gọi API giữ nguyên
       final res = await ApiService.getCustomerProfile(accessToken: accessToken);
 
       print("📥 [PROFILE] Status: ${res.statusCode}");
@@ -58,7 +60,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _emailController.text = data["email"] ?? "";
           _phoneController.text = data["phone"] ?? "";
 
-          // 🔥 LƯU URL AVATAR VÀO BIẾN TRẠNG THÁI
+          // LƯU URL AVATAR VÀO BIẾN TRẠNG THÁI
           _avatarUrl = data["avatarUrl"];
 
           _loading = false;
@@ -77,7 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // [Các hàm khác giữ nguyên]
   void _goToLogin() {
     Navigator.pushAndRemoveUntil(
       context,
@@ -91,213 +92,271 @@ class _ProfileScreenState extends State<ProfileScreen> {
       SnackBar(content: Text(msg)),
     );
   }
-  // [Hết các hàm khác]
 
+  // ================= UI BUILD =================
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile")),
-
+      appBar: AppBar(
+        title: const Text("Tài khoản Cá nhân"), // Tiêu đề thân thiện hơn
+        centerTitle: true,
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // ---------- AVATAR ĐÃ SỬA ----------
-            CircleAvatar(
-              radius: 55,
-              // Nền màu nhẹ nhàng
-              backgroundColor: primaryColor.withOpacity(0.1),
+            // 1. PHẦN TỔNG QUAN HỒ SƠ (AVATAR VÀ TÊN)
+            _buildProfileHeader(primaryColor),
 
-              // 🔥 Dùng NetworkImage nếu có URL
-              backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
-                  ? NetworkImage(_avatarUrl!) as ImageProvider<Object>?
-                  : null,
+            const SizedBox(height: 24),
 
-              // Hiển thị Icon mặc định nếu không có URL ảnh
-              child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                  ? const Icon(Icons.person, size: 60, color: Colors.black54)
-                  : null,
-            ),
+            // 2. CÁC LỰA CHỌN THAO TÁC (MENU ACTIONS: Update, Change Password)
+            _buildActionButtons(context),
 
-            // ... [Các phần còn lại giữ nguyên]
-            const SizedBox(height: 25),
+            const SizedBox(height: 24),
 
-            // ---------- HỌ TÊN ----------
-            TextField(
-              controller: _nameController,
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: "Họ và tên",
-                prefixIcon: Icon(Icons.badge),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ---------- EMAIL ----------
-            TextField(
-              controller: _emailController,
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: "Email",
-                prefixIcon: Icon(Icons.email),
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // ---------- SỐ ĐIỆN THOẠI ----------
-            TextField(
-              controller: _phoneController,
-              enabled: false,
-              decoration: const InputDecoration(
-                labelText: "Số điện thoại",
-                prefixIcon: Icon(Icons.phone),
-                border: OutlineInputBorder(),
-              ),
-            ),
+            // 3. THÔNG TIN CHI TIẾT (Hiển thị Email)
+            _buildDetailsCard(context),
 
             const SizedBox(height: 30),
 
-            // ---------- BUTTONS ----------
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ----- Đổi mật khẩu -----
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-                    );
-                  },
-                  child: const Text("Đổi mật khẩu"),
-                ),
-
-
-                const SizedBox(height: 12),
-
-                // ----- Cập nhật thông tin -----
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => UpdateProfileScreen(
-                          name: _nameController.text,
-                          email: _emailController.text,
-                          // 🔥 TRUYỀN URL AVATAR QUA MÀN HÌNH CẬP NHẬT
-                          avatarUrl: _avatarUrl,
-                        ),
-                      ),
-                    );
-                  },
-                  child: const Text("Cập nhật thông tin"),
-                ),
-                const SizedBox(height: 12),
-
-
-                // Xoá tài khoản
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text("Xoá tài khoản"),
-                        content: const Text("Bạn có chắc muốn xoá tài khoản không? Hành động này không thể hoàn tác."),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text("Huỷ"),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              Navigator.pop(context); // đóng popup
-
-                              final prefs = await SharedPreferences.getInstance();
-                              final accessToken = prefs.getString("accessToken");
-
-                              if (accessToken == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Phiên đăng nhập hết hạn")),
-                                );
-                                return;
-                              }
-
-                              // 🔥 Gọi API xoá tài khoản
-                              // ... (Logic gọi API deleteAccount giữ nguyên)
-                              final res = await ApiService.deleteAccount(accessToken: accessToken);
-
-                              if (!mounted) return;
-
-                              if (res.statusCode == 200) {
-                                // Xoá token khỏi máy
-                                await prefs.remove("accessToken");
-                                await prefs.remove("refreshToken");
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Tài khoản đã bị xoá")),
-                                );
-
-                                // Chuyển về login
-                                Navigator.pushNamedAndRemoveUntil(context, "/login", (_) => false);
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text("Không thể xoá tài khoản (${res.statusCode})")),
-                                );
-                              }
-                            },
-                            child: const Text("Xoá", style: TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                  child: const Text("Xoá tài khoản"),
-                ),
-
-                const SizedBox(height: 12),
-
-                // ----- Đăng xuất -----
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[800]),
-                  onPressed: () async {
-                    final prefs = await SharedPreferences.getInstance();
-                    final accessToken = prefs.getString("accessToken");
-
-                    // Không có token → login luôn
-                    if (accessToken == null) {
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                            (_) => false,
-                      );
-                      return;
-                    }
-
-                    final res = await ApiService.logout(accessToken); // Giả định hàm logout này tồn tại
-
-                    await prefs.clear();
-
-                    if (!mounted) return;
-
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          (_) => false,
-                    );
-                  },
-                  child: const Text("Đăng xuất"),
-                ),
-              ],
-            )
+            // 4. ĐĂNG XUẤT VÀ XÓA TÀI KHOẢN (Actions nguy hiểm)
+            _buildDangerousActions(context),
           ],
         ),
+      ),
+    );
+  }
+
+  // ================= WIDGET CON CHO GIAO DIỆN MỚI =================
+
+  // 1. Header (Avatar và Tên)
+  Widget _buildProfileHeader(Color primaryColor) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Column(
+          children: [
+            // AVATAR
+            CircleAvatar(
+              radius: 60,
+              backgroundColor: primaryColor.withOpacity(0.15),
+              backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                  ? NetworkImage(_avatarUrl!) as ImageProvider<Object>?
+                  : null,
+              child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                  ? Icon(Icons.person, size: 70, color: primaryColor)
+                  : null,
+            ),
+            const SizedBox(height: 16),
+
+            // HỌ TÊN NỔI BẬT (Lấy từ Controller đã load data)
+            Text(
+              _nameController.text.isNotEmpty
+                  ? _nameController.text
+                  : "Người dùng BeluCar",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+
+            // SỐ ĐIỆN THOẠI (Lấy từ Controller đã load data)
+            Text(
+              _phoneController.text.isNotEmpty
+                  ? _phoneController.text
+                  : "Chưa cập nhật SĐT",
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 2. Các Lựa chọn Thao tác (Cập nhật, Đổi mật khẩu)
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      children: [
+        _buildProfileListItem(
+          icon: Icons.edit,
+          title: "Cập nhật Thông tin cá nhân",
+          onTap: () {
+            // LOGIC CHUYỂN MÀN HÌNH CŨ ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => UpdateProfileScreen(
+                  name: _nameController.text,
+                  email: _emailController.text,
+                  avatarUrl: _avatarUrl,
+                ),
+              ),
+            ).then((_) {
+              // Reload profile sau khi update xong
+              _loadProfile();
+            });
+          },
+        ),
+        _buildProfileListItem(
+          icon: Icons.lock,
+          title: "Đổi Mật khẩu",
+          onTap: () {
+            // LOGIC CHUYỂN MÀN HÌNH CŨ ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // 3. Thông tin chi tiết (Hiển thị Email)
+  Widget _buildDetailsCard(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          _buildProfileListItem(
+            icon: Icons.email,
+            title: "Email",
+            subtitle: _emailController.text,
+            showArrow: false, // Không cần mũi tên
+            onTap: () {}, // Không làm gì
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 4. Đăng xuất và Xóa tài khoản
+  Widget _buildDangerousActions(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ----- Đăng xuất (Sử dụng OutlinedButton) -----
+        OutlinedButton.icon(
+          icon: const Icon(Icons.logout),
+          label: const Text("Đăng xuất"),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Colors.red.shade700,
+            side: BorderSide(color: Colors.red.shade700),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () async {
+            // LOGIC ĐĂNG XUẤT CŨ ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
+            final prefs = await SharedPreferences.getInstance();
+            final accessToken = prefs.getString("accessToken");
+
+            if (accessToken == null) {
+              _goToLogin();
+              return;
+            }
+
+            final res = await ApiService.logout(accessToken);
+
+            await prefs.clear();
+
+            if (!mounted) return;
+
+            _goToLogin();
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // ----- Xoá tài khoản (Sử dụng TextButton) -----
+        TextButton(
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.red.shade700,
+          ),
+          onPressed: () => _showDeleteConfirmation(context), // Logic được tách ra hàm dưới
+          child: const Text("Xoá tài khoản", style: TextStyle(decoration: TextDecoration.underline)),
+        ),
+      ],
+    );
+  }
+
+  // ================= HELPERS VÀ LOGIC PHỤ =================
+
+  // Widget ListItem dùng chung cho các Menu/Thông tin
+  Widget _buildProfileListItem({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+    bool showArrow = true,
+  }) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Icon(icon, color: Colors.grey.shade700),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+      subtitle: subtitle != null ? Text(subtitle) : null,
+      trailing: showArrow ? const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey) : null,
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
+  // Hàm xử lý xác nhận xóa tài khoản (Logic xóa tài khoản CŨ)
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Xoá tài khoản"),
+        content: const Text("Bạn có chắc muốn xoá tài khoản không? Hành động này không thể hoàn tác."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Huỷ"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // đóng popup
+
+              final prefs = await SharedPreferences.getInstance();
+              final accessToken = prefs.getString("accessToken");
+
+              if (accessToken == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Phiên đăng nhập hết hạn")),
+                );
+                return;
+              }
+
+              // Gọi API xoá tài khoản (LOGIC CŨ)
+              final res = await ApiService.deleteAccount(accessToken: accessToken);
+
+              if (!mounted) return;
+
+              if (res.statusCode == 200) {
+                // Xoá token khỏi máy
+                await prefs.remove("accessToken");
+                await prefs.remove("refreshToken");
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Tài khoản đã bị xoá")),
+                );
+
+                // Chuyển về login
+                _goToLogin();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Không thể xoá tài khoản (${res.statusCode})")),
+                );
+              }
+            },
+            child: const Text("Xoá", style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
     );
   }

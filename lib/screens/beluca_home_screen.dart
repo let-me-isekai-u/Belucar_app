@@ -103,12 +103,19 @@ class _HomeViewState extends State<_HomeView> {
 
   // ================= BODY =================
   // Trong _HomeViewState
+  void _selectTab(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0:
-        return _buildHomeScreen(); // Thay thế _buildHomePlaceholder() bằng _buildHomeScreen()
+        return _buildHomeScreen();
       case 1:
-        return const BookingScreen();
+      // TRUYỀN HÀM CALLBACK VÀO BOOKINGSCREEN
+        return BookingScreen(onRideBooked: _selectTab);
       case 2:
         return const ActivityScreen();
       case 3:
