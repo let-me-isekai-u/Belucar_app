@@ -49,6 +49,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   lints: ^6.0.0
 
+
+
 flutter:
   uses-material-design: true
   generate: true
@@ -60,27 +62,16 @@ flutter:
     - lib/assets/icons/ActivityLogo.png
 
 
-#flutter_icons:
-#  android: true
-#  ios: true
-#  image_path: "lib/assets/icons/OutsideLogo.jpg"
-#  adaptive_icon_background: "#ffffff"
-#  adaptive_icon_foreground: "lib/assets/icons/OutsideLogo.jpg"
-#
-#
-#flutter_launcher_icons:
-#  android: "launcher_icon"
-#  ios: true
-#  image_path: "lib/assets/icons/OutsideLogo.jpg"
-#  min_sdk_android: 21
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "lib/assets/icons/BeluCar_logo.jpg"
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "lib/assets/icons/BeluCar_logo.jpg"
 
 
-# Cấu hình l10n: phải cùng cấp với flutter, không thụt vào
-#l10n:
-#  arb-dir: lib/l10n
-#  template-arb-file: app_en.arb
-#  output-localization-file: app_localizations.dart
-#  output-class: AppLocalizations
-#  preferred-supported-locales:
-#    - en
-#    - vi
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "lib/assets/icons/BeluCar_logo.jpg"
+  min_sdk_android: 21
