@@ -1,4 +1,4 @@
-package com.example.belucar_app
+package com.belucar.beluga
 
 import io.flutter.embedding.android.FlutterActivity
 
