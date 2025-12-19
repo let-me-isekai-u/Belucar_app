@@ -51,7 +51,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     final phoneRegex = RegExp(r'^[0-9]{9,11}$');
     final strongPassRegex = RegExp(
-        r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$');
+        r'''^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[~!@#$%^&*()_+=<>?:";'{}|\\[\]])[A-Za-z\d~!@#$%^&*()_+=<>?:";'{}|\\[\]]{8,32}$'''
+    );
+
 
     if (_fullNameController.text.trim().isEmpty) {
       _showSnack("Họ tên không được để trống");
