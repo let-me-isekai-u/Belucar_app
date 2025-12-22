@@ -8,7 +8,7 @@ enum TripCategory {
 }
 
 class BookingModel extends ChangeNotifier {
-  // ================== LOẠI CHUYẾN (GIỮ NGUYÊN BOOL) ==================
+  // ================== LOẠI CHUYẾN ==================
   bool isChoNguoi = true;   // true = chở người, false = chở hàng
   bool isBaoXe = false;     // chỉ dùng khi chở người
   bool isHoaToc = false;   // chỉ dùng khi chở hàng
@@ -17,6 +17,7 @@ class BookingModel extends ChangeNotifier {
     if (isBaoXe != value) {
       isBaoXe = value;
       notifyListeners();
+      fetchTripPrice();
     }
   }
 
@@ -24,10 +25,24 @@ class BookingModel extends ChangeNotifier {
     if (isHoaToc != value) {
       isHoaToc = value;
       notifyListeners();
+      fetchTripPrice();
     }
   }
 
-  // ================== RADIO STATE (MỚI - FIX DEPRECATED) ==================
+  // ================== PHƯƠNG THỨC THANH TOÁN ==================
+  // 1: Chuyển khoản | 2: Thanh toán sau (tiền mặt)
+  int _paymentMethod = 3;
+  int get paymentMethod => _paymentMethod;
+
+  set paymentMethod(int value) {
+    if (_paymentMethod != value) {
+      _paymentMethod = value;
+      notifyListeners();
+      fetchTripPrice();
+    }
+  }
+
+  // ================== RADIO STATE ==================
   TripCategory tripCategory = TripCategory.choNguoi;
 
   // ================== NGÀY GIỜ ==================
@@ -56,7 +71,6 @@ class BookingModel extends ChangeNotifier {
   // ================== GIÁ ==================
   double? tripPrice;
   bool isLoadingPrice = false;
-  // tripID của giá cuốc trong api 12 sau khi chọn điểm đến và đón, dùng để khai báo cho api 13
   int? currentTripId;
 
   BookingModel() {
@@ -64,33 +78,31 @@ class BookingModel extends ChangeNotifier {
   }
 
   // =====================================================
-  // RADIO HANDLER (QUAN TRỌNG)
+  // RADIO HANDLER
   // =====================================================
   void setTripCategory(TripCategory value) {
     tripCategory = value;
 
     if (value == TripCategory.choNguoi) {
       isChoNguoi = true;
-      isHoaToc = false; // reset logic không liên quan
+      isHoaToc = false;
     } else {
       isChoNguoi = false;
       isBaoXe = false;
     }
 
     notifyListeners();
+    fetchTripPrice();
   }
 
   // =====================================================
-  // LẤY TỈNH
+  // LẤY TỈNH / HUYỆN
   // =====================================================
   Future<void> fetchProvinces() async {
     provinces = await ApiService.getProvinces();
     notifyListeners();
   }
 
-  // =====================================================
-  // LẤY HUYỆN
-  // =====================================================
   Future<void> fetchDistricts(String? provinceId, bool isPickup) async {
     if (provinceId == null) return;
     final id = int.tryParse(provinceId);
@@ -107,7 +119,7 @@ class BookingModel extends ChangeNotifier {
   }
 
   // =====================================================
-  // MAP UI → TYPE API (CHUẨN THEO TÀI LIỆU)
+  // MAP UI → TYPE API
   // =====================================================
   int get tripType {
     if (isChoNguoi) {
@@ -117,68 +129,53 @@ class BookingModel extends ChangeNotifier {
     }
   }
 
+  // =====================================================
   // 12. LẤY GIÁ
+  // =====================================================
   Future<void> fetchTripPrice() async {
-    debugPrint("🔵 [PRICE] fetchTripPrice() called");
-
-    if (selectedProvincePickup == null || selectedProvinceDrop == null) {
-      debugPrint("❌ [PRICE] Missing province");
-      return;
-    }
+    if (selectedProvincePickup == null || selectedProvinceDrop == null) return;
 
     final fromId = int.tryParse(selectedProvincePickup!);
     final toId = int.tryParse(selectedProvinceDrop!);
-
-    if (fromId == null || toId == null) {
-      debugPrint("❌ [PRICE] ProvinceId parse failed");
-      return;
-    }
-
-    debugPrint("📌 fromProvinceId: $fromId");
-    debugPrint("📌 toProvinceId: $toId");
-    debugPrint("📌 tripType: $tripType");
+    if (fromId == null || toId == null) return;
 
     isLoadingPrice = true;
     notifyListeners();
 
-    final res = await ApiService.getTripPrice(
-      fromProvinceId: fromId,
-      toProvinceId: toId,
-      type: tripType,
-    );
+    try {
+      final res = await ApiService.getTripPrice(
+        fromProvinceId: fromId,
+        toProvinceId: toId,
+        type: tripType,
+        paymentMethod: _paymentMethod,
+      );
 
-    debugPrint("📥 [PRICE] StatusCode: ${res.statusCode}");
-    debugPrint("📥 [PRICE] Body: ${res.body}");
+      if (res.statusCode == 200) {
+        final json = ApiService.safeDecode(res.body);
+        final data = json["data"];
 
-    if (res.statusCode == 200) {
-      final json = ApiService.safeDecode(res.body);
-
-      final data = json["data"];
-      final price = data?["price"];
-      final id = data?["id"];
-
-      debugPrint("[PRICE] price = $price");
-      debugPrint("ID báo giá: $id");
-
-      if (price != null) {
-        tripPrice = (price as num).toDouble();
-      } if(id != null){
-        currentTripId = (id as num).toInt();
+        if (data != null) {
+          tripPrice = (data["price"] as num).toDouble();
+          currentTripId = (data["id"] as num).toInt();
+        }
+      } else {
+        tripPrice = null;
+        currentTripId = null;
       }
-    } else {
-      debugPrint("❌ [PRICE] API error");
+    } catch (_) {
+      tripPrice = null;
+    } finally {
+      isLoadingPrice = false;
+      notifyListeners();
     }
-
-    isLoadingPrice = false;
-    notifyListeners();
   }
 
-
-  // 13. TẠO CHUYẾN
+  // =====================================================
+  // 13. TẠO CHUYẾN (ĐÃ TRUYỀN paymentMethod)
+  // =====================================================
   Future<Map<String, dynamic>> createRide(String token) async {
-    //Kiểm tra xem đã lưu giá ở id chưa
-    if(currentTripId == null){
-      throw Exception("Lỗi: Chưa có giá chuyến đi, vui lòng thử lại sau");
+    if (currentTripId == null) {
+      throw Exception("Chưa có giá chuyến đi");
     }
 
     final res = await ApiService.createRide(
@@ -197,6 +194,7 @@ class BookingModel extends ChangeNotifier {
         goTime!.minute,
       ).toIso8601String(),
       note: note ?? "",
+      paymentMethod: _paymentMethod, // ✅ BỔ SUNG
     );
 
     return Map<String, dynamic>.from(
@@ -204,38 +202,33 @@ class BookingModel extends ChangeNotifier {
     );
   }
 
+  // =====================================================
+  // RESET FORM
+  // =====================================================
   void resetForm() {
-    // 1. Reset các tùy chọn chính về mặc định
     tripCategory = TripCategory.choNguoi;
     isChoNguoi = true;
     isBaoXe = false;
     isHoaToc = false;
+    _paymentMethod = 3;
 
-    // 2. Reset điểm đón/đến
     selectedProvincePickup = null;
     selectedDistrictPickup = null;
     addressPickup = null;
-
     selectedProvinceDrop = null;
     selectedDistrictDrop = null;
     addressDrop = null;
 
-    // 3. Reset ngày giờ và thông tin khách
     goDate = null;
     goTime = null;
     customerPhone = null;
     note = null;
-
-    // 4. Reset thông tin giá
     tripPrice = null;
     currentTripId = null;
 
-    // 5. Reset danh sách huyện (Tùy chọn, nếu bạn muốn làm sạch UI nhanh hơn)
     districtsPickup = [];
     districtsDrop = [];
 
-    // Cần gọi notifyListeners() để tất cả các widget đang nghe (như dropdown, date picker)
-    // cập nhật lại UI thành trạng thái rỗng
     notifyListeners();
   }
 }

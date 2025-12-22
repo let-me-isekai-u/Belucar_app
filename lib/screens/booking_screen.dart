@@ -37,6 +37,70 @@ class _BookingViewState extends State<_BookingView> {
     _noteController.clear();
   }
 
+  // Tìm dòng này: class _BookingViewState extends State<_BookingView> {
+// Và chèn đoạn code dưới đây ngay sau các khai báo Controller:
+
+  void _handlePaymentMethodChange(BookingModel model, int? value) {
+    if (value == null) return;
+
+    // Nếu chọn Chuyển khoản (1) hoặc Ví (2)
+    if (value == 1 || value == 2) {
+      showDialog(
+        context: context,
+        barrierDismissible: false, // Người dùng phải bấm nút mới đóng được
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.blue),
+              SizedBox(width: 10),
+              Text("Thông báo"),
+            ],
+          ),
+          content: const Text(
+            "Tính năng này còn đang trong quá trình phát triển. Vui lòng chọn phương thức thanh toán trả sau.\n\nXin lỗi vì sự bất tiện này!",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Sau khi đóng thông báo, tự động đưa lựa chọn về Thanh toán sau (3)
+                model.paymentMethod = 3;
+              },
+              child: const Text("ĐÃ HIỂU", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Nếu chọn Thanh toán sau (3) thì cập nhật bình thường
+      model.paymentMethod = value;
+    }
+  }
+
+  bool _validateBeforeBooking(BookingModel model) {
+    if (model.tripCategory == null) return false;
+
+    if (model.selectedProvincePickup == null ||
+        model.selectedDistrictPickup == null ||
+        (model.addressPickup == null || model.addressPickup!.trim().isEmpty)) {
+      return false;
+    }
+
+    if (model.selectedProvinceDrop == null ||
+        model.selectedDistrictDrop == null ||
+        (model.addressDrop == null || model.addressDrop!.trim().isEmpty)) {
+      return false;
+    }
+
+    if (model.goDate == null || model.goTime == null) return false;
+
+    if (_phoneController.text.trim().isEmpty) return false;
+
+    return true;
+  }
+
+
   String formatCurrency(double value) {
     final formatter = NumberFormat.currency(
       locale: 'vi_VN',
@@ -50,6 +114,7 @@ class _BookingViewState extends State<_BookingView> {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString("accessToken");
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -104,9 +169,9 @@ class _BookingViewState extends State<_BookingView> {
             Text(
               "Tổng chi phí: ${formatCurrency(model.tripPrice!)}",
               style: TextStyle(
-                color: Theme.of(context).primaryColor,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
+                color: Colors.green,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
               ),
             )
           else
@@ -121,62 +186,41 @@ class _BookingViewState extends State<_BookingView> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
-                model.customerPhone = _phoneController.text;
-                model.note = _noteController.text;
-
-                final token = await _getAccessToken();
-                if (token == null) {
+                if (!_validateBeforeBooking(model)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: const Text(
-                          'Lỗi: Bạn chưa đăng nhập. Vui lòng đăng nhập lại.'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  );
-                  return;
+                        'Vui lòng nhập đầy đủ thông tin bắt buộc',
+                              ),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                              ),
+                               );
+                      return;
                 }
 
-                try {
-                  await model.createRide(token);
+    model.customerPhone = _phoneController.text.trim();
+    model.note = _noteController.text.trim(); // optional
 
-                  // 1. Hiển thị thông báo thành công
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                          'Đặt chuyến thành công! Chuyển sang Hoạt động.'),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  );
+    final token = await _getAccessToken();
+    if (token == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Bạn chưa đăng nhập')),
+    );
+    return;
+    }
 
-                  // 2. Reset form
-                  model.resetForm();
-                  _resetControllers();
+    try {
+    await model.createRide(token);
+    widget.onRideBooked(2);
+    } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Lỗi đặt chuyến: $e')),
+    );
+    }
+    },
 
-                  // 3. CHUYỂN SANG MÀN HÌNH ACTIVITY (thay thế màn hình hiện tại)
-                  widget.onRideBooked(2);
-
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Lỗi đặt chuyến: $e'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
+    style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -307,6 +351,7 @@ class _BookingViewState extends State<_BookingView> {
     );
   }
 
+
   Widget _buildLocationInput({
     required String label,
     required IconData icon,
@@ -378,7 +423,7 @@ class _BookingViewState extends State<_BookingView> {
             if (model.isChoNguoi)
               CheckboxListTile(
                 value: model.isBaoXe,
-                title: const Text("Bao xe (Thêm phí)"),
+                title: const Text("Bao trọn chuyến xe"),
                 onChanged: (v) {
                   model.setIsBaoXe(v ?? false);
                   model.fetchTripPrice();
@@ -396,6 +441,38 @@ class _BookingViewState extends State<_BookingView> {
           ],
         ),
         const SizedBox(height: 16),
+
+        _buildSectionCard(
+          title: "Phương thức thanh toán",
+          icon: Icons.payments_outlined,
+          children: [
+            RadioListTile<int>(
+              value: 1,
+              groupValue: model.paymentMethod,
+              title: const Text("Chuyển khoản (Giảm giá)"),
+              subtitle: const Text("Thanh toán trước qua ngân hàng"),
+              secondary: const Icon(Icons.account_balance, color: Colors.blue),
+              onChanged: (v) => _handlePaymentMethodChange(model, v),
+            ),
+            RadioListTile<int>(
+              value: 2,
+              groupValue: model.paymentMethod,
+              title: const Text("Thanh toán bằng ví"),
+              subtitle: const Text("Thanh toán trước thông qua số dư của ví"),
+              secondary: const Icon(Icons.wallet_giftcard, color: Colors.green),
+              onChanged: (v) => _handlePaymentMethodChange(model, v),
+            ),
+            RadioListTile<int>(
+              value: 3,
+              groupValue: model.paymentMethod,
+              title: const Text("Thanh toán sau"),
+              subtitle: const Text("Trả tiền mặt trực tiếp cho tài xế"),
+              secondary: const Icon(Icons.person_outline, color: Colors.orange),
+              onChanged: (v) => _handlePaymentMethodChange(model, v),
+            ),
+
+          ],
+        ),
 
         // 2. Điểm đón và Điểm đến (Sử dụng widget trực quan hơn)
         _buildLocationSection(model),
@@ -437,6 +514,7 @@ class _BookingViewState extends State<_BookingView> {
             ),
           ],
         ),
+
         const SizedBox(height: 100), // Khoảng cách cho bottom bar
       ]),
     );

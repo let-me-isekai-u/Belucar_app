@@ -24,6 +24,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _loading = true;
 
+  double _wallet = 0.0;
   @override
   void initState() {
     super.initState();
@@ -59,6 +60,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _nameController.text = data["fullName"] ?? "";
           _emailController.text = data["email"] ?? "";
           _phoneController.text = data["phone"] ?? "";
+
+          _wallet = (data["wallet"] ?? 0.0).toDouble();
 
           // LƯU URL AVATAR VÀO BIẾN TRẠNG THÁI
           _avatarUrl = data["avatarUrl"];
@@ -113,6 +116,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // 1. PHẦN TỔNG QUAN HỒ SƠ (AVATAR VÀ TÊN)
             _buildProfileHeader(primaryColor),
 
+            const SizedBox(height: 16),
+            _buildWalletCard(context),
+
             const SizedBox(height: 24),
 
             // 2. CÁC LỰA CHỌN THAO TÁC (MENU ACTIONS: Update, Change Password)
@@ -134,6 +140,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ================= WIDGET CON CHO GIAO DIỆN MỚI =================
+
+  Widget _buildWalletCard(BuildContext context) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.account_balance_wallet,
+                  color: Colors.green, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Số dư ví",
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${_wallet.toStringAsFixed(0)} đ",
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   // 1. Header (Avatar và Tên)
   Widget _buildProfileHeader(Color primaryColor) {

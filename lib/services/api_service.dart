@@ -360,6 +360,7 @@ class ApiService {
     required int fromProvinceId,
     required int toProvinceId,
     required int type,
+    required int paymentMethod,
   }) async {
     final url = Uri.parse(
       "https://belucar.belugaexpress.com/api/tripapi/getprice",
@@ -367,6 +368,7 @@ class ApiService {
       "fromProvinceId": fromProvinceId.toString(),
       "toProvinceId": toProvinceId.toString(),
       "type": type.toString(),
+      "paymentMethod": paymentMethod.toString(),
     });
 
     print("🔵 [PRICE] GET $url");
@@ -396,10 +398,12 @@ class ApiService {
     required String toAddress,
     required String customerPhone,
     required String pickupTime,
+    required int paymentMethod,
     String note = "",
   }) async {
-    final url =
-    Uri.parse("https://belucar.belugaexpress.com/api/rideapi/create");
+    final url = Uri.parse(
+      "https://belucar.belugaexpress.com/api/rideapi/create",
+    );
 
     final body = jsonEncode({
       "tripId": tripId,
@@ -410,6 +414,7 @@ class ApiService {
       "customerPhone": customerPhone,
       "pickupTime": pickupTime,
       "note": note,
+      "paymentMethod": paymentMethod,
     });
 
     try {
@@ -425,14 +430,13 @@ class ApiService {
       return response;
     } catch (e) {
       print("🔥 ERROR createRide(): $e");
-
       return http.Response(
         jsonEncode({"error": e.toString()}),
         500,
       );
     }
-
   }
+
 
   //Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 14)
   static Future<http.Response>
