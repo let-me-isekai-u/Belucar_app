@@ -521,4 +521,18 @@ class ApiService {
     }
   }
 
+  static Future<void> confirmCancelTrip({
+    required String accessToken,
+    required int rideId,
+  }) async {
+    final url = Uri.parse("https://belucar.belugaexpress.com/api/rideapi/cancel-confirmed/$rideId",);
+    final headers = {
+      "Authorization": "Bearer $accessToken",
+    };
+    final response = await http.put(url, headers: headers);
+
+    if(response.statusCode != 200){
+      throw Exception("Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh");
+    }
+  }
 }

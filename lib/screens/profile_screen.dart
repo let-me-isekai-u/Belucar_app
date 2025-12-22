@@ -7,6 +7,8 @@ import 'login_screen.dart';
 import 'change_password_screen.dart';
 import 'update_profile_screen.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -30,6 +32,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _loadProfile();
   }
+
+  //hàm mở Zalo
+  Future<void> _openZalo() async {
+    final Uri zaloUrl = Uri.parse('https://zalo.me/0823416820');
+    if (await canLaunchUrl(zaloUrl)) {
+      await launchUrl(zaloUrl, mode: LaunchMode.externalApplication);
+    } else {
+      _showError("Không thể mở Zalo");
+    }
+  }
+
 
   // ================= LOGIC API VÀ STATE (GIỮ NGUYÊN) =================
   Future<void> _loadProfile() async {
@@ -95,6 +108,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
       SnackBar(content: Text(msg)),
     );
   }
+
+  void _showSupportDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+
+              const Icon(Icons.headset_mic_rounded,
+                  size: 50, color: Colors.blue),
+              const SizedBox(height: 16),
+
+              const Text(
+                "Hỗ trợ khách hàng BeluCar",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+
+              const Text(
+                "Chúng tôi sẵn sàng hỗ trợ bạn 24/7.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+
+              // Gọi điện
+              _buildSupportAction(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.green.withOpacity(0.1),
+                  child: const Icon(Icons.phone, color: Colors.green),
+                ),
+                title: "Gọi điện hỗ trợ",
+                subtitle: "08 2341 6820",
+                onTap: () async {
+                  Navigator.pop(context);
+                  final uri = Uri.parse('tel:0823416820');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri,
+                        mode: LaunchMode.externalApplication);
+                  }
+                },
+              ),
+
+              const SizedBox(height: 12),
+
+              // Zalo
+              _buildSupportAction(
+                leading: Image.asset(
+                  'lib/assets/icons/icons8-zalo-100.png',
+                  width: 40,
+                  height: 40,
+                ),
+                title: "Nhắn tin Zalo",
+                subtitle: "Phản hồi nhanh chóng",
+                onTap: () {
+                  Navigator.pop(context);
+                  _openZalo();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  Widget _buildSupportAction({
+    required Widget leading,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(subtitle,
+                      style: TextStyle(
+                          color: Colors.grey[600], fontSize: 12)),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios,
+                size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   // ================= UI BUILD =================
   @override
@@ -262,6 +394,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
             );
           },
+        ),
+
+        _buildProfileListItem(
+          icon: Icons.headset_mic_rounded,
+          title: "Liên hệ hỗ trợ",
+          onTap: () => _showSupportDialog(context),
         ),
       ],
     );

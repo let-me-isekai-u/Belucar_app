@@ -105,7 +105,8 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   // ================= HUỶ CHUYẾN =================
 
-  Future<void> _cancelTrip(int rideId) async {
+  //huỷ status = 1
+  Future<void> _callCancelTrip(int rideId) async {
     final token = await _getAccessToken();
     if (token == null) return;
 
@@ -130,7 +131,37 @@ class _ActivityScreenState extends State<ActivityScreen>
     }
   }
 
-  void _confirmCancelTrip(int rideId) {
+  //huỷ status = 2
+  Future<void> _callConfirmCancelTrip(int rideId) async {
+    final token = await _getAccessToken();
+    if (token == null) return;
+
+    try {
+      await ApiService.confirmCancelTrip(
+        accessToken: token,
+        rideId: rideId,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Huỷ chuyến thành công")),
+      );
+
+      setState(() {
+        _ongoingFuture = _fetchOngoingTrips();
+        _historyFuture = _fetchHistoryTrips();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
+  }
+
+  //show dialog
+  void _showCancelTripDialog({
+    required int rideId,
+    required bool isConfirmCancel,
+  }) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -147,7 +178,12 @@ class _ActivityScreenState extends State<ActivityScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              _cancelTrip(rideId);
+
+              if (isConfirmCancel) {
+                _callConfirmCancelTrip(rideId);
+              } else {
+                _callCancelTrip(rideId);
+              }
             },
             child: const Text(
               "Huỷ chuyến",
@@ -158,6 +194,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       ),
     );
   }
+
 
   // ================= UI =================
 
@@ -215,32 +252,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       ),
     );
 
-    return Column(
-      children: [
-        Container(
-          color: Colors.white,
-          child: TabBar(
-            controller: _tabController,
-            indicatorColor: Colors.blue,
-            labelColor: Colors.blue,
-            unselectedLabelColor: Colors.grey,
-            tabs: const [
-              Tab(text: "Đang diễn ra"),
-              Tab(text: "Lịch sử"),
-            ],
-          ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
-            children: [
-              _buildOngoingTrips(),
-              _buildHistoryTrips(),
-            ],
-          ),
-        ),
-      ],
-    );
+
   }
 
   // ================= TAB ĐANG DIỄN RA =================
@@ -329,16 +341,28 @@ class _ActivityScreenState extends State<ActivityScreen>
 
                             if (trip.status == 1)
                               TextButton(
-                                onPressed: () => _confirmCancelTrip(trip.rideId),
+                                onPressed: () => _showCancelTripDialog(
+                                  rideId: trip.rideId,
+                                  isConfirmCancel: false,
+                                ),
                                 child: const Text(
                                   "Huỷ chuyến",
-                                  style: TextStyle(
-                                    color: Colors.red,
-
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: TextStyle(color: Colors.red),
                                 ),
                               ),
+
+                            if (trip.status == 2)
+                              TextButton(
+                                onPressed: () => _showCancelTripDialog(
+                                  rideId: trip.rideId,
+                                  isConfirmCancel: true,
+                                ),
+                                child: const Text(
+                                  "Huỷ chuyến",
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+
                           ],
                         ),
                       ],
