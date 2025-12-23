@@ -400,11 +400,13 @@ class ApiService {
     required String pickupTime,
     required int paymentMethod,
     String note = "",
+    String content = "", // Để mặc định là rỗng nếu không truyền
   }) async {
     final url = Uri.parse(
       "https://belucar.belugaexpress.com/api/rideapi/create",
     );
 
+    // --- LỖI TẠI ĐÂY TRƯỚC ĐÓ: Bạn không được khai báo 'String content = ""' bên trong Map ---
     final body = jsonEncode({
       "tripId": tripId,
       "fromDistrictId": fromDistrictId,
@@ -415,6 +417,7 @@ class ApiService {
       "pickupTime": pickupTime,
       "note": note,
       "paymentMethod": paymentMethod,
+      "content": content, // Truyền giá trị từ tham số vào Key của JSON
     });
 
     try {
@@ -430,8 +433,9 @@ class ApiService {
       return response;
     } catch (e) {
       print("🔥 ERROR createRide(): $e");
+      // Trả về một Response giả lập lỗi để tránh crash app
       return http.Response(
-        jsonEncode({"error": e.toString()}),
+        jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
         500,
       );
     }
@@ -535,4 +539,72 @@ class ApiService {
       throw Exception("Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh");
     }
   }
+
+  //nạp tiền vào ví
+  static Future<bool> depositWallet({
+    required String accessToken,
+    required double amount,
+    required String content,
+  }) async {
+    final url = Uri.parse(
+      "https://belucar.belugaexpress.com/api/paymentapi/deposite",
+    );
+
+    try {
+      final res = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "amount": amount,
+          "content": content,
+        }),
+      ).timeout(const Duration(seconds: 20));
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+
+        /// theo tài liệu: success = true mới hợp lệ
+        return data["success"] == true;
+      }
+
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  //lấy lịch sử thay đổi số dư ví
+  static Future<http.Response> getWalletHistory({
+    required String accessToken,
+  }) async {
+    final url = Uri.parse(
+      "https://belucar.belugaexpress.com/api/paymentapi/history",
+    );
+
+    print("🔵 [API] WALLET HISTORY → $url");
+
+    try {
+      final res = await http.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Accept": "application/json",
+        },
+      ).timeout(const Duration(seconds: 20));
+
+      print("📥 [API] STATUS: ${res.statusCode}");
+      print("📥 [API] BODY: ${res.body}");
+
+      return res;
+    } catch (e) {
+      print("❌ [API] WALLET HISTORY ERROR: $e");
+      return _errorResponse(e);
+    }
+  }
+
+
 }

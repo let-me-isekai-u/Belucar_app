@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import 'login_screen.dart';
 import 'change_password_screen.dart';
 import 'update_profile_screen.dart';
+import 'wallet_history_screen.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -388,7 +389,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: Icons.lock,
           title: "Đổi Mật khẩu",
           onTap: () {
-            // LOGIC CHUYỂN MÀN HÌNH CŨ ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
             Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
@@ -400,6 +400,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: Icons.headset_mic_rounded,
           title: "Liên hệ hỗ trợ",
           onTap: () => _showSupportDialog(context),
+        ),
+
+        _buildProfileListItem(
+          icon: Icons.attach_money,
+          title: "Lịch sử tài chính",
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const WalletHistoryScreen()),
+            );
+          },
         ),
       ],
     );

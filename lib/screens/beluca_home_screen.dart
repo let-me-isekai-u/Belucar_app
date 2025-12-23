@@ -1,8 +1,12 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart'; // Để định dạng tiền 1.000.000
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/booking_model.dart';
+import '../services/api_service.dart'; // Đảm bảo bạn đã có ApiService.getCustomerProfile và ApiService.depositWallet
 import 'activity_screen.dart';
 import 'profile_screen.dart';
 import 'booking_screen.dart';
@@ -30,24 +34,184 @@ class _HomeViewState extends State<_HomeView> {
   int _selectedIndex = 0;
   String _fullName = '';
 
+  // === BIẾN THÊM MỚI CHO VÍ ===
+  double _walletBalance = 0;
+  int _userId = 0;
+  bool _isLoadingWallet = true;
+
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
+    _fetchWalletInfo(); // Lấy số dư ví ngay khi khởi tạo
   }
 
-  // ================= LOAD USER FROM LOCAL =================
+  // ================= LOAD USER & WALLET INFO =================
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
-
     final name = prefs.getString("fullName") ?? '';
-
     if (!mounted) return;
-
     setState(() {
       _fullName = name;
     });
   }
+
+  // Lấy số dư ví từ Server
+  Future<void> _fetchWalletInfo() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('accessToken') ?? '';
+      if (token.isEmpty) return;
+
+      final res = await ApiService.getCustomerProfile(accessToken: token);
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (mounted) {
+          setState(() {
+            _walletBalance = (data['wallet'] as num?)?.toDouble() ?? 0.0;
+            _userId = data['id'] ?? 0;
+            _isLoadingWallet = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingWallet = false);
+    }
+  }
+
+  // ================= LOGIC NẠP TIỀN =================
+
+  // Bước 1: Nhập số tiền
+  void _showDepositAmountDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Nạp tiền vào ví"),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            hintText: "Nhập số tiền (ví dụ: 50000)",
+            suffixText: "đ",
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
+          ElevatedButton(
+            onPressed: () {
+              final amount = double.tryParse(controller.text);
+              if (amount == null || amount < 1000) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Số tiền nạp tối thiểu là 1.000đ"))
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              // Bước 2: Tạo nội dung chuyển khoản và hiện QR
+              final content = "$_userId${DateFormat('HHmmss').format(DateTime.now())}";
+              _showQRDialog(amount, content);
+            },
+            child: const Text("Xác nhận nạp tiền"),
+          )
+        ],
+      ),
+    );
+  }
+
+  // Bước 2: Hiển thị QR và Polling
+  void _showQRDialog(double amount, String content) {
+    final qrUrl = "https://img.vietqr.io/image/MB-246878888-compact2.png"
+        "?amount=${amount.toStringAsFixed(0)}&addInfo=$content&accountName=CTY%20CP%20CN%20VA%20DV%20TT%20THE%20BELUGAS";
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        int countdown = 300;
+        Timer? countdownTimer;
+        Timer? pollTimer;
+        bool isChecking = false;
+
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            // Đếm ngược
+            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (countdown <= 0) {
+                t.cancel(); pollTimer?.cancel();
+                Navigator.pop(dialogCtx);
+              } else if (dialogCtx.mounted) {
+                setDialogState(() => countdown--);
+              }
+            });
+
+            // Kiểm tra giao dịch (Polling)
+            pollTimer ??= Timer.periodic(const Duration(seconds: 7), (t) async {
+              if (isChecking) return;
+              isChecking = true;
+
+              final prefs = await SharedPreferences.getInstance();
+              final token = prefs.getString('accessToken') ?? '';
+              final success = await ApiService.depositWallet(
+                  accessToken: token, amount: amount, content: content
+              );
+
+              if (success) {
+                t.cancel(); countdownTimer?.cancel();
+                if (dialogCtx.mounted) {
+                  Navigator.pop(dialogCtx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Nạp tiền thành công!"), backgroundColor: Colors.green)
+                  );
+                  _fetchWalletInfo(); // Cập nhật lại số dư trên trang chủ
+                }
+              }
+              isChecking = false;
+            });
+
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text("Quét mã thanh toán", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    const SizedBox(height: 12),
+                    Image.network(qrUrl),
+                    const SizedBox(height: 12),
+                    Text("Nội dung: $content", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                    const SizedBox(height: 16),
+                    // THÔNG BÁO CẢNH BÁO NHƯ YÊU CẦU
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
+                      child: const Text(
+                        "⚠️ Vui lòng KHÔNG tắt ứng dụng hoặc đóng mã QR cho đến khi hệ thống xác nhận chuyển khoản thành công.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text("Tự động đóng sau: ${countdown ~/ 60}:${(countdown % 60).toString().padLeft(2, '0')}"),
+                    TextButton(
+                      onPressed: () {
+                        countdownTimer?.cancel(); pollTimer?.cancel();
+                        Navigator.pop(dialogCtx);
+                      },
+                      child: const Text("Hủy giao dịch"),
+                    )
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ================= UI COMPONENTS =================
 
   @override
   Widget build(BuildContext context) {
@@ -63,46 +227,23 @@ class _HomeViewState extends State<_HomeView> {
         },
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Trang chủ',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car),
-            label: 'Đặt chuyến',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.access_time),
-            label: 'Hoạt động',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Tài khoản',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Trang chủ'),
+          BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Đặt chuyến'),
+          BottomNavigationBarItem(icon: Icon(Icons.access_time), label: 'Hoạt động'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Tài khoản'),
         ],
       ),
     );
   }
 
-  // ================= APP BAR =================
   PreferredSizeWidget? _buildAppBar() {
-    // Chỉ hiển thị AppBar nếu _selectedIndex == 0 (Trang chủ).
-    // Ẩn ở các tab còn lại (Đặt chuyến, Hoạt động, Tài khoản).
     if (_selectedIndex != 0) return null;
-
-    // Nếu _selectedIndex == 0, hiển thị App Bar
     return AppBar(
-      title: Text(
-        // Hiển thị tên nếu đã load, nếu không thì hiện 'Xin chào'
-        _fullName.isEmpty ? 'Xin chào' : 'Xin chào, $_fullName',
-      ),
+      title: Text(_fullName.isEmpty ? 'Xin chào' : 'Xin chào, $_fullName'),
       centerTitle: false,
-      // Thêm các hành động (actions) nếu cần thiết, ví dụ: biểu tượng thông báo
     );
   }
 
-  // ================= BODY =================
-  // Trong _HomeViewState
   void _selectTab(int index) {
     setState(() {
       _selectedIndex = index;
@@ -111,56 +252,83 @@ class _HomeViewState extends State<_HomeView> {
 
   Widget _buildBody() {
     switch (_selectedIndex) {
-      case 0:
-        return _buildHomeScreen();
-      case 1:
-      // TRUYỀN HÀM CALLBACK VÀO BOOKINGSCREEN
-        return BookingScreen(onRideBooked: _selectTab);
-      case 2:
-        return const ActivityScreen();
-      case 3:
-        return const ProfileScreen();
-      default:
-        return const SizedBox();
+      case 0: return _buildHomeScreen();
+      case 1: return BookingScreen(onRideBooked: _selectTab);
+      case 2: return const ActivityScreen();
+      case 3: return const ProfileScreen();
+      default: return const SizedBox();
     }
   }
 
-  // ================= HOME SCREEN MỚI =================
-  // Trong _HomeViewState
-  // ================= HOME SCREEN CẬP NHẬT THÊM BANNER =================
+  // ================= HOME SCREEN (CHÈN THÊM VÍ VÀO ĐÂY) =================
   Widget _buildHomeScreen() {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Ô tìm kiếm/Đặt chuyến nhanh
           _buildBookingSection(),
-          const SizedBox(height: 20), // Giảm khoảng cách
+          const SizedBox(height: 20),
 
-          // 1.5. Banner chào mừng và giới thiệu (MỤC MỚI)
+          // --- MỤC VÍ TIỀN MỚI ---
+          _buildWalletSection(),
+          const SizedBox(height: 20),
+
           _buildWelcomeBanner(),
           const SizedBox(height: 24),
-
-
-          // 2. Nút chuyển hướng đến Hoạt động
           _buildActivityButton(),
           const SizedBox(height: 24),
-
-          // 3. Phần giới thiệu các lợi ích của ứng dụng
           _buildBenefitSection(),
           const SizedBox(height: 24),
-
-          // 4. Các tuyến đường/Điểm đến gợi ý
           _buildDestinationSection(),
           const SizedBox(height: 24),
-
         ],
       ),
     );
   }
 
-  // Trong _HomeViewState
+  // Widget hiển thị Ví tiền và Nút nạp
+  Widget _buildWalletSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.grey.withOpacity(0.1), spreadRadius: 1, blurRadius: 5),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Số dư ví", style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const SizedBox(height: 4),
+              _isLoadingWallet
+                  ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(
+                "${NumberFormat("#,###").format(_walletBalance)} đ",
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+              ),
+            ],
+          ),
+          ElevatedButton.icon(
+            onPressed: _showDepositAmountDialog, // Ấn xác nhận xong mới hiện QR bên trong hàm này
+            icon: const Icon(Icons.add_circle_outline, size: 18),
+            label: const Text("Nạp tiền"),
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  // ================= CÁC WIDGET GIAO DIỆN CŨ CỦA BẠN (GIỮ NGUYÊN 100%) =================
+
   Widget _buildBenefitSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,7 +362,6 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-// Widget con cho từng lợi ích
   Widget _buildBenefitItem({required IconData icon, required String title, required Color color}) {
     return Column(
       children: [
@@ -212,9 +379,7 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-
   Widget _buildDestinationSection() {
-    // Danh sách các điểm đến phổ biến ở miền Bắc
     final northernDestinations = [
       {'city': 'Hà Nội', 'color': Colors.blue.shade100},
       {'city': 'Hải Phòng', 'color': Colors.red.shade100},
@@ -227,12 +392,12 @@ class _HomeViewState extends State<_HomeView> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tuyến đường phổ biến Miền Bắc', // Thay đổi tiêu đề
+          'Tuyến đường phổ biến Miền Bắc',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
         SizedBox(
-          height: 150, // Chiều cao cố định cho các thẻ cuộn ngang
+          height: 150,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: northernDestinations.length,
@@ -252,8 +417,6 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-
-// Widget con cho từng điểm đến
   Widget _buildDestinationCard({required String city, required Color imagePlaceholder}) {
     return Container(
       width: 150,
@@ -270,9 +433,8 @@ class _HomeViewState extends State<_HomeView> {
       ),
       child: InkWell(
         onTap: () {
-          // Xử lý khi người dùng chọn điểm đến (Ví dụ: tự động điền vào form đặt chuyến)
           setState(() {
-            _selectedIndex = 1; // Chuyển sang màn hình đặt chuyến
+            _selectedIndex = 1;
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Chuyển đến màn hình đặt chuyến cho $city')),
@@ -281,13 +443,11 @@ class _HomeViewState extends State<_HomeView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Giả lập hình ảnh
             Container(
               height: 80,
               decoration: BoxDecoration(
                 color: imagePlaceholder,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                // Trong thực tế, bạn sẽ dùng Image.network hoặc Image.asset
               ),
               child: const Center(
                 child: Icon(Icons.location_city, color: Colors.black54),
@@ -302,26 +462,22 @@ class _HomeViewState extends State<_HomeView> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-
           ],
         ),
       ),
     );
   }
 
-
-  // ================= WELCOME BANNER MỚI (PHONG CÁCH HERO/NỔI BẬT) =================
   Widget _buildWelcomeBanner() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25), // Tăng padding
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
       decoration: BoxDecoration(
-        // Sử dụng Gradient nhẹ nhàng để tạo cảm giác sang trọng, nổi bật
         gradient: LinearGradient(
           colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withOpacity(0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16), // Bo góc lớn hơn
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Theme.of(context).primaryColor.withOpacity(0.4),
@@ -337,18 +493,15 @@ class _HomeViewState extends State<_HomeView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 1. Logo (Tăng kích thước và làm tròn)
               ClipRRect(
-                borderRadius: BorderRadius.circular(15.0), // Bo góc lớn hơn
+                borderRadius: BorderRadius.circular(15.0),
                 child: Image.asset(
                   'lib/assets/icons/BeluCar_logo.jpg',
-                  height: 65, // Tăng kích thước
-                  width: 65,  // Tăng kích thước
+                  height: 65,
+                  width: 65,
                   fit: BoxFit.cover,
                 ),
               ),
-
-              // Icon trang trí (tùy chọn)
               const Icon(
                 Icons.directions_bus,
                 color: Colors.white70,
@@ -357,41 +510,33 @@ class _HomeViewState extends State<_HomeView> {
             ],
           ),
           const SizedBox(height: 16),
-
-          // 2. Nội dung Chào mừng
           const Text(
             'BeluCar xin kính chào!',
             style: TextStyle(
-              fontSize: 22, // Chữ lớn hơn
+              fontSize: 22,
               fontWeight: FontWeight.w900,
-              color: Colors.white, // Màu chữ trắng tương phản
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 8),
-
-          // 3. Giới thiệu
           const Text(
             'Hãy bắt đầu hành trình cùng BeluCar! Chúng tôi cam kết mang đến trải nghiệm đặt xe tiện lợi và an toàn nhất khu vực Miền Bắc.',
             style: TextStyle(
               fontSize: 16,
-              color: Colors.white, // Màu chữ trắng nhạt hơn
+              color: Colors.white,
             ),
             maxLines: 4,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 20),
-
-
         ],
       ),
     );
   }
 
-
   Widget _buildBookingSection() {
     return InkWell(
       onTap: () {
-        // Chuyển sang BookingScreen (index 1) khi nhấp vào
         setState(() {
           _selectedIndex = 1;
         });
@@ -401,30 +546,26 @@ class _HomeViewState extends State<_HomeView> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          // Hiệu ứng đổ bóng nổi bật để thu hút sự chú ý
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).primaryColor.withOpacity(0.2), // Màu bóng theo màu chủ đạo
+              color: Theme.of(context).primaryColor.withOpacity(0.2),
               spreadRadius: 2,
               blurRadius: 10,
-              offset: const Offset(0, 4), // Đổ bóng xuống dưới
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Row(
           children: [
-            // Biểu tượng xuất phát
             Icon(
               Icons.location_on,
               color: Theme.of(context).primaryColor,
               size: 28,
             ),
             const SizedBox(width: 16),
-
-            // Văn bản gợi ý
             const Expanded(
               child: Text(
-                'Tìm kiếm chuyến đi...', // Đã thay đổi nội dung
+                'Tìm kiếm chuyến đi...',
                 style: TextStyle(
                     fontSize: 16,
                     color: Colors.black54,
@@ -432,8 +573,6 @@ class _HomeViewState extends State<_HomeView> {
                 ),
               ),
             ),
-
-            // Biểu tượng mũi tên nhỏ gọn
             const Icon(
               Icons.arrow_forward_ios,
               color: Colors.grey,
@@ -450,11 +589,9 @@ class _HomeViewState extends State<_HomeView> {
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: EdgeInsets.zero,
-      // KHÔNG CẦN CONST Ở ĐÂY
       color: Colors.blue.shade50,
       child: InkWell(
         onTap: () {
-          // Chuyển sang ActivityScreen (index 2)
           setState(() {
             _selectedIndex = 2;
           });
@@ -464,24 +601,19 @@ class _HomeViewState extends State<_HomeView> {
           padding: const EdgeInsets.all(16.0),
           child: Row(
             children: [
-              // Icon lớn hơn và nổi bật
               Container(
                 padding: const EdgeInsets.all(10),
-                // KHÔNG CẦN CONST Ở ĐÂY
                 decoration: BoxDecoration(
                   color: Colors.blue.shade200,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon( // Loại bỏ const khỏi Icon
+                child: Icon(
                   Icons.schedule,
-                  // KHÔNG CẦN CONST Ở ĐÂY
-                  color: Colors.blue.shade800, // <--- LỖI ĐƯỢC KHẮC PHỤC
+                  color: Colors.blue.shade800,
                   size: 30,
                 ),
               ),
               const SizedBox(width: 16),
-
-              // Nội dung chính
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,7 +627,6 @@ class _HomeViewState extends State<_HomeView> {
                       ),
                     ),
                     SizedBox(height: 4),
-                    // Chú thích chi tiết hơn
                     Text(
                       'Theo dõi các chuyến đang chờ tài xế và xem lại lịch sử chuyến đi của bạn.',
                       style: TextStyle(
@@ -509,8 +640,6 @@ class _HomeViewState extends State<_HomeView> {
                 ),
               ),
               const SizedBox(width: 10),
-
-              // Icon mũi tên
               const Icon(Icons.arrow_forward_ios, color: Colors.blue, size: 18),
             ],
           ),
@@ -518,6 +647,4 @@ class _HomeViewState extends State<_HomeView> {
       ),
     );
   }
-
-
 }

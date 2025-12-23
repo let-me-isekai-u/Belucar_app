@@ -209,17 +209,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                 const SizedBox(height: 10),
 
-                // 3. Slogan
-                Text(
-                  "Save tiền đi chơi, đừng save tiền đi xe",
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium!.copyWith( // Dùng titleMedium
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.9), // Giảm độ trong suốt nhẹ
-                    fontStyle: FontStyle.italic,
-                    letterSpacing: 0.8,
-                  ),
-                ),
+
 
                 // Spacer ở giữa (đẩy Indicator xuống dưới)
                 const Spacer(),

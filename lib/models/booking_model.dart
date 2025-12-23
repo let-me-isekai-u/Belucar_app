@@ -30,7 +30,7 @@ class BookingModel extends ChangeNotifier {
   }
 
   // ================== PHƯƠNG THỨC THANH TOÁN ==================
-  // 1: Chuyển khoản | 2: Thanh toán sau (tiền mặt)
+  // 1: Chuyển khoản | 2: Thanh toán bằng ví | 3: Tiền mặt (Thanh toán sau)
   int _paymentMethod = 3;
   int get paymentMethod => _paymentMethod;
 
@@ -171,35 +171,44 @@ class BookingModel extends ChangeNotifier {
   }
 
   // =====================================================
-  // 13. TẠO CHUYẾN (ĐÃ TRUYỀN paymentMethod)
+  // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
   // =====================================================
-  Future<Map<String, dynamic>> createRide(String token) async {
+  Future<Map<String, dynamic>> createRide(String accessToken, {String content = ""}) async {
     if (currentTripId == null) {
       throw Exception("Chưa có giá chuyến đi");
     }
 
+    // Kết hợp ngày và giờ thành chuỗi ISO
+    final String pickupDateTime = DateTime(
+      goDate!.year,
+      goDate!.month,
+      goDate!.day,
+      goTime!.hour,
+      goTime!.minute,
+    ).toIso8601String();
+
     final res = await ApiService.createRide(
-      accessToken: token,
+      accessToken: accessToken,
       tripId: currentTripId!,
       fromDistrictId: int.parse(selectedDistrictPickup!),
       toDistrictId: int.parse(selectedDistrictDrop!),
       fromAddress: addressPickup ?? "",
       toAddress: addressDrop ?? "",
       customerPhone: customerPhone ?? "",
-      pickupTime: DateTime(
-        goDate!.year,
-        goDate!.month,
-        goDate!.day,
-        goTime!.hour,
-        goTime!.minute,
-      ).toIso8601String(),
+      pickupTime: pickupDateTime,
       note: note ?? "",
-      paymentMethod: _paymentMethod, // ✅ BỔ SUNG
+      paymentMethod: _paymentMethod,
+      content: content, // ✅ Truyền content nhận từ UI vào đây
     );
 
-    return Map<String, dynamic>.from(
-      ApiService.safeDecode(res.body),
-    );
+    final data = ApiService.safeDecode(res.body);
+
+    // Kiểm tra lỗi từ backend (ví dụ: "Chưa chuyển khoản thành công!")
+    if (res.statusCode != 200 || data['success'] == false) {
+      throw data['message'] ?? "Lỗi không xác định khi tạo chuyến";
+    }
+
+    return Map<String, dynamic>.from(data);
   }
 
   // =====================================================

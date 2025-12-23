@@ -4,6 +4,7 @@ import '../models/booking_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'activity_screen.dart';
+import 'dart:async';
 
 class BookingScreen extends StatelessWidget {
   final Function(int) onRideBooked;
@@ -37,46 +38,106 @@ class _BookingViewState extends State<_BookingView> {
     _noteController.clear();
   }
 
-  // Tìm dòng này: class _BookingViewState extends State<_BookingView> {
-// Và chèn đoạn code dưới đây ngay sau các khai báo Controller:
+void _handlePaymentMethodChange(BookingModel model, int? value){
+    if(value == null) return;
+    model.paymentMethod = value;
+}
 
-  void _handlePaymentMethodChange(BookingModel model, int? value) {
-    if (value == null) return;
+  void _showPaymentQR(BookingModel model, String accessToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    final id = prefs.getInt("id") ?? 0;
+    // Nội dung chuyển khoản đồng nhất với Home
+    final String content = "$id${DateFormat('HHmmss').format(DateTime.now())}";
 
-    // Nếu chọn Chuyển khoản (1) hoặc Ví (2)
-    if (value == 1 || value == 2) {
-      showDialog(
-        context: context,
-        barrierDismissible: false, // Người dùng phải bấm nút mới đóng được
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.blue),
-              SizedBox(width: 10),
-              Text("Thông báo"),
-            ],
-          ),
-          content: const Text(
-            "Tính năng này còn đang trong quá trình phát triển. Vui lòng chọn phương thức thanh toán trả sau.\n\nXin lỗi vì sự bất tiện này!",
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // Sau khi đóng thông báo, tự động đưa lựa chọn về Thanh toán sau (3)
-                model.paymentMethod = 3;
-              },
-              child: const Text("ĐÃ HIỂU", style: TextStyle(fontWeight: FontWeight.bold)),
+    final qrUrl = "https://img.vietqr.io/image/MB-246878888-compact2.png"
+        "?amount=${model.tripPrice!.toStringAsFixed(0)}&addInfo=$content&accountName=THE%20BELUGAS";
+
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        Timer? pollTimer;
+        bool isChecking = false;
+
+        return StatefulBuilder(builder: (ctx, setDialogState) {
+          // Cứ mỗi 7 giây gọi API createRide một lần
+          pollTimer ??= Timer.periodic(const Duration(seconds: 7), (t) async {
+            if (isChecking) return;
+            isChecking = true;
+
+            try {
+              // Gọi trực tiếp createRide, nếu tiền chưa về Server sẽ trả lỗi
+              // và logic try-catch sẽ bắt lại để đợi lần poll tiếp theo.
+              final result = await model.createRide(accessToken, content: content);
+
+              if (result['success'] == true) {
+                t.cancel();
+                if (dialogCtx.mounted) {
+                  Navigator.pop(dialogCtx); // Đóng mã QR
+                  widget.onRideBooked(2);   // Chuyển sang tab Hoạt động
+                }
+              }
+            } catch (e) {
+              // Khi tiền chưa về, Model sẽ throw error, chúng ta im lặng để nó poll tiếp
+              print("Đang đợi thanh toán... $e");
+            }
+            isChecking = false;
+          });
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("Thanh toán chuyến đi",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  const SizedBox(height: 15),
+                  Image.network(qrUrl),
+                  const SizedBox(height: 15),
+                  const Text("Nội dung chuyển khoản:"),
+                  Text(content,
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 18)),
+                  const SizedBox(height: 15),
+                  const Text(
+                    "Hệ thống đang kiểm tra tự động...\nVui lòng giữ màn hình này.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () {
+                      pollTimer?.cancel();
+                      Navigator.pop(dialogCtx);
+                    },
+                    child: const Text("Hủy giao dịch"),
+                  )
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        });
+      },
+    );
+  }
+
+  Future<void> _handleDirectBooking(BookingModel model, String accessToken) async {
+    try {
+      // Gọi API createRide bình thường (content mặc định rỗng)
+      final result = await model.createRide(accessToken);
+      if (result['success'] == true) {
+        widget.onRideBooked(2); // Chuyển sang tab Hoạt động
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
       );
-    } else {
-      // Nếu chọn Thanh toán sau (3) thì cập nhật bình thường
-      model.paymentMethod = value;
     }
   }
+
 
   bool _validateBeforeBooking(BookingModel model) {
     if (model.tripCategory == null) return false;
@@ -131,6 +192,30 @@ class _BookingViewState extends State<_BookingView> {
     );
   }
 
+  //hiện qr
+  void _showConfirmPaymentDialog(BookingModel model, String accessToken) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Xác nhận thông tin"),
+        content: const Text(
+            "Bạn đã kiểm tra kỹ thông tin chuyến đi chưa?\n\n"
+                "⚠️ Lưu ý: KHÔNG tắt ứng dụng hoặc đóng mã QR cho đến khi hệ thống báo thành công."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              // SỬA TẠI ĐÂY: Truyền accessToken vào
+              _showPaymentQR(model, accessToken);
+            },
+            child: const Text("Xác nhận & Hiện QR"),
+          ),
+        ],
+      ),
+    );
+  }
+
   //GIÁ VÀ NÚT ĐẶT CHUYẾN (STICKY BOTTOM BAR)
   Widget _buildPriceAndBookingButton(BookingModel model, BuildContext context) {
     return Container(
@@ -149,7 +234,7 @@ class _BookingViewState extends State<_BookingView> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Hiển thị GIÁ
+          // --- HIỂN THỊ GIÁ ---
           if (model.isLoadingPrice)
             const Center(
               child: Row(
@@ -168,7 +253,7 @@ class _BookingViewState extends State<_BookingView> {
           else if (model.tripPrice != null)
             Text(
               "Tổng chi phí: ${formatCurrency(model.tripPrice!)}",
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.green,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -176,51 +261,51 @@ class _BookingViewState extends State<_BookingView> {
             )
           else
             const Text(
-              "Vui lòng chọn Điểm đi và Điểm đến",
+              "Vui lòng chọn đầy đủ lộ trình",
               style: TextStyle(fontSize: 14, color: Colors.red),
             ),
           const SizedBox(height: 12),
 
-          // Nút ĐẶT CHUYẾN
+          // --- NÚT ĐẶT CHUYẾN ---
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
+                // 1. Kiểm tra thông tin bắt buộc
                 if (!_validateBeforeBooking(model)) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        'Vui lòng nhập đầy đủ thông tin bắt buộc',
-                              ),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                              ),
-                               );
-                      return;
+                    const SnackBar(
+                      content: Text('Vui lòng nhập đầy đủ thông tin bắt buộc'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  return;
                 }
 
-    model.customerPhone = _phoneController.text.trim();
-    model.note = _noteController.text.trim(); // optional
+                // 2. Lấy accessToken từ SharedPreferences
+                final accessToken = await _getAccessToken();
+                if (accessToken == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Bạn chưa đăng nhập')),
+                  );
+                  return;
+                }
 
-    final token = await _getAccessToken();
-    if (token == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Bạn chưa đăng nhập')),
-    );
-    return;
-    }
+                // 3. Cập nhật dữ liệu từ Controller vào Model
+                model.customerPhone = _phoneController.text.trim();
+                model.note = _noteController.text.trim();
 
-    try {
-    await model.createRide(token);
-    widget.onRideBooked(2);
-    } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Lỗi đặt chuyến: $e')),
-    );
-    }
-    },
-
-    style: ElevatedButton.styleFrom(
+                // 4. PHÂN NHÁNH THANH TOÁN
+                if (model.paymentMethod == 1) {
+                  // CHUYỂN KHOẢN: Hiện xác nhận -> Hiện QR & Polling
+                  _showConfirmPaymentDialog(model, accessToken);
+                } else {
+                  // VÍ HOẶC TIỀN MẶT: Gọi API trực tiếp
+                  _handleDirectBooking(model, accessToken);
+                }
+              },
+              style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -238,6 +323,8 @@ class _BookingViewState extends State<_BookingView> {
       ),
     );
   }
+
+
 
 
   Widget _buildSectionCard({
