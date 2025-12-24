@@ -265,8 +265,8 @@ class OrderDetailScreen extends StatelessWidget {
             _routePoint(
               icon: Icons.circle,
               color: Colors.green,
-              title: trip.fromAddress, // 🔥 ĐÃ SỬ DỤNG fromAddress
-              address: "${trip.fromProvince}, ${trip.fromDistrict}", // 🔥 Địa chỉ phụ
+              title: trip.fromProvince,
+              address: "${trip.fromAddress}"
             ),
 
             // Dấu chấm/đường kẻ
@@ -282,8 +282,8 @@ class OrderDetailScreen extends StatelessWidget {
             _routePoint(
               icon: Icons.location_on,
               color: Colors.red,
-              title: trip.toAddress, // 🔥 ĐÃ SỬ DỤNG toAddress
-              address: "${trip.toProvince}, ${trip.toDistrict}", // 🔥 Địa chỉ phụ
+              title: trip.toProvince,
+              address: "${trip.toAddress}"
             ),
           ],
         ),

@@ -51,17 +51,14 @@ class BookingModel extends ChangeNotifier {
 
   // ================== DANH SÁCH ==================
   List<dynamic> provinces = [];
-  List<dynamic> districtsPickup = [];
-  List<dynamic> districtsDrop = [];
+
 
   // ================== ĐIỂM ĐÓN ==================
   String? selectedProvincePickup;
-  String? selectedDistrictPickup;
   String? addressPickup;
 
   // ================== ĐIỂM ĐẾN ==================
   String? selectedProvinceDrop;
-  String? selectedDistrictDrop;
   String? addressDrop;
 
   // ================== THÔNG TIN KHÁCH ==================
@@ -103,20 +100,7 @@ class BookingModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchDistricts(String? provinceId, bool isPickup) async {
-    if (provinceId == null) return;
-    final id = int.tryParse(provinceId);
-    if (id == null) return;
 
-    final list = await ApiService.getDistricts(id);
-
-    if (isPickup) {
-      districtsPickup = list;
-    } else {
-      districtsDrop = list;
-    }
-    notifyListeners();
-  }
 
   // =====================================================
   // MAP UI → TYPE API
@@ -190,15 +174,13 @@ class BookingModel extends ChangeNotifier {
     final res = await ApiService.createRide(
       accessToken: accessToken,
       tripId: currentTripId!,
-      fromDistrictId: int.parse(selectedDistrictPickup!),
-      toDistrictId: int.parse(selectedDistrictDrop!),
       fromAddress: addressPickup ?? "",
       toAddress: addressDrop ?? "",
       customerPhone: customerPhone ?? "",
       pickupTime: pickupDateTime,
       note: note ?? "",
       paymentMethod: _paymentMethod,
-      content: content, // ✅ Truyền content nhận từ UI vào đây
+      content: content,
     );
 
     final data = ApiService.safeDecode(res.body);
@@ -222,10 +204,8 @@ class BookingModel extends ChangeNotifier {
     _paymentMethod = 3;
 
     selectedProvincePickup = null;
-    selectedDistrictPickup = null;
     addressPickup = null;
     selectedProvinceDrop = null;
-    selectedDistrictDrop = null;
     addressDrop = null;
 
     goDate = null;
@@ -235,8 +215,6 @@ class BookingModel extends ChangeNotifier {
     tripPrice = null;
     currentTripId = null;
 
-    districtsPickup = [];
-    districtsDrop = [];
 
     notifyListeners();
   }

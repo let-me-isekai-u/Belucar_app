@@ -143,13 +143,11 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
     if (model.tripCategory == null) return false;
 
     if (model.selectedProvincePickup == null ||
-        model.selectedDistrictPickup == null ||
         (model.addressPickup == null || model.addressPickup!.trim().isEmpty)) {
       return false;
     }
 
     if (model.selectedProvinceDrop == null ||
-        model.selectedDistrictDrop == null ||
         (model.addressDrop == null || model.addressDrop!.trim().isEmpty)) {
       return false;
     }
@@ -359,6 +357,8 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
     );
   }
 
+
+  //hàm chọn điểm đi, điểm đến và thời điểm đón
   Widget _buildLocationSection(BookingModel model) {
     return _buildSectionCard(
       title: "Điểm Đi và Điểm Đến",
@@ -374,19 +374,10 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
             value: model.selectedProvincePickup,
             onChanged: (v) {
               model.selectedProvincePickup = v;
-              model.selectedDistrictPickup = null;
-              model.fetchDistricts(v, true);
               model.fetchTripPrice();
             },
           ),
-          districtDropdown: _districtDropdown(
-            districts: model.districtsPickup,
-            value: model.selectedDistrictPickup,
-            onChanged: (v) {
-              model.selectedDistrictPickup = v;
-              model.notifyListeners();
-            },
-          ),
+
           addressField: TextField(
             decoration: const InputDecoration(
               labelText: "Địa chỉ chi tiết (Số nhà, đường...)",
@@ -396,6 +387,16 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
             onChanged: (v) => model.addressPickup = v,
           ),
         ),
+        const SizedBox(height: 20),
+
+        _buildSectionCard(
+          title: "Ngày & Giờ Đón",
+          icon: Icons.calendar_today,
+          children: [
+            _dateTimePicker(model),
+          ],
+        ),
+        const SizedBox(height: 25),
 
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
@@ -412,19 +413,11 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
             value: model.selectedProvinceDrop,
             onChanged: (v) {
               model.selectedProvinceDrop = v;
-              model.selectedDistrictDrop = null;
-              model.fetchDistricts(v, false);
+
               model.fetchTripPrice();
             },
           ),
-          districtDropdown: _districtDropdown(
-            districts: model.districtsDrop,
-            value: model.selectedDistrictDrop,
-            onChanged: (v) {
-              model.selectedDistrictDrop = v;
-              model.notifyListeners();
-            },
-          ),
+
           addressField: TextField(
             decoration: const InputDecoration(
               labelText: "Địa chỉ chi tiết (Số nhà, đường...)",
@@ -444,7 +437,6 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
     required IconData icon,
     required Color color,
     required Widget provinceDropdown,
-    required Widget districtDropdown,
     required Widget addressField,
   }) {
     return Column(
@@ -466,8 +458,6 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
         ),
         const SizedBox(height: 8),
         provinceDropdown,
-        const SizedBox(height: 8),
-        districtDropdown,
         const SizedBox(height: 8),
         addressField,
       ],
@@ -566,14 +556,7 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
         const SizedBox(height: 16),
 
         // 3. Ngày giờ đón
-        _buildSectionCard(
-          title: "Ngày & Giờ Đón",
-          icon: Icons.calendar_today,
-          children: [
-            _dateTimePicker(model),
-          ],
-        ),
-        const SizedBox(height: 16),
+
 
         // 4. Thông tin liên hệ và Ghi chú
         _buildSectionCard(
@@ -632,28 +615,7 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
     );
   }
 
-  Widget _districtDropdown({
-    required List<dynamic> districts,
-    required String? value,
-    required void Function(String?) onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      items: districts
-          .map((d) => DropdownMenuItem(
-        value: d["id"].toString(),
-        child: Text(d["name"]),
-      ))
-          .toList(),
-      onChanged: onChanged,
-      decoration: const InputDecoration(
-        labelText: "Quận / Huyện",
-        border: OutlineInputBorder(),
-        isDense: true, // Làm gọn chiều cao
-        prefixIcon: Icon(Icons.pin_drop, size: 20),
-      ),
-    );
-  }
+
 
 // Cập nhật _dateField và _timeField để hiển thị Icon
   Widget _dateField({

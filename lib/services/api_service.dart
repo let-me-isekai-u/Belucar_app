@@ -328,33 +328,6 @@ class ApiService {
   }
 
 
-// =============================
-// Lấy danh sách Huyện theo tỉnh
-// =============================
-  static Future<List<dynamic>> getDistricts(int provinceId) async {
-    final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/provinceapi/district/$provinceId",
-    );
-
-    try {
-      final response = await http.get(url).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List) {
-          return data;
-        }
-      }
-
-      print(
-          "⚠️ getDistricts(): Unexpected response ${response.statusCode} for provinceId=$provinceId");
-      return [];
-    } catch (e) {
-      print("🔥 getDistricts() ERROR for provinceId=$provinceId: $e");
-      return [];
-    }
-  }
-
   //Lấy giá (12)
   static Future<http.Response> getTripPrice({
     required int fromProvinceId,
@@ -392,8 +365,6 @@ class ApiService {
   static Future<http.Response> createRide({
     required String accessToken,
     required int tripId,
-    required int fromDistrictId,
-    required int toDistrictId,
     required String fromAddress,
     required String toAddress,
     required String customerPhone,
@@ -409,8 +380,6 @@ class ApiService {
     // --- LỖI TẠI ĐÂY TRƯỚC ĐÓ: Bạn không được khai báo 'String content = ""' bên trong Map ---
     final body = jsonEncode({
       "tripId": tripId,
-      "fromDistrictId": fromDistrictId,
-      "toDistrictId": toDistrictId,
       "fromAddress": fromAddress,
       "toAddress": toAddress,
       "customerPhone": customerPhone,
