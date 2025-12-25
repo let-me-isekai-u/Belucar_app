@@ -55,19 +55,23 @@ class ApiService {
     final url = Uri.parse("$_baseUrl/customer/login");
 
     try {
+      // Build body đúng theo tài liệu API
       final body = jsonEncode({
         "phone": phone,
         "password": password,
         "deviceToken": deviceToken,
       });
 
+      // Thực hiện gọi POST
       return await http
           .post(url, headers: _defaultHeaders(), body: body)
           .timeout(const Duration(seconds: 20));
     } catch (e) {
-      return _errorResponse(e);
+      // Trả về một Response lỗi giả lập nếu có sự cố kết nối để tránh Crash App
+      return http.Response(jsonEncode({"message": "Lỗi kết nối mạng: $e"}), 500);
     }
   }
+
 
   // -----------------------------------------------------------
   // 2️⃣ LOGOUT

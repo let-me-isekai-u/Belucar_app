@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Bổ sung import
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'screens/beluca_home_screen.dart';
 import 'app_theme.dart';
 import 'screens/login_screen.dart';
-import 'Screens/splash_screen.dart';
+import 'screens/splash_screen.dart';
+import 'services/firebase_notification_service.dart';
 
-
-void main() async { // THÊM TỪ KHÓA ASYNC
-
-  // 1. Đảm bảo Flutter Widgets đã được khởi tạo
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Khởi tạo Shared Preferences để đảm bảo có thể đọc token ngay lập tức
-  // Đây là bước quan trọng để fix lỗi tiềm ẩn khi đọc token trên Splash Screen
+  // Khởi tạo firebase
+  await Firebase.initializeApp();
+
+  FirebaseMessaging.onBackgroundMessage(
+    FirebaseNotificationService.firebaseMessagingBackgroundHandler,
+  );
+
+  await FirebaseNotificationService.init();
   await SharedPreferences.getInstance();
 
   runApp(const BelucarApp());
@@ -25,16 +32,14 @@ class BelucarApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      initialRoute: "/splash", // Luôn bắt đầu từ Splash Screen
-
+      title: 'BeluCar',
+      theme: AppTheme.theme,
+      initialRoute: "/splash",
       routes: {
         "/splash": (_) => const SplashScreen(),
         "/login": (_) => const LoginScreen(),
         "/home": (_) => const HomeScreen(),
       },
-      // title: 'BeluCar',
-      theme: AppTheme.theme,
-      // home: const SplashScreen(), // Đã chuyển sang initialRoute
     );
   }
 }

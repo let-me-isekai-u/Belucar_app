@@ -5,6 +5,7 @@ import 'forgot_password_screen.dart';
 import 'dart:convert';
 import '../services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/firebase_notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -60,13 +61,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     setState(() => _isLoading = true);
 
-    // DeviceToken -> nếu bạn chưa có thì để tạm ""
-    final deviceToken = "";
+    //gửi device token cho server
+    String? deviceToken = await FirebaseNotificationService.getDeviceToken();
+    final String tokenToSend = deviceToken ?? "";
 
     final res = await ApiService.customerLogin(
       phone: phone,
       password: password,
-      deviceToken: deviceToken,
+      deviceToken: tokenToSend,
     );
 
     setState(() => _isLoading = false);

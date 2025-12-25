@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "650187264006",
+    "project_id": "belucar-beludriver",
+    "storage_bucket": "belucar-beludriver.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:650187264006:android:64bf264f7458eb5ae1b387",
+        "android_client_info": {
+          "package_name": "com.belucar.beluga"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKYzm4gNuko9s1vdMYTg9nfLSCVh9vMhA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
