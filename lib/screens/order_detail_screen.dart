@@ -42,28 +42,6 @@ class OrderDetailScreen extends StatelessWidget {
     return TripDetailModel.fromJson(data);
   }
 
-  // API 17: Huỷ chuyến đi
-  // Future<void> _cancelTrip(BuildContext context) async {
-  //   final token = await _getAccessToken();
-  //   if (token == null) return;
-  //
-  //   try {
-  //     await ApiService.cancelTrip(
-  //       accessToken: token,
-  //       rideId: rideId,
-  //     );
-  //
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text("Huỷ chuyến thành công")),
-  //     );
-  //
-  //     Navigator.pop(context);
-  //   } catch (e) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text(e.toString())),
-  //     );
-  //   }
-  // }
 
   // ===== HELPER =====
 
@@ -94,34 +72,6 @@ class OrderDetailScreen extends StatelessWidget {
     return '$_baseUrl$avatar';
   }
 
-  // void _confirmCancelTrip(BuildContext context) {
-  //   showDialog(
-  //     context: context,
-  //     builder: (context) => AlertDialog(
-  //       title: const Text("Xác nhận huỷ chuyến"),
-  //       content: const Text(
-  //         "Bạn có chắc chắn muốn huỷ chuyến đi này không?\n"
-  //             "Hành động này không thể hoàn tác.",
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.pop(context),
-  //           child: const Text("Không"),
-  //         ),
-  //         TextButton(
-  //           onPressed: () {
-  //             Navigator.pop(context);
-  //             _cancelTrip(context);
-  //           },
-  //           child: const Text(
-  //             "Huỷ chuyến",
-  //             style: TextStyle(color: Colors.red),
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
 
   // ===== UI =====
 
@@ -159,6 +109,10 @@ class OrderDetailScreen extends StatelessWidget {
               children: [
                 // 1. TRẠNG THÁI VÀ GIÁ (Khối nổi bật)
                 _buildStatusAndPriceCard(context, trip),
+
+                const SizedBox(height: 20),
+                //Phươnh thức thanh toán
+                _buildPaymentMethodCard(trip),
 
                 const SizedBox(height: 20),
 
@@ -263,10 +217,10 @@ class OrderDetailScreen extends StatelessWidget {
 
             // Điểm đón
             _routePoint(
-              icon: Icons.circle,
-              color: Colors.green,
-              title: trip.fromProvince,
-              address: "${trip.fromAddress}"
+                icon: Icons.circle,
+                color: Colors.green,
+                title: trip.fromProvince,
+                address: "${trip.fromAddress}"
             ),
 
             // Dấu chấm/đường kẻ
@@ -280,10 +234,10 @@ class OrderDetailScreen extends StatelessWidget {
 
             // Điểm đến
             _routePoint(
-              icon: Icons.location_on,
-              color: Colors.red,
-              title: trip.toProvince,
-              address: "${trip.toAddress}"
+                icon: Icons.location_on,
+                color: Colors.red,
+                title: trip.toProvince,
+                address: "${trip.toAddress}"
             ),
           ],
         ),
@@ -477,4 +431,50 @@ class OrderDetailScreen extends StatelessWidget {
       ),
     );
   }
+
+  //phương thức thanh toán
+  Widget _buildPaymentMethodCard(TripDetailModel trip) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.account_balance_wallet),
+            const SizedBox(width: 12),
+
+            /// Expanded để text KHÔNG BAO GIỜ overflow
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Phương thức thanh toán",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    trip.paymentMethod,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
 }
