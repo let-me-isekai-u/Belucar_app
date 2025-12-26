@@ -53,10 +53,12 @@ class _ActivityScreenState extends State<ActivityScreen>
       case 1:
         return "Đang chờ tài xế";
       case 2:
-        return "Đang thực hiện chuyến đi";
+        return "đã có tài xế";
       case 3:
-        return "Đã đến nơi";
+        return "đang di chuyển";
       case 4:
+        return "Đã đến nơi";
+      case 5:
         return "Đã huỷ";
       default:
         return "Có lỗi, vui lòng thử lại";
@@ -437,7 +439,7 @@ class _ActivityScreenState extends State<ActivityScreen>
                     trailing: Text(
                       _getStatusText(trip.status),
                       style: TextStyle(
-                        color: trip.status == 3
+                        color: trip.status == 4
                             ? Colors.green
                             : Colors.red,
                         fontWeight: FontWeight.bold,

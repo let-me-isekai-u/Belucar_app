@@ -28,6 +28,7 @@ class OrderDetailScreen extends StatelessWidget {
     );
     return formatter.format(value);
   }
+
   Future<TripDetailModel> _fetchTripDetail() async {
     final token = await _getAccessToken();
     if (token == null) {
@@ -50,10 +51,12 @@ class OrderDetailScreen extends StatelessWidget {
       case 1:
         return "Đang tìm tài xế";
       case 2:
-        return "Đang thực hiện chuyến đi";
+        return "đã tìm thấy tài xế";
       case 3:
-        return "Hoàn thành";
+        return "Đang di chuyển";
       case 4:
+        return "Hoàn thành";
+      case 5:
         return "Đã huỷ";
       default:
         return "Không xác định";
@@ -61,8 +64,8 @@ class OrderDetailScreen extends StatelessWidget {
   }
 
   Color _statusColor(int status) {
-    if (status == 1 || status == 2) return Colors.blue;
-    if (status == 3) return Colors.green;
+    if (status == 1 || status == 2 || status == 3) return Colors.blue;
+    if (status == 4) return Colors.green;
     return Colors.red;
   }
 
@@ -107,7 +110,7 @@ class OrderDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. TRẠNG THÁI VÀ GIÁ (Khối nổi bật)
+                // 1. TRẠNG THÁI VÀ GIÁ, mã chuyến đi (Khối nổi bật)
                 _buildStatusAndPriceCard(context, trip),
 
                 const SizedBox(height: 20),
@@ -145,6 +148,7 @@ class OrderDetailScreen extends StatelessWidget {
 // 1. TRẠNG THÁI VÀ GIÁ (Khối nổi bật)
   Widget _buildStatusAndPriceCard(BuildContext context, TripDetailModel trip) {
     final statusColor = _statusColor(trip.status);
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -153,15 +157,27 @@ class OrderDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // MÃ CHUYẾN
+            Text(
+              "Mã chuyến: ${trip.code}",
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
             // TRẠNG THÁI
             Row(
               children: [
                 Icon(
                   Icons.check_circle_outline,
                   color: statusColor,
-                  size: 28,
+                  size: 26,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Text(
                   _statusText(trip.status),
                   style: TextStyle(
@@ -172,7 +188,8 @@ class OrderDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const Divider(height: 25),
+
+            const Divider(height: 28),
 
             // GIÁ TIỀN
             Row(
@@ -187,7 +204,6 @@ class OrderDetailScreen extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black,
                   ),
                 ),
               ],
@@ -198,8 +214,8 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
+
 // 2. TUYẾN ĐƯỜNG (Từ - Đến)
-  // 2. TUYẾN ĐƯỜNG (Từ - Đến)
   Widget _buildRouteCard(BuildContext context, TripDetailModel trip) {
     return Card(
       elevation: 2,
@@ -475,6 +491,8 @@ class OrderDetailScreen extends StatelessWidget {
       ),
     );
   }
+
+
 
 
 }
