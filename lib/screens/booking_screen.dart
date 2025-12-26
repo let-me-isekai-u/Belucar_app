@@ -380,7 +380,7 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
 
           addressField: TextField(
             decoration: const InputDecoration(
-              labelText: "Địa chỉ chi tiết (Số nhà, đường...)",
+              labelText: "Số nhà, xã/phường, quận/huyện",
               border: OutlineInputBorder(),
               isDense: true,
             ),
@@ -420,7 +420,7 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
 
           addressField: TextField(
             decoration: const InputDecoration(
-              labelText: "Địa chỉ chi tiết (Số nhà, đường...)",
+              labelText: "Số nhà, xã/phường, quận/huyện",
               border: OutlineInputBorder(),
               isDense: true,
             ),
@@ -466,129 +466,168 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
 
   // ================= BOOKING FORM =================
   Widget _buildBookingForm(BookingModel model) {
+    const compactDensity = VisualDensity(vertical: -4);
+
+    const radioTextStyle = TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w500,
+    );
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // 1. Loại chuyến (Đã được bọc trong Card)
-        _buildSectionCard(
-          title: "Chọn Loại Chuyến",
-          icon: Icons.directions_car,
-          children: [
-            RadioListTile<TripCategory>(
-              value: TripCategory.choNguoi,
-              groupValue: model.tripCategory,
-              title: const Text("Chở người"),
-              onChanged: (v) {
-                if (v != null) {
-                  model.setTripCategory(v);
-                  model.fetchTripPrice();
-                }
-              },
-            ),
-            RadioListTile<TripCategory>(
-              value: TripCategory.choHang,
-              groupValue: model.tripCategory,
-              title: const Text("Giao hàng"),
-              onChanged: (v) {
-                if (v != null) {
-                  model.setTripCategory(v);
-                  model.fetchTripPrice();
-                }
-              },
-            ),
-            // Các tùy chọn nâng cao
-            if (model.isChoNguoi)
-              CheckboxListTile(
-                value: model.isBaoXe,
-                title: const Text("Bao trọn chuyến xe"),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Loại chuyến
+          _buildSectionCard(
+            title: "Chọn Loại Chuyến",
+            icon: Icons.directions_car,
+            children: [
+              RadioListTile<TripCategory>(
+                dense: true,
+                visualDensity: compactDensity,
+                contentPadding: EdgeInsets.zero,
+                value: TripCategory.choNguoi,
+                groupValue: model.tripCategory,
+                title: const Text("Chở người", style: radioTextStyle),
                 onChanged: (v) {
-                  model.setIsBaoXe(v ?? false);
-                  model.fetchTripPrice();
+                  if (v != null) {
+                    model.setTripCategory(v);
+                    model.fetchTripPrice();
+                  }
                 },
               ),
-            if (!model.isChoNguoi)
-              CheckboxListTile(
-                value: model.isHoaToc,
-                title: const Text("Giao Hỏa tốc (Thêm phí)"),
+              RadioListTile<TripCategory>(
+                dense: true,
+                visualDensity: compactDensity,
+                contentPadding: EdgeInsets.zero,
+                value: TripCategory.choHang,
+                groupValue: model.tripCategory,
+                title: const Text("Giao hàng", style: radioTextStyle),
                 onChanged: (v) {
-                  model.setIsHoaToc(v ?? false);
-                  model.fetchTripPrice();
+                  if (v != null) {
+                    model.setTripCategory(v);
+                    model.fetchTripPrice();
+                  }
                 },
               ),
-          ],
-        ),
-        const SizedBox(height: 16),
 
-        _buildSectionCard(
-          title: "Phương thức thanh toán",
-          icon: Icons.payments_outlined,
-          children: [
-            RadioListTile<int>(
-              value: 1,
-              groupValue: model.paymentMethod,
-              title: const Text("Chuyển khoản (Giảm giá)"),
-              subtitle: const Text("Thanh toán trước qua ngân hàng"),
-              secondary: const Icon(Icons.account_balance, color: Colors.blue),
-              onChanged: (v) => _handlePaymentMethodChange(model, v),
-            ),
-            RadioListTile<int>(
-              value: 2,
-              groupValue: model.paymentMethod,
-              title: const Text("Thanh toán bằng ví"),
-              subtitle: const Text("Thanh toán trước thông qua số dư của ví"),
-              secondary: const Icon(Icons.wallet_giftcard, color: Colors.green),
-              onChanged: (v) => _handlePaymentMethodChange(model, v),
-            ),
-            RadioListTile<int>(
-              value: 3,
-              groupValue: model.paymentMethod,
-              title: const Text("Thanh toán sau"),
-              subtitle: const Text("Trả tiền mặt trực tiếp cho tài xế"),
-              secondary: const Icon(Icons.person_outline, color: Colors.orange),
-              onChanged: (v) => _handlePaymentMethodChange(model, v),
-            ),
+              if (model.isChoNguoi)
+                CheckboxListTile(
+                  dense: true,
+                  visualDensity: compactDensity,
+                  contentPadding: EdgeInsets.zero,
+                  value: model.isBaoXe,
+                  title: const Text("Bao trọn chuyến xe", style: radioTextStyle),
+                  onChanged: (v) {
+                    model.setIsBaoXe(v ?? false);
+                    model.fetchTripPrice();
+                  },
+                ),
 
-          ],
-        ),
+              if (!model.isChoNguoi)
+                CheckboxListTile(
+                  dense: true,
+                  visualDensity: compactDensity,
+                  contentPadding: EdgeInsets.zero,
+                  value: model.isHoaToc,
+                  title: const Text(
+                    "Giao Hỏa tốc (Thêm phí)",
+                    style: radioTextStyle,
+                  ),
+                  onChanged: (v) {
+                    model.setIsHoaToc(v ?? false);
+                    model.fetchTripPrice();
+                  },
+                ),
+            ],
+          ),
 
-        // 2. Điểm đón và Điểm đến (Sử dụng widget trực quan hơn)
-        _buildLocationSection(model),
-        const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
-        // 3. Ngày giờ đón
+          // 2. Điểm đón & đến
+          _buildLocationSection(model),
+          const SizedBox(height: 16),
 
-
-        // 4. Thông tin liên hệ và Ghi chú
-        _buildSectionCard(
-          title: "Thông tin Khách hàng & Ghi chú",
-          icon: Icons.person_pin,
-          children: [
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone, // Thêm keyboard type
-              decoration: const InputDecoration(
-                labelText: "Số điện thoại liên hệ",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.phone),
+          // 3. Thông tin KH & ghi chú
+          _buildSectionCard(
+            title: "Thông tin Khách hàng & Ghi chú",
+            icon: Icons.person_pin,
+            children: [
+              TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: "Số điện thoại liên hệ",
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.phone),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _noteController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: "Ghi chú cho tài xế (VD: Mã bưu kiện, số người)",
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+              const SizedBox(height: 8),
+              TextField(
+                controller: _noteController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: "Ghi chú cho tài xế (VD: Mã bưu kiện, số người)",
+                  border: OutlineInputBorder(),
+                  alignLabelWithHint: true,
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
 
-        const SizedBox(height: 100), // Khoảng cách cho bottom bar
-      ]),
+          const SizedBox(height: 15),
+
+          // 4. Phương thức thanh toán
+          _buildSectionCard(
+            title: "Phương thức thanh toán",
+            icon: Icons.payments_outlined,
+            children: [
+              RadioListTile<int>(
+                dense: true,
+                visualDensity: compactDensity,
+                contentPadding: EdgeInsets.zero,
+                value: 1,
+                groupValue: model.paymentMethod,
+                title: const Text("Chuyển khoản", style: radioTextStyle),
+                secondary: const Icon(Icons.account_balance, color: Colors.blue),
+                onChanged: (v) => _handlePaymentMethodChange(model, v),
+              ),
+              RadioListTile<int>(
+                dense: true,
+                visualDensity: compactDensity,
+                contentPadding: EdgeInsets.zero,
+                value: 2,
+                groupValue: model.paymentMethod,
+                title: const Text(
+                  "Thanh toán bằng ví",
+                  style: radioTextStyle,
+                ),
+                secondary:
+                const Icon(Icons.wallet_giftcard, color: Colors.green),
+                onChanged: (v) => _handlePaymentMethodChange(model, v),
+              ),
+              RadioListTile<int>(
+                dense: true,
+                visualDensity: compactDensity,
+                contentPadding: EdgeInsets.zero,
+                value: 3,
+                groupValue: model.paymentMethod,
+                title: const Text("Thanh toán sau", style: radioTextStyle),
+                secondary:
+                const Icon(Icons.person_outline, color: Colors.orange),
+                onChanged: (v) => _handlePaymentMethodChange(model, v),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 100),
+        ],
+      ),
     );
   }
+
+
 
   // ================= HELPERS CẬP NHẬT =================
 

@@ -318,6 +318,14 @@ class OrderDetailScreen extends StatelessWidget {
               icon: Icons.schedule,
             ),
 
+            //thời gian đặt
+            _infoRow(
+              "Thời gian đặt  ",
+              "  ${trip.createdAt.hour}:${trip.createdAt.minute.toString().padLeft(2, '0')} "
+                  "- ${trip.createdAt.day}/${trip.createdAt.month}/${trip.createdAt.year}",
+              icon: Icons.timer,
+            ),
+
             // Ghi chú
             _infoRow(
               "Ghi chú",
@@ -491,8 +499,5 @@ class OrderDetailScreen extends StatelessWidget {
       ),
     );
   }
-
-
-
 
 }
