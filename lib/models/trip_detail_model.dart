@@ -23,6 +23,7 @@ class TripDetailModel {
   final String? avatar;
   final String? licenseNumber;
   final String? phoneNumber;
+  final String paymentMethod;
 
   TripDetailModel({
     required this.id,
@@ -41,6 +42,7 @@ class TripDetailModel {
     this.avatar,
     this.licenseNumber,
     this.phoneNumber,
+    required this.paymentMethod,
   });
 
   factory TripDetailModel.fromJson(Map<String, dynamic> json) {
@@ -49,6 +51,8 @@ class TripDetailModel {
       code: json['code'],
       type: json['type'],
       createdAt: DateTime.parse(json['createdAt']),
+
+      paymentMethod: json['paymentMethod'] as String,
 
       fromProvince: json['fromProvince'],
       fromAddress: json['fromAddress'],
@@ -66,6 +70,7 @@ class TripDetailModel {
       avatar: json['avatar'],
       licenseNumber: json['licenseNumber'],
       phoneNumber: json['phoneNumber'],
+
     );
   }
 }
