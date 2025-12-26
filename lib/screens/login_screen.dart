@@ -81,6 +81,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         final accessToken = data["accessToken"] ?? "";
         final refreshToken = data["refreshToken"] ?? "";
         final fullName = data["fullName"] ?? "";
+        final int userId = data["id"] ?? 0;
 
         print("🔥 LOGIN accessToken = $accessToken");
         print("🔥 LOGIN refreshToken = $refreshToken");
@@ -96,6 +97,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         await prefs.setString("accessToken", accessToken);
         await prefs.setString("refreshToken", refreshToken);
         await prefs.setString("fullName", fullName);
+        await prefs.setInt("id", userId);
 
         _showSnack(
           "Đăng nhập thành công!",

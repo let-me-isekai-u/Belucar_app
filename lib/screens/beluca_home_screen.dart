@@ -67,6 +67,9 @@ class _HomeViewState extends State<_HomeView> {
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (mounted) {
+          final prefs = await SharedPreferences.getInstance();
+          // CẬP NHẬT ID VÀO MÁY TẠI ĐÂY
+          await prefs.setInt("id", data['id'] ?? 0);
           setState(() {
             _walletBalance = (data['wallet'] as num?)?.toDouble() ?? 0.0;
             _userId = data['id'] ?? 0;
@@ -193,7 +196,7 @@ class _HomeViewState extends State<_HomeView> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Text("Tự động đóng sau: ${countdown ~/ 60}:${(countdown % 60).toString().padLeft(2, '0')}"),
+                    Text("vui lòng chuyển khoản trong: ${countdown ~/ 60}:${(countdown % 60).toString().padLeft(2, '0')}"),
                     TextButton(
                       onPressed: () {
                         countdownTimer?.cancel(); pollTimer?.cancel();

@@ -239,38 +239,66 @@ class _ActivityScreenState extends State<ActivityScreen>
   }
 
   Widget _buildOngoingTrips() {
-    return FutureBuilder<List<TripItemModel>>(
-      future: _ongoingFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final trips = snapshot.data ?? [];
-        if (trips.isEmpty) {
-          return _buildEmptyState("Hiện tại bạn không có chuyến xe nào.", showButton: true);
-        }
-        return _buildTripList(trips, isHistory: false);
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {
+          _ongoingFuture = _fetchOngoingTrips();
+        });
+        await _ongoingFuture; // Đợi load xong để vòng xoay biến mất
       },
+      child: FutureBuilder<List<TripItemModel>>(
+        future: _ongoingFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final trips = snapshot.data ?? [];
+          if (trips.isEmpty) {
+            // Bọc empty state trong SingleChildScrollView để có thể vuốt reload
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: _buildEmptyState("Hiện tại bạn không có chuyến xe nào.", showButton: true),
+              ),
+            );
+          }
+          return _buildTripList(trips, isHistory: false);
+        },
+      ),
     );
   }
 
   Widget _buildHistoryTrips() {
-    return FutureBuilder<List<TripItemModel>>(
-      future: _historyFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final trips = snapshot.data ?? [];
-        if (trips.isEmpty && _isHistoryLoaded) {
-          return _buildEmptyState("Hiện tại bạn không có lịch sử chuyến xe nào.");
-        }
-        // Nếu chưa load history bao giờ (mới vào app mà chưa nhấn tab 2)
-        if (!_isHistoryLoaded) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        return _buildTripList(trips, isHistory: true);
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {
+          _historyFuture = _fetchHistoryTrips();
+        });
+        await _historyFuture;
       },
+      child: FutureBuilder<List<TripItemModel>>(
+        future: _historyFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final trips = snapshot.data ?? [];
+          if (trips.isEmpty && _isHistoryLoaded) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: _buildEmptyState("Hiện tại bạn không có lịch sử chuyến xe nào."),
+              ),
+            );
+          }
+          if (!_isHistoryLoaded) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          return _buildTripList(trips, isHistory: true);
+        },
+      ),
     );
   }
 
@@ -284,6 +312,7 @@ class _ActivityScreenState extends State<ActivityScreen>
           ),
         ),
         ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           itemCount: trips.length,
           itemBuilder: (context, index) {

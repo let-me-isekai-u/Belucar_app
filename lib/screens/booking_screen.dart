@@ -43,11 +43,12 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
     model.paymentMethod = value;
 }
 
+
   void _showPaymentQR(BookingModel model, String accessToken) async {
     final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getInt("id") ?? 0;
     // Nội dung chuyển khoản đồng nhất với Home
-    final String content = "$id${DateFormat('HHmmss').format(DateTime.now())}";
+    final int userId = prefs.getInt("id") ?? 0;
+    final String content = "$userId${DateFormat('HHmmss').format(DateTime.now())}";
 
     final qrUrl = "https://img.vietqr.io/image/MB-246878888-compact2.png"
         "?amount=${model.tripPrice!.toStringAsFixed(0)}&addInfo=$content&accountName=THE%20BELUGAS";
@@ -58,10 +59,20 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) {
+        int countdown = 300;
+        Timer? countdownTimer;
         Timer? pollTimer;
         bool isChecking = false;
 
         return StatefulBuilder(builder: (ctx, setDialogState) {
+          countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+            if (countdown <= 0) {
+              t.cancel(); pollTimer?.cancel();
+              Navigator.pop(dialogCtx);
+            } else if (dialogCtx.mounted) {
+              setDialogState(() => countdown--);
+            }
+          });
           // Cứ mỗi 7 giây gọi API createRide một lần
           pollTimer ??= Timer.periodic(const Duration(seconds: 7), (t) async {
             if (isChecking) return;
@@ -107,7 +118,9 @@ void _handlePaymentMethodChange(BookingModel model, int? value){
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  Text("Vui lòng chuyển khoản trong: ${countdown ~/ 60}:${(countdown % 60).toString().padLeft(2, '0')}"),
+                  const SizedBox(height: 10),
                   TextButton(
                     onPressed: () {
                       pollTimer?.cancel();

@@ -8,6 +8,14 @@ enum TripCategory {
 }
 
 class BookingModel extends ChangeNotifier {
+
+  int _userId = 0;
+  int get userId => _userId;
+
+  set userId(int value) {
+    _userId = value;
+    notifyListeners();
+  }
   // ================== LOẠI CHUYẾN ==================
   bool isChoNguoi = true;   // true = chở người, false = chở hàng
   bool isBaoXe = false;     // chỉ dùng khi chở người
