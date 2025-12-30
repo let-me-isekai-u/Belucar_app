@@ -7,6 +7,8 @@ import 'login_screen.dart';
 import 'change_password_screen.dart';
 import 'update_profile_screen.dart';
 import 'wallet_history_screen.dart';
+import 'package:flutter/services.dart';
+
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,6 +23,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  String? _referralCode;
+
 
   // 🔥 THÊM BIẾN LƯU URL AVATAR (GIỮ NGUYÊN LOGIC CŨ)
   String? _avatarUrl;
@@ -79,6 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // LƯU URL AVATAR VÀO BIẾN TRẠNG THÁI
           _avatarUrl = data["avatarUrl"];
+          _referralCode = data["referralCode"];
 
           _loading = false;
         });
@@ -430,6 +435,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             showArrow: false, // Không cần mũi tên
             onTap: () {}, // Không làm gì
           ),
+          if (_referralCode != null && _referralCode!.isNotEmpty)
+            _buildProfileListItem(
+              icon: Icons.card_giftcard,
+              title: "Mã giới thiệu",
+              subtitle: _referralCode!,
+              showArrow: false,
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: _referralCode!));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Đã copy mã giới thiệu")),
+                );
+              },
+            ),
         ],
       ),
     );

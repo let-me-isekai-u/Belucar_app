@@ -21,6 +21,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
   TextEditingController();
+  final TextEditingController _referralCodeController = TextEditingController();
+
   XFile? _avatar;
 
   bool _agreeTerms = false;
@@ -105,7 +107,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       phone: _phoneController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
-      avatarFilePath: _avatar?.path ?? "", // app khách hàng có thể không cần để avatar
+      avatarFilePath: _avatar?.path ?? "",
+      referredByCode: _referralCodeController.text.trim(),
     );
 
     setState(() => _loading = false);
@@ -126,6 +129,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _confirmPhoneController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _referralCodeController.dispose();
+    super.dispose();
+  }
 
   // Trong _RegisterScreenState
   @override
@@ -192,6 +206,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
 
                   const SizedBox(height: 20),
+
+                  // 3.5. NHÓM MÃ GIỚI THIỆU
+                  _buildInfoCard(
+                    title: "Mã giới thiệu",
+                    children: [
+                      _buildTextField(
+                        _referralCodeController,
+                        "Nhập mã giới thiệu",
+                        Icons.card_giftcard,
+                        false,
+                        false,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
 
                   // 5. ĐIỀU KHOẢN VÀ ĐĂNG KÝ
                   _buildTermsAndButton(primary),
@@ -418,4 +448,5 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ],
     );
   }
+
 }

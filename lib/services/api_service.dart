@@ -96,7 +96,8 @@ class ApiService {
     required String phone,
     required String email,
     required String password,
-    required String avatarFilePath, // Giữ nguyên type, logic xử lý bên dưới
+    required String avatarFilePath,
+    String? referredByCode, // 👈 thêm mã giới thiệu (optional)
   }) async {
     final url = Uri.parse("$_baseUrl/customer-register");
 
@@ -108,13 +109,17 @@ class ApiService {
       request.fields["email"] = email;
       request.fields["password"] = password;
 
-      // Chỉ đính kèm file nếu đường dẫn không rỗng
+      // 👉 thêm mã giới thiệu nếu có
+      if (referredByCode != null && referredByCode.isNotEmpty) {
+        request.fields["referredByCode"] = referredByCode;
+      }
+
+      // Đính kèm avatar nếu có
       if (avatarFilePath.isNotEmpty) {
         request.files.add(
           await http.MultipartFile.fromPath("avatar", avatarFilePath),
         );
       }
-      // ------------------------------------------------------------------
 
       final resStream = await request.send();
       return await http.Response.fromStream(resStream);
@@ -122,6 +127,7 @@ class ApiService {
       return _errorResponse(e);
     }
   }
+
 
   // -----------------------------------------------------------
   // 4️⃣ REFRESH TOKEN
