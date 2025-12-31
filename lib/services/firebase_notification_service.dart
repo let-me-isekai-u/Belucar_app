@@ -49,7 +49,7 @@ class FirebaseNotificationService {
         ?.createNotificationChannel(channel);
 
     // 5. Khởi tạo cài đặt cho từng nền tảng
-    const androidInit = AndroidInitializationSettings('@mipmap/launcher_icon');
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     const iosInit = DarwinInitializationSettings(
       requestAlertPermission: true,
