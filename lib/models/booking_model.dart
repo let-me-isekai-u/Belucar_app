@@ -74,9 +74,15 @@ class BookingModel extends ChangeNotifier {
   String? note;
 
   // ================== GIÁ ==================
-  double? tripPrice;
-  bool isLoadingPrice = false;
+  double? tripPrice; // thành  tiền
   int? currentTripId;
+  double? basePrice;
+  double discount = 0;
+  double surcharge = 0;
+  bool isHoliday = false;
+
+  bool isLoadingPrice = false;
+
 
   BookingModel() {
     fetchProvinces();
@@ -125,11 +131,33 @@ class BookingModel extends ChangeNotifier {
   // 12. LẤY GIÁ
   // =====================================================
   Future<void> fetchTripPrice() async {
-    if (selectedProvincePickup == null || selectedProvinceDrop == null) return;
+    // ⛔ BẮT BUỘC: phải có tỉnh + ngày + giờ
+    if (selectedProvincePickup == null ||
+        selectedProvinceDrop == null ||
+        goDate == null ||
+        goTime == null) {
+      _resetPrice();
+      notifyListeners();
+      return;
+    }
+
 
     final fromId = int.tryParse(selectedProvincePickup!);
     final toId = int.tryParse(selectedProvinceDrop!);
-    if (fromId == null || toId == null) return;
+    if (fromId == null || toId == null) {
+      _resetPrice();
+      notifyListeners();
+      return;
+    }
+
+
+    final pickupDateTime = DateTime(
+      goDate!.year,
+      goDate!.month,
+      goDate!.day,
+      goTime!.hour,
+      goTime!.minute,
+    ).toIso8601String();
 
     isLoadingPrice = true;
     notifyListeners();
@@ -140,27 +168,46 @@ class BookingModel extends ChangeNotifier {
         toProvinceId: toId,
         type: tripType,
         paymentMethod: _paymentMethod,
+        pickupTime: pickupDateTime, // 👈 mới
       );
 
       if (res.statusCode == 200) {
         final json = ApiService.safeDecode(res.body);
-        final data = json["data"];
 
-        if (data != null) {
-          tripPrice = (data["price"] as num).toDouble();
-          currentTripId = (data["id"] as num).toInt();
+        if (json["success"] == true && json["data"] != null) {
+          final data = json["data"];
+
+          currentTripId = data["id"];
+          basePrice   = (data["basePrice"] as num).toDouble();
+          discount    = (data["discount"] as num).toDouble();
+          surcharge   = (data["surcharge"] as num).toDouble();
+          tripPrice   = (data["finalPrice"] as num).toDouble();
+          isHoliday   = data["isHoliday"] ?? false;
+        } else {
+          _resetPrice();
         }
       } else {
-        tripPrice = null;
-        currentTripId = null;
+        _resetPrice();
       }
     } catch (_) {
-      tripPrice = null;
+      _resetPrice();
     } finally {
       isLoadingPrice = false;
       notifyListeners();
     }
   }
+
+
+  //RESET GIÁ
+  void _resetPrice() {
+    currentTripId = null;
+    basePrice = null;
+    tripPrice = null;
+    discount = 0;
+    surcharge = 0;
+    isHoliday = false;
+  }
+
 
   // =====================================================
   // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
@@ -205,25 +252,34 @@ class BookingModel extends ChangeNotifier {
   // RESET FORM
   // =====================================================
   void resetForm() {
+    // 1️⃣ Reset loại chuyến & payment
     tripCategory = TripCategory.choNguoi;
     isChoNguoi = true;
     isBaoXe = false;
     isHoaToc = false;
     _paymentMethod = 3;
 
+    // 2️⃣ Reset địa điểm
     selectedProvincePickup = null;
     addressPickup = null;
     selectedProvinceDrop = null;
     addressDrop = null;
 
+    // 3️⃣ Reset thời gian & thông tin khách
     goDate = null;
     goTime = null;
     customerPhone = null;
     note = null;
-    tripPrice = null;
-    currentTripId = null;
 
+    // 4️⃣ Reset giá (1 nơi duy nhất)
+    _resetPrice();
+
+    // 5️⃣ Reset loading
+    isLoadingPrice = false;
 
     notifyListeners();
   }
+
+
+
 }

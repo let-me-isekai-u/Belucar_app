@@ -109,7 +109,7 @@ class ApiService {
       request.fields["email"] = email;
       request.fields["password"] = password;
 
-      // 👉 thêm mã giới thiệu nếu có
+
       if (referredByCode != null && referredByCode.isNotEmpty) {
         request.fields["referredByCode"] = referredByCode;
       }
@@ -344,6 +344,7 @@ class ApiService {
     required int toProvinceId,
     required int type,
     required int paymentMethod,
+    required String pickupTime,
   }) async {
     final url = Uri.parse(
       "https://belucar.belugaexpress.com/api/tripapi/getprice",
@@ -352,6 +353,7 @@ class ApiService {
       "toProvinceId": toProvinceId.toString(),
       "type": type.toString(),
       "paymentMethod": paymentMethod.toString(),
+      "pickupTime": pickupTime,
     });
 
     print("🔵 [PRICE] GET $url");

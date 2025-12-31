@@ -1,6 +1,3 @@
-/// Dùng cho:
-/// API 16: Chi tiết chuyến đi
-
 class TripDetailModel {
   final int id;
   final String code;
@@ -13,7 +10,12 @@ class TripDetailModel {
   final String toProvince;
   final String toAddress;
 
-  final double price;
+  /// GIÁ
+  final double price;        // base price (giữ cho UI cũ)
+  final double finalPrice;   // giá thanh toán
+  final double discount;
+  final double surcharge;
+
   final int status;
 
   final String? note;
@@ -35,6 +37,9 @@ class TripDetailModel {
     required this.toProvince,
     required this.toAddress,
     required this.price,
+    required this.finalPrice,
+    required this.discount,
+    required this.surcharge,
     required this.status,
     this.note,
     required this.pickupTime,
@@ -52,17 +57,17 @@ class TripDetailModel {
       type: json['type'],
       createdAt: DateTime.parse(json['createdAt']),
 
-      paymentMethod: json['paymentMethod'] as String,
-
       fromProvince: json['fromProvince'],
       fromAddress: json['fromAddress'],
-
       toProvince: json['toProvince'],
       toAddress: json['toAddress'],
 
       price: (json['price'] as num).toDouble(),
-      status: json['status'],
+      finalPrice: (json['finnalPrice'] as num).toDouble(), // ⚠ backend sai chính tả
+      discount: (json['discount'] as num).toDouble(),
+      surcharge: (json['surcharge'] as num).toDouble(),
 
+      status: json['status'],
       note: json['note'],
       pickupTime: DateTime.parse(json['pickupTime']),
 
@@ -70,7 +75,7 @@ class TripDetailModel {
       avatar: json['avatar'],
       licenseNumber: json['licenseNumber'],
       phoneNumber: json['phoneNumber'],
-
+      paymentMethod: json['paymentMethod'],
     );
   }
 }

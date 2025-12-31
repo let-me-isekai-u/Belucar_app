@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/trip_detail_model.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -43,23 +42,15 @@ class OrderDetailScreen extends StatelessWidget {
     return TripDetailModel.fromJson(data);
   }
 
-
   // ===== HELPER =====
-
   String _statusText(int status) {
     switch (status) {
-      case 1:
-        return "Đang tìm tài xế";
-      case 2:
-        return "đã tìm thấy tài xế";
-      case 3:
-        return "Đang di chuyển";
-      case 4:
-        return "Hoàn thành";
-      case 5:
-        return "Đã huỷ";
-      default:
-        return "Không xác định";
+      case 1: return "Đang tìm tài xế";
+      case 2: return "Đã tìm thấy tài xế";
+      case 3: return "Đang di chuyển";
+      case 4: return "Hoàn thành";
+      case 5: return "Đã huỷ";
+      default: return "Không xác định";
     }
   }
 
@@ -75,11 +66,6 @@ class OrderDetailScreen extends StatelessWidget {
     return '$_baseUrl$avatar';
   }
 
-
-  // ===== UI =====
-
-
-  // Trong OrderDetailScreen
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -110,31 +96,29 @@ class OrderDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. TRẠNG THÁI VÀ GIÁ, mã chuyến đi (Khối nổi bật)
-                _buildStatusAndPriceCard(context, trip),
+                // 1. Trạng thái & Mã chuyến
+                _buildStatusHeader(trip),
+                const SizedBox(height: 16),
 
-                const SizedBox(height: 20),
-                //Phươnh thức thanh toán
+                // 2. Chi tiết giá tiền (Mới cập nhật theo Model)
+                _buildPriceDetailCard(trip),
+                const SizedBox(height: 16),
+
+                // 3. Phương thức thanh toán
                 _buildPaymentMethodCard(trip),
+                const SizedBox(height: 16),
 
-                const SizedBox(height: 20),
-
-                // 2. TUYẾN ĐƯỜNG (Từ - Đến)
+                // 4. Tuyến đường
                 _buildRouteCard(context, trip),
+                const SizedBox(height: 16),
 
-                const SizedBox(height: 20),
-
-                // 3. THÔNG TIN THỜI GIAN VÀ GHI CHÚ
+                // 5. Thông tin thời gian & Ghi chú
                 _buildDetailInfoCard(context, trip),
+                const SizedBox(height: 16),
 
-                const SizedBox(height: 20),
-
-                // 4. THÔNG TIN TÀI XẾ
+                // 6. Thông tin tài xế
                 _buildDriverInfoCard(context, trip),
-
                 const SizedBox(height: 30),
-
-
               ],
             ),
           );
@@ -143,68 +127,30 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-
-
-// 1. TRẠNG THÁI VÀ GIÁ (Khối nổi bật)
-  Widget _buildStatusAndPriceCard(BuildContext context, TripDetailModel trip) {
+  // Khối Header Trạng thái
+  Widget _buildStatusHeader(TripDetailModel trip) {
     final statusColor = _statusColor(trip.status);
-
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      elevation: 0,
+      color: statusColor.withOpacity(0.1),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: statusColor.withOpacity(0.5)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // MÃ CHUYẾN
-            Text(
-              "Mã chuyến: ${trip.code}",
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey,
-              ),
-            ),
-
+            Text("Mã chuyến: ${trip.code}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
             const SizedBox(height: 8),
-
-            // TRẠNG THÁI
             Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.check_circle_outline,
-                  color: statusColor,
-                  size: 26,
-                ),
-                const SizedBox(width: 10),
+                Icon(Icons.stars, color: statusColor),
+                const SizedBox(width: 8),
                 Text(
-                  _statusText(trip.status),
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: statusColor,
-                  ),
-                ),
-              ],
-            ),
-
-            const Divider(height: 28),
-
-            // GIÁ TIỀN
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Tổng tiền chuyến đi",
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                Text(
-                  formatCurrency(trip.price),
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  _statusText(trip.status).toUpperCase(),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: statusColor),
                 ),
               ],
             ),
@@ -214,8 +160,63 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
+  // KHỐI CHI TIẾT GIÁ (CẬP NHẬT THEO MODEL MỚI)
+  Widget _buildPriceDetailCard(TripDetailModel trip) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Chi tiết thanh toán", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Divider(height: 24),
+            _priceRow("Giá cước gốc", trip.price),
+            _priceRow("Ưu đãi", -trip.discount, color: Colors.green),
+            _priceRow("Phụ phí", trip.surcharge, color: Colors.orange),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Tổng thanh toán", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  formatCurrency(trip.finalPrice),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-// 2. TUYẾN ĐƯỜNG (Từ - Đến)
+  Widget _priceRow(String label, double amount, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.black87)),
+          Text(formatCurrency(amount), style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentMethodCard(TripDetailModel trip) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: ListTile(
+        leading: const Icon(Icons.account_balance_wallet, color: Colors.blue),
+        title: const Text("Phương thức thanh toán", style: TextStyle(fontSize: 13, color: Colors.grey)),
+        subtitle: Text(trip.paymentMethod, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+      ),
+    );
+  }
+
   Widget _buildRouteCard(BuildContext context, TripDetailModel trip) {
     return Card(
       elevation: 2,
@@ -225,67 +226,32 @@ class OrderDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Tuyến đường",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 15),
-
-            // Điểm đón
-            _routePoint(
-                icon: Icons.circle,
-                color: Colors.green,
-                title: trip.fromProvince,
-                address: "${trip.fromAddress}"
-            ),
-
-            // Dấu chấm/đường kẻ
+            const Text("Tuyến đường", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Divider(height: 20),
+            _routePoint(icon: Icons.circle, color: Colors.green, title: trip.fromProvince, address: trip.fromAddress),
             Padding(
-              padding: const EdgeInsets.only(left: 10, top: 2, bottom: 2),
-              child: SizedBox(
-                height: 20,
-                child: VerticalDivider(thickness: 2, color: Colors.grey.shade300),
-              ),
+              padding: const EdgeInsets.only(left: 9),
+              child: SizedBox(height: 20, child: VerticalDivider(thickness: 2, color: Colors.grey.shade300)),
             ),
-
-            // Điểm đến
-            _routePoint(
-                icon: Icons.location_on,
-                color: Colors.red,
-                title: trip.toProvince,
-                address: "${trip.toAddress}"
-            ),
+            _routePoint(icon: Icons.location_on, color: Colors.red, title: trip.toProvince, address: trip.toAddress),
           ],
         ),
       ),
     );
   }
 
-// Helper cho Điểm đón/đến
-  // Helper cho Điểm đón/đến
-  Widget _routePoint({
-    required IconData icon,
-    required Color color,
-    required String title, // Địa chỉ chi tiết (e.g., Số 5, Nguyễn Trãi)
-    required String address, // Địa chỉ phụ (e.g., Hà Nội, Thanh Xuân)
-  }) {
+  Widget _routePoint({required IconData icon, required Color color, required String title, required String address}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(icon, color: color, size: 20),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title, // Địa chỉ chi tiết (in đậm)
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              Text(
-                address, // Địa chỉ Tỉnh/Huyện (mờ hơn)
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 14),
-              ),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(address, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
             ],
           ),
         ),
@@ -293,8 +259,6 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-
-// 3. THÔNG TIN THỜI GIAN VÀ GHI CHÚ
   Widget _buildDetailInfoCard(BuildContext context, TripDetailModel trip) {
     return Card(
       elevation: 2,
@@ -304,68 +268,34 @@ class OrderDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Chi tiết khác",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 15),
-
-            // Thời gian đón
-            _infoRow(
-              "Thời gian đón",
-              "${trip.pickupTime.hour}:${trip.pickupTime.minute.toString().padLeft(2, '0')} "
-                  "- ${trip.pickupTime.day}/${trip.pickupTime.month}/${trip.pickupTime.year}",
-              icon: Icons.schedule,
-            ),
-
-            //thời gian đặt
-            _infoRow(
-              "Thời gian đặt  ",
-              "  ${trip.createdAt.hour}:${trip.createdAt.minute.toString().padLeft(2, '0')} "
-                  "- ${trip.createdAt.day}/${trip.createdAt.month}/${trip.createdAt.year}",
-              icon: Icons.timer,
-            ),
-
-            // Ghi chú
-            _infoRow(
-              "Ghi chú",
-              trip.note ?? "Không có",
-              icon: Icons.notes,
-            ),
+            const Text("Thông tin bổ sung", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Divider(height: 20),
+            _infoRow("Ngày đón", DateFormat('dd/MM/yyyy').format(trip.pickupTime), icon: Icons.calendar_today),
+            _infoRow("Giờ đón", DateFormat('HH:mm').format(trip.pickupTime), icon: Icons.access_time),
+            _infoRow("Ngày đặt", DateFormat('HH:mm - dd/MM/yyyy').format(trip.createdAt), icon: Icons.history),
+            _infoRow("Ghi chú", trip.note ?? "Không có ghi chú", icon: Icons.note_outlined),
           ],
         ),
       ),
     );
   }
 
-  // Trong OrderDetailScreen (Cần đảm bảo hàm này đã được thay thế)
   Widget _infoRow(String label, String value, {IconData? icon}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 25,
-            child: Icon(icon, size: 18, color: Colors.grey.shade600),
-          ),
-          SizedBox(
-            width: 95,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          Expanded(child: Text(value)),
+          Icon(icon, size: 18, color: Colors.grey),
+          const SizedBox(width: 12),
+          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.w500)),
+          Expanded(child: Text(value, style: const TextStyle(color: Colors.black87))),
         ],
       ),
     );
   }
 
-// 4. THÔNG TIN TÀI XẾ
   Widget _buildDriverInfoCard(BuildContext context, TripDetailModel trip) {
     final bool hasDriver = trip.status >= 2 && trip.driverName != null;
-
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -374,130 +304,34 @@ class OrderDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Tài xế phụ trách",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const Divider(height: 15),
-
+            const Text("Tài xế", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Divider(height: 20),
             if (hasDriver)
-              Row(
-                children: [
-                  CircleAvatar(
-                    radius: 35,
-                    backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _buildAvatarUrl(trip.avatar) != null
-                        ? NetworkImage(
-                      _buildAvatarUrl(trip.avatar)!,
-                    )
-                        : null,
-                    child: _buildAvatarUrl(trip.avatar) == null
-                        ? const Icon(
-                      Icons.person,
-                      size: 40,
-                      color: Colors.grey,
-                    )
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          trip.driverName!,
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // Thêm icons cho thông tin tài xế
-                        _driverDetailRow(
-                            Icons.phone,
-                            trip.phoneNumber ?? 'Đang cập nhật'
-                        ),
-                        _driverDetailRow(
-                            Icons.directions_car,
-                            trip.licenseNumber ?? 'Đang cập nhật'
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  radius: 25,
+                  backgroundImage: _buildAvatarUrl(trip.avatar) != null ? NetworkImage(_buildAvatarUrl(trip.avatar)!) : null,
+                  child: trip.avatar == null ? const Icon(Icons.person) : null,
+                ),
+                title: Text(trip.driverName!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("SĐT: ${trip.phoneNumber ?? 'Đang cập nhật'}"),
+                    Text("BSX: ${trip.licenseNumber ?? 'Đang cập nhật'}"),
+                  ],
+                ),
+                
               )
             else
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(
-                  trip.status == 1
-                      ? "Hệ thống đang tìm kiếm tài xế phù hợp..."
-                      : "Chưa có tài xế phụ trách.",
-                  style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
-                ),
+              Text(
+                trip.status == 1 ? "Hệ thống đang tìm tài xế..." : "Chưa có thông tin tài xế",
+                style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
               ),
           ],
         ),
       ),
     );
   }
-
-// Helper cho thông tin chi tiết tài xế
-  Widget _driverDetailRow(IconData icon, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: Colors.grey.shade600),
-          const SizedBox(width: 8),
-          Text(value, style: const TextStyle(fontSize: 14)),
-        ],
-      ),
-    );
-  }
-
-  //phương thức thanh toán
-  Widget _buildPaymentMethodCard(TripDetailModel trip) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.account_balance_wallet),
-            const SizedBox(width: 12),
-
-            /// Expanded để text KHÔNG BAO GIỜ overflow
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Phương thức thanh toán",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    trip.paymentMethod,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
 }
