@@ -92,15 +92,27 @@ class _BookingViewState extends State<_BookingView> {
                   _buildPriceRow("Ưu đãi trả trước:", -(model.discount), color: Colors.green),
                   _buildPriceRow("Phụ phí ngày lễ:", model.surcharge, color: Colors.orange),
                   const Divider(height: 15),
-                  _buildPriceRow("Thành tiền:", model.tripPrice!, isBold: true, color: Colors.blue.shade800),
+                  _buildPriceRow(
+                    "Thành tiền:",
+                    model.tripPrice!,
+                    isBold: true,
+                    color: Colors.blue.shade800,
+                  ),
                 ],
               ),
             )
-          else
-            const Padding(
-              padding: EdgeInsets.only(bottom: 10),
-              child: Text("Vui lòng nhập đầy đủ lộ trình", style: TextStyle(color: Colors.red, fontSize: 13)),
-            ),
+          else if (model.priceErrorMessage != null)
+              Text(
+                model.priceErrorMessage!,
+                style: const TextStyle(color: Colors.orange, fontSize: 15),
+              )
+            else
+              const Text(
+                "Vui lòng nhập đầy đủ lộ trình",
+                style: TextStyle(color: Colors.red, fontSize: 15),
+              ),
+
+
 
           // --- NÚT ĐẶT CHUYẾN ---
           SizedBox(

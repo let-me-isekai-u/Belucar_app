@@ -322,7 +322,7 @@ class OrderDetailScreen extends StatelessWidget {
                     Text("BSX: ${trip.licenseNumber ?? 'Đang cập nhật'}"),
                   ],
                 ),
-                
+
               )
             else
               Text(

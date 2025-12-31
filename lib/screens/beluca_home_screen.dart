@@ -304,19 +304,6 @@ class _HomeViewState extends State<_HomeView> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text("Số dư ví", style: TextStyle(color: Colors.grey, fontSize: 13)),
-              const SizedBox(height: 4),
-              _isLoadingWallet
-                  ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2))
-                  : Text(
-                "${NumberFormat("#,###").format(_walletBalance)} đ",
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
-              ),
-            ],
-          ),
           ElevatedButton.icon(
             onPressed: _showDepositAmountDialog, // Ấn xác nhận xong mới hiện QR bên trong hàm này
             icon: const Icon(Icons.add_circle_outline, size: 18),

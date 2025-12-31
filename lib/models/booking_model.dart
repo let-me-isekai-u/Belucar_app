@@ -80,6 +80,8 @@ class BookingModel extends ChangeNotifier {
   double discount = 0;
   double surcharge = 0;
   bool isHoliday = false;
+  String? priceErrorMessage;
+
 
   bool isLoadingPrice = false;
 
@@ -141,7 +143,6 @@ class BookingModel extends ChangeNotifier {
       return;
     }
 
-
     final fromId = int.tryParse(selectedProvincePickup!);
     final toId = int.tryParse(selectedProvinceDrop!);
     if (fromId == null || toId == null) {
@@ -149,7 +150,6 @@ class BookingModel extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
 
     final pickupDateTime = DateTime(
       goDate!.year,
@@ -168,34 +168,39 @@ class BookingModel extends ChangeNotifier {
         toProvinceId: toId,
         type: tripType,
         paymentMethod: _paymentMethod,
-        pickupTime: pickupDateTime, // 👈 mới
+        pickupTime: pickupDateTime,
       );
 
-      if (res.statusCode == 200) {
-        final json = ApiService.safeDecode(res.body);
+      final json = ApiService.safeDecode(res.body);
 
-        if (json["success"] == true && json["data"] != null) {
-          final data = json["data"];
+      if (res.statusCode == 200 &&
+          json["success"] == true &&
+          json["data"] != null) {
 
-          currentTripId = data["id"];
-          basePrice   = (data["basePrice"] as num).toDouble();
-          discount    = (data["discount"] as num).toDouble();
-          surcharge   = (data["surcharge"] as num).toDouble();
-          tripPrice   = (data["finalPrice"] as num).toDouble();
-          isHoliday   = data["isHoliday"] ?? false;
-        } else {
-          _resetPrice();
-        }
+        final data = json["data"];
+
+        currentTripId = data["id"];
+        basePrice   = (data["basePrice"] as num).toDouble();
+        discount    = (data["discount"] as num).toDouble();
+        surcharge   = (data["surcharge"] as num).toDouble();
+        tripPrice   = (data["finalPrice"] as num).toDouble();
+        isHoliday   = data["isHoliday"] ?? false;
+
+        priceErrorMessage = null;
       } else {
         _resetPrice();
+        priceErrorMessage =
+            json["message"] ?? "Tuyến đường này hiện chưa có đơn giá";
       }
-    } catch (_) {
+    } catch (e) {
       _resetPrice();
+      priceErrorMessage = "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
     } finally {
       isLoadingPrice = false;
       notifyListeners();
     }
   }
+
 
 
   //RESET GIÁ
