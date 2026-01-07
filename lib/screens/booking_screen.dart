@@ -31,6 +31,8 @@ class _BookingViewState extends State<_BookingView> {
   final _phoneController = TextEditingController();
   final _noteController = TextEditingController();
 
+  bool _isCreatingRide = false; //Chống double tap
+
   void _resetControllers() {
     _phoneController.clear();
     _noteController.clear();
@@ -118,7 +120,10 @@ class _BookingViewState extends State<_BookingView> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () async {
+              onPressed: _isCreatingRide
+              ? null
+              : ()
+               async {
                 if (!_validateBeforeBooking(model)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin bắt buộc'), backgroundColor: Colors.red),
@@ -132,13 +137,15 @@ class _BookingViewState extends State<_BookingView> {
                   return;
                 }
 
+                setState(() => _isCreatingRide = true); //Khoá nút đặt chuyến lại không cho double tap
+
                 model.customerPhone = _phoneController.text.trim();
                 model.note = _noteController.text.trim();
 
                 if (model.paymentMethod == 1) {
                   _showConfirmPaymentDialog(model, accessToken);
                 } else {
-                  _handleDirectBooking(model, accessToken);
+                  await _handleDirectBooking(model, accessToken);
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -147,7 +154,21 @@ class _BookingViewState extends State<_BookingView> {
                 backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
               ),
-              child: const Text("Xác nhận Đặt chuyến", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: _isCreatingRide
+                    ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+                    :const Text("Xác nhận Đặt chuyến",
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold
+                    ),
+                ),
             ),
           ),
         ],
@@ -174,69 +195,126 @@ class _BookingViewState extends State<_BookingView> {
         Timer? countdownTimer;
         Timer? pollTimer;
         bool isChecking = false;
+        bool rideCreated = false; // 🔒 đảm bảo 1 QR chỉ tạo 1 đơn
 
-        return StatefulBuilder(builder: (ctx, setDialogState) {
-          countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
-            if (countdown <= 0) {
-              t.cancel(); pollTimer?.cancel();
-              Navigator.pop(dialogCtx);
-            } else if (dialogCtx.mounted) {
-              setDialogState(() => countdown--);
-            }
-          });
-          pollTimer ??= Timer.periodic(const Duration(seconds: 7), (t) async {
-            if (isChecking) return;
-            isChecking = true;
-            try {
-              final result = await model.createRide(accessToken, content: content);
-              if (result['success'] == true) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            // ⏱ Countdown timer
+            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+              if (countdown <= 0) {
                 t.cancel();
-                if (dialogCtx.mounted) {
-                  Navigator.pop(dialogCtx);
-                  widget.onRideBooked(2);
-                }
+                pollTimer?.cancel();
+                Navigator.pop(dialogCtx);
+              } else if (dialogCtx.mounted) {
+                setDialogState(() => countdown--);
               }
-            } catch (e) {
-              print("Đang đợi thanh toán... $e");
-            }
-            isChecking = false;
-          });
+            });
 
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text("Thanh toán chuyến đi", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  const SizedBox(height: 15),
-                  Image.network(qrUrl),
-                  const SizedBox(height: 15),
-                  const Text("Nội dung chuyển khoản:"),
-                  Text(content, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 18)),
-                  const SizedBox(height: 15),
-                  const Text("Hệ thống đang kiểm tra tự động...\nVui lòng giữ màn hình này.",
-                      textAlign: TextAlign.center, style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  Text("Vui lòng chuyển khoản trong: ${countdown ~/ 60}:${(countdown % 60).toString().padLeft(2, '0')}"),
-                  const SizedBox(height: 10),
-                  TextButton(onPressed: () { pollTimer?.cancel(); Navigator.pop(dialogCtx); }, child: const Text("Hủy giao dịch")),
-                ],
+            // 🔁 Poll backend kiểm tra thanh toán
+            pollTimer ??= Timer.periodic(const Duration(seconds: 7), (t) async {
+              if (isChecking || rideCreated) return;
+
+              isChecking = true;
+              try {
+                final result = await model.createRide(
+                  accessToken,
+                  content: content,
+                );
+
+                if (result['success'] == true) {
+                  rideCreated = true; // 🔒 khóa vĩnh viễn
+                  t.cancel();
+
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                    widget.onRideBooked(2);
+                  }
+                }
+              } catch (e) {
+                print("Đang đợi thanh toán... $e");
+              }
+
+              isChecking = false;
+            });
+
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-            ),
-          );
-        });
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Thanh toán chuyến đi",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 15),
+                    Image.network(qrUrl),
+                    const SizedBox(height: 15),
+                    const Text("Nội dung chuyển khoản:"),
+                    Text(
+                      content,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    const Text(
+                      "Hệ thống đang kiểm tra tự động...\nVui lòng giữ màn hình này.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Vui lòng chuyển khoản trong: "
+                          "${countdown ~/ 60}:${(countdown % 60).toString().padLeft(2, '0')}",
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () {
+                        pollTimer?.cancel();
+                        Navigator.pop(dialogCtx);
+                        if (mounted) {
+                          setState(() => _isCreatingRide = false); // 🔓 mở khóa nút
+                        }
+                      },
+                      child: const Text("Hủy giao dịch"),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
       },
-    );
+    ).then((_) {
+      // PHÒNG TRƯỜNG HỢP dialog bị đóng bất thường
+      if (mounted && _isCreatingRide) {
+        setState(() => _isCreatingRide = false);
+      }
+    });
+
   }
 
   Future<void> _handleDirectBooking(BookingModel model, String accessToken) async {
     try {
       final result = await model.createRide(accessToken);
-      if (result['success'] == true) { widget.onRideBooked(2); }
+      if (result['success'] == true) {
+        widget.onRideBooked(2);
+        if (mounted)  setState(() => _isCreatingRide = false);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+      );
+      setState(() => _isCreatingRide = false); // MỞ LẠI KHI LỖI
     }
   }
 
