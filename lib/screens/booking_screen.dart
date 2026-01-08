@@ -397,7 +397,7 @@ class _BookingViewState extends State<_BookingView> {
               model.fetchTripPrice();
             },
           ),
-          addressField: TextField(decoration: const InputDecoration(labelText: "Số nhà, xã/phường, quận/huyện", border: OutlineInputBorder(), isDense: true), onChanged: (v) => model.addressPickup = v),
+          addressField: TextField(decoration: const InputDecoration(labelText: "Số nhà, xã/phường", border: OutlineInputBorder(), isDense: true), onChanged: (v) => model.addressPickup = v),
         ),
         const SizedBox(height: 20),
         // NGÀY GIỜ ĐÓN Ở GIỮA NHƯ CŨ
@@ -417,7 +417,7 @@ class _BookingViewState extends State<_BookingView> {
               model.fetchTripPrice();
             },
           ),
-          addressField: TextField(decoration: const InputDecoration(labelText: "Số nhà, xã/phường, quận/huyện", border: OutlineInputBorder(), isDense: true), onChanged: (v) => model.addressDrop = v),
+          addressField: TextField(decoration: const InputDecoration(labelText: "Số nhà, xã/phường", border: OutlineInputBorder(), isDense: true), onChanged: (v) => model.addressDrop = v),
         ),
       ],
     );
