@@ -4,6 +4,9 @@ import '../models/trip_detail_model.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
 
+import '../widgets/dashed_line_vertical.dart';
+
+
 class OrderDetailScreen extends StatelessWidget {
   final int rideId;
 
@@ -223,24 +226,55 @@ class OrderDetailScreen extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Tuyến đường", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const Divider(height: 20),
-            _routePoint(icon: Icons.circle, color: Colors.green, title: trip.fromProvince, address: trip.fromAddress),
-            Padding(
-              padding: const EdgeInsets.only(left: 9),
-              child: SizedBox(height: 20, child: VerticalDivider(thickness: 2, color: Colors.grey.shade300)),
+            Column(
+              children: [
+                Icon(Icons.circle, color: Colors.green, size: 18),
+                DashedLineVertical(height: 40, color: Colors.brown),
+                Icon(Icons.location_on, color: Colors.red, size: 18),
+              ],
             ),
-            _routePoint(icon: Icons.location_on, color: Colors.red, title: trip.toProvince, address: trip.toAddress),
+            const SizedBox(width: 10),
+
+            // cột bên phải: text
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _routePointText(
+                    title: trip.fromProvince,
+                    district: trip.fromDistrict,
+                    address: trip.fromAddress,
+                  ),
+                  const SizedBox(height: 8),
+                  _routePointText(
+                    title: trip.toProvince,
+                    district: trip.toDistrict,
+                    address: trip.toAddress,
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _routePoint({required IconData icon, required Color color, required String title, required String address}) {
+  Widget _routePointText({required String title, required String district, required String address}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("$title - $district", style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(address),
+      ],
+    );
+  }
+
+
+  Widget _routePoint({required IconData icon, required Color color, required String title, required String district, required String address}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -251,7 +285,8 @@ class OrderDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              Text(address, style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
+              Text(district, style: TextStyle(color: Colors.grey.shade600, fontSize: 15)),
+              Text(address, style: TextStyle(color: Colors.grey.shade600, fontSize: 15)),
             ],
           ),
         ),

@@ -239,9 +239,7 @@ class ApiService {
     }
   }
 
-  // -----------------------------------------------------------
-  // API Provinces giữ nguyên
-  // -----------------------------------------------------------
+
 
 
   // (10) Xoá tài khoản
@@ -337,11 +335,37 @@ class ApiService {
     }
   }
 
+  //Lấy huyện theo tỉnh
+  static Future<List<dynamic>> getDistricts({
+    required int  provinceId,
+  })
+  async{
+    final url = Uri.parse("https://belucar.belugaexpress.com/api/provinceapi/district/$provinceId",
+    );
+
+    try{
+      final response = await http.get(url).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200){
+        final data = jsonDecode(response.body);
+        if (data is List){
+          return data;
+        }
+      }
+
+      print("⚠️ getDistricts: Unexpected response ${response.statusCode}");
+      return [];
+    } catch (e) {
+      print("🔥 getDistricts() ERROR: $e");
+      return [];
+    }
+  }
+
 
   //Lấy giá (12)
   static Future<http.Response> getTripPrice({
-    required int fromProvinceId,
-    required int toProvinceId,
+    required int fromDistrictId,
+    required int toDistrictId,
     required int type,
     required int paymentMethod,
     required String pickupTime,
@@ -349,8 +373,8 @@ class ApiService {
     final url = Uri.parse(
       "https://belucar.belugaexpress.com/api/tripapi/getprice",
     ).replace(queryParameters: {
-      "fromProvinceId": fromProvinceId.toString(),
-      "toProvinceId": toProvinceId.toString(),
+      "fromDistrictId": fromDistrictId.toString(),
+      "toDistrictId": toDistrictId.toString(),
       "type": type.toString(),
       "paymentMethod": paymentMethod.toString(),
       "pickupTime": pickupTime,

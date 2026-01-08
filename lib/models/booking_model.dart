@@ -8,7 +8,6 @@ enum TripCategory {
 }
 
 class BookingModel extends ChangeNotifier {
-
   int _userId = 0;
   int get userId => _userId;
 
@@ -16,10 +15,11 @@ class BookingModel extends ChangeNotifier {
     _userId = value;
     notifyListeners();
   }
+
   // ================== LOẠI CHUYẾN ==================
-  bool isChoNguoi = true;   // true = chở người, false = chở hàng
-  bool isBaoXe = false;     // chỉ dùng khi chở người
-  bool isHoaToc = false;   // chỉ dùng khi chở hàng
+  bool isChoNguoi = true; // true = chở người, false = chở hàng
+  bool isBaoXe = false; // chỉ dùng khi chở người
+  bool isHoaToc = false; // chỉ dùng khi chở hàng
 
   void setIsBaoXe(bool value) {
     if (isBaoXe != value) {
@@ -60,13 +60,26 @@ class BookingModel extends ChangeNotifier {
   // ================== DANH SÁCH ==================
   List<dynamic> provinces = [];
 
+  List<dynamic> pickupDistricts = [];
+  List<dynamic> dropDistricts = [];
 
   // ================== ĐIỂM ĐÓN ==================
-  String? selectedProvincePickup;
+  // lưu id thay vì string để dễ dùng với API
+  int? _selectedProvincePickup;
+  int? get selectedProvincePickup => _selectedProvincePickup;
+
+  int? _selectedDistrictPickup;
+  int? get selectedDistrictPickup => _selectedDistrictPickup;
+
   String? addressPickup;
 
   // ================== ĐIỂM ĐẾN ==================
-  String? selectedProvinceDrop;
+  int? _selectedProvinceDrop;
+  int? get selectedProvinceDrop => _selectedProvinceDrop;
+
+  int? _selectedDistrictDrop;
+  int? get selectedDistrictDrop => _selectedDistrictDrop;
+
   String? addressDrop;
 
   // ================== THÔNG TIN KHÁCH ==================
@@ -82,12 +95,11 @@ class BookingModel extends ChangeNotifier {
   bool isHoliday = false;
   String? priceErrorMessage;
 
-
   bool isLoadingPrice = false;
-
 
   BookingModel() {
     fetchProvinces();
+    // Không gọi fetchDistricts() ở đây vì chưa có provinceId cụ thể
   }
 
   // =====================================================
@@ -116,7 +128,73 @@ class BookingModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> fetchPickupDistricts(int provinceId) async {
+    pickupDistricts = await ApiService.getDistricts(
+      provinceId: provinceId,
+    );
+    notifyListeners();
+  }
 
+  Future<void> fetchDropDistricts(int provinceId) async {
+    dropDistricts = await ApiService.getDistricts(
+      provinceId: provinceId,
+    );
+    notifyListeners();
+  }
+
+  // Setter cho province pickup: khi đổi tỉnh sẽ load danh sách huyện cho điểm đón
+  Future<void> setSelectedProvincePickup(int? provinceId) async {
+    if (_selectedProvincePickup == provinceId) return;
+
+    _selectedProvincePickup = provinceId;
+    // reset district selection khi đổi tỉnh
+    _selectedDistrictPickup = null;
+    pickupDistricts = [];
+
+    notifyListeners();
+
+    if (provinceId != null) {
+      await fetchPickupDistricts(provinceId);
+    }
+
+    // cập nhật giá nếu cần
+    fetchTripPrice();
+  }
+
+  // Setter cho district pickup
+  void setSelectedDistrictPickup(int? districtId) {
+    if (_selectedDistrictPickup == districtId) return;
+    _selectedDistrictPickup = districtId;
+    fetchTripPrice();
+    notifyListeners();
+  }
+
+  void setSelectedDistrictDrop(int? districtId) {
+    if (_selectedDistrictDrop == districtId) return;
+    _selectedDistrictDrop = districtId;
+    fetchTripPrice();
+    notifyListeners();
+  }
+
+
+  // Setter cho province drop: khi đổi tỉnh sẽ load danh sách huyện cho điểm đến
+  Future<void> setSelectedProvinceDrop(int? provinceId) async {
+    if (_selectedProvinceDrop == provinceId) return;
+
+    _selectedProvinceDrop = provinceId;
+    // reset district selection khi đổi tỉnh
+    _selectedDistrictDrop = null;
+    dropDistricts = [];
+
+    notifyListeners();
+
+    if (provinceId != null) {
+      await fetchDropDistricts(provinceId);
+    }
+
+    // cập nhật giá nếu cần
+    fetchTripPrice();
+  }
 
   // =====================================================
   // MAP UI → TYPE API
@@ -133,9 +211,10 @@ class BookingModel extends ChangeNotifier {
   // 12. LẤY GIÁ
   // =====================================================
   Future<void> fetchTripPrice() async {
-    // ⛔ BẮT BUỘC: phải có tỉnh + ngày + giờ
     if (selectedProvincePickup == null ||
+        selectedDistrictPickup == null ||
         selectedProvinceDrop == null ||
+        selectedDistrictDrop == null ||
         goDate == null ||
         goTime == null) {
       _resetPrice();
@@ -143,8 +222,8 @@ class BookingModel extends ChangeNotifier {
       return;
     }
 
-    final fromId = int.tryParse(selectedProvincePickup!);
-    final toId = int.tryParse(selectedProvinceDrop!);
+    final fromId = selectedProvincePickup;
+    final toId = selectedProvinceDrop;
     if (fromId == null || toId == null) {
       _resetPrice();
       notifyListeners();
@@ -164,8 +243,8 @@ class BookingModel extends ChangeNotifier {
 
     try {
       final res = await ApiService.getTripPrice(
-        fromProvinceId: fromId,
-        toProvinceId: toId,
+        fromDistrictId: selectedDistrictPickup!,
+        toDistrictId: selectedDistrictDrop!,
         type: tripType,
         paymentMethod: _paymentMethod,
         pickupTime: pickupDateTime,
@@ -176,15 +255,14 @@ class BookingModel extends ChangeNotifier {
       if (res.statusCode == 200 &&
           json["success"] == true &&
           json["data"] != null) {
-
         final data = json["data"];
 
         currentTripId = data["id"];
-        basePrice   = (data["basePrice"] as num).toDouble();
-        discount    = (data["discount"] as num).toDouble();
-        surcharge   = (data["surcharge"] as num).toDouble();
-        tripPrice   = (data["finalPrice"] as num).toDouble();
-        isHoliday   = data["isHoliday"] ?? false;
+        basePrice = (data["basePrice"] as num).toDouble();
+        discount = (data["discount"] as num).toDouble();
+        surcharge = (data["surcharge"] as num).toDouble();
+        tripPrice = (data["finalPrice"] as num).toDouble();
+        isHoliday = data["isHoliday"] ?? false;
 
         priceErrorMessage = null;
       } else {
@@ -194,14 +272,13 @@ class BookingModel extends ChangeNotifier {
       }
     } catch (e) {
       _resetPrice();
-      priceErrorMessage = "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
+      priceErrorMessage =
+      "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
     } finally {
       isLoadingPrice = false;
       notifyListeners();
     }
   }
-
-
 
   //RESET GIÁ
   void _resetPrice() {
@@ -212,7 +289,6 @@ class BookingModel extends ChangeNotifier {
     surcharge = 0;
     isHoliday = false;
   }
-
 
   // =====================================================
   // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
@@ -265,10 +341,15 @@ class BookingModel extends ChangeNotifier {
     _paymentMethod = 3;
 
     // 2️⃣ Reset địa điểm
-    selectedProvincePickup = null;
+    _selectedProvincePickup = null;
+    _selectedDistrictPickup = null;
     addressPickup = null;
-    selectedProvinceDrop = null;
+    pickupDistricts = [];
+
+    _selectedProvinceDrop = null;
+    _selectedDistrictDrop = null;
     addressDrop = null;
+    dropDistricts = [];
 
     // 3️⃣ Reset thời gian & thông tin khách
     goDate = null;
@@ -284,7 +365,4 @@ class BookingModel extends ChangeNotifier {
 
     notifyListeners();
   }
-
-
-
 }

@@ -114,16 +114,13 @@ class _BookingViewState extends State<_BookingView> {
                 style: TextStyle(color: Colors.red, fontSize: 15),
               ),
 
-
-
           // --- NÚT ĐẶT CHUYẾN ---
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: _isCreatingRide
-              ? null
-              : ()
-               async {
+                  ? null
+                  : () async {
                 if (!_validateBeforeBooking(model)) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin bắt buộc'), backgroundColor: Colors.red),
@@ -154,21 +151,19 @@ class _BookingViewState extends State<_BookingView> {
                 backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
               ),
-                child: _isCreatingRide
-                    ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-                    :const Text("Xác nhận Đặt chuyến",
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold
-                    ),
+              child: _isCreatingRide
+                  ? const SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
                 ),
+              )
+                  : const Text(
+                "Xác nhận Đặt chuyến",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
@@ -300,7 +295,6 @@ class _BookingViewState extends State<_BookingView> {
         setState(() => _isCreatingRide = false);
       }
     });
-
   }
 
   Future<void> _handleDirectBooking(BookingModel model, String accessToken) async {
@@ -308,7 +302,7 @@ class _BookingViewState extends State<_BookingView> {
       final result = await model.createRide(accessToken);
       if (result['success'] == true) {
         widget.onRideBooked(2);
-        if (mounted)  setState(() => _isCreatingRide = false);
+        if (mounted) setState(() => _isCreatingRide = false);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -319,9 +313,9 @@ class _BookingViewState extends State<_BookingView> {
   }
 
   bool _validateBeforeBooking(BookingModel model) {
-    if (model.tripCategory == null) return false;
-    if (model.selectedProvincePickup == null || (model.addressPickup?.trim().isEmpty ?? true)) return false;
-    if (model.selectedProvinceDrop == null || (model.addressDrop?.trim().isEmpty ?? true)) return false;
+    // model.tripCategory luôn có giá trị vì enum mặc định
+    if (model.selectedProvincePickup == null || model.selectedDistrictPickup == null || (model.addressPickup?.trim().isEmpty ?? true)) return false;
+    if (model.selectedProvinceDrop == null || model.selectedDistrictDrop == null || (model.addressDrop?.trim().isEmpty ?? true)) return false;
     if (model.goDate == null || model.goTime == null) return false;
     if (_phoneController.text.trim().isEmpty) return false;
     return true;
@@ -355,7 +349,10 @@ class _BookingViewState extends State<_BookingView> {
         content: const Text("Bạn đã kiểm tra kỹ thông tin chuyến đi chưa?\n\n⚠️ Lưu ý: KHÔNG tắt ứng dụng hoặc đóng mã QR cho đến khi hệ thống báo thành công."),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
-          ElevatedButton(onPressed: () { Navigator.pop(ctx); _showPaymentQR(model, accessToken); }, child: const Text("Xác nhận & Hiện QR")),
+          ElevatedButton(onPressed: () {
+            Navigator.pop(ctx);
+            _showPaymentQR(model, accessToken);
+          }, child: const Text("Xác nhận & Hiện QR")),
         ],
       ),
     );
@@ -390,7 +387,16 @@ class _BookingViewState extends State<_BookingView> {
           label: "Điểm đón",
           icon: Icons.my_location,
           color: Colors.green,
-          provinceDropdown: _provinceDropdown(provinces: model.provinces, value: model.selectedProvincePickup, onChanged: (v) { model.selectedProvincePickup = v; model.fetchTripPrice(); }),
+          provinceDropdown: _provincePickerWidget(model: model, isPickup: true),
+          districtDropdown: _districtDropdown(
+            districts: model.pickupDistricts,
+            value: model.selectedDistrictPickup,
+            onChanged: (v) {
+              model.setSelectedDistrictPickup(v);
+              // cập nhật giá khi đã có huyện
+              model.fetchTripPrice();
+            },
+          ),
           addressField: TextField(decoration: const InputDecoration(labelText: "Số nhà, xã/phường, quận/huyện", border: OutlineInputBorder(), isDense: true), onChanged: (v) => model.addressPickup = v),
         ),
         const SizedBox(height: 20),
@@ -402,18 +408,30 @@ class _BookingViewState extends State<_BookingView> {
           label: "Điểm đến",
           icon: Icons.location_on,
           color: Colors.red,
-          provinceDropdown: _provinceDropdown(provinces: model.provinces, value: model.selectedProvinceDrop, onChanged: (v) { model.selectedProvinceDrop = v; model.fetchTripPrice(); }),
+          provinceDropdown: _provincePickerWidget(model: model, isPickup: false),
+          districtDropdown: _districtDropdown(
+            districts: model.dropDistricts,
+            value: model.selectedDistrictDrop,
+            onChanged: (v) {
+              model.setSelectedDistrictDrop(v);
+              model.fetchTripPrice();
+            },
+          ),
           addressField: TextField(decoration: const InputDecoration(labelText: "Số nhà, xã/phường, quận/huyện", border: OutlineInputBorder(), isDense: true), onChanged: (v) => model.addressDrop = v),
         ),
       ],
     );
   }
 
-  Widget _buildLocationInput({required String label, required IconData icon, required Color color, required Widget provinceDropdown, required Widget addressField}) {
+  Widget _buildLocationInput({required String label, required IconData icon, required Color color, required Widget provinceDropdown, Widget? districtDropdown, required Widget addressField}) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [Icon(icon, color: color), const SizedBox(width: 8), Text(label, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color))]),
       const SizedBox(height: 8),
       provinceDropdown,
+      if (districtDropdown != null) ...[
+        const SizedBox(height: 8),
+        districtDropdown,
+      ],
       const SizedBox(height: 8),
       addressField,
     ]);
@@ -465,9 +483,130 @@ class _BookingViewState extends State<_BookingView> {
     );
   }
 
-  // --- HELPERS (GIỮ NGUYÊN) ---
-  Widget _provinceDropdown({required List<dynamic> provinces, required String? value, required void Function(String?) onChanged}) {
-    return DropdownButtonFormField<String>(value: value, items: provinces.map((p) => DropdownMenuItem(value: p["id"].toString(), child: Text(p["name"]))).toList(), onChanged: onChanged, decoration: const InputDecoration(labelText: "Tỉnh / Thành phố", border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.location_city, size: 20)));
+  // --- HELPERS (ĐÃ CHUYỂN SANG INT ID) ---
+
+  // Widget picker giống phong cách ReceiveOrderTab: mở modal bottom sheet show list of provinces
+  Widget _provincePickerWidget({required BookingModel model, required bool isPickup}) {
+    final int? selectedId = isPickup ? model.selectedProvincePickup : model.selectedProvinceDrop;
+    final String label = "Tỉnh / Thành phố";
+    final displayName = () {
+      final sel = selectedId == null ? null : model.provinces.cast<dynamic?>().firstWhere(
+            (p) => p != null && (p['id'].toString() == selectedId.toString()),
+        orElse: () => null,
+      );
+      return sel == null ? null : (sel['name']?.toString() ?? '');
+    }();
+
+    // Sử dụng controller để hiển thị tên tỉnh đã chọn (nếu có)
+    final controller = TextEditingController(text: displayName ?? '');
+
+    return GestureDetector(
+      onTap: () async {
+        final chosen = await _showProvincePickerForBooking(context, model, isPickup: isPickup);
+        if (!mounted) return;
+        if (chosen == null) return;
+        // apply through model so it loads districts
+        if (isPickup) {
+          await model.setSelectedProvincePickup(chosen);
+        } else {
+          await model.setSelectedProvinceDrop(chosen);
+        }
+      },
+      child: AbsorbPointer(
+        child: TextFormField(
+          controller: controller,
+          readOnly: true,
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: displayName == null ? 'Chọn tỉnh / thành phố' : null,
+            border: const OutlineInputBorder(),
+            isDense: true,
+            prefixIcon: const Icon(Icons.location_city, size: 20),
+            suffixIcon: const Icon(Icons.unfold_more_rounded),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Modal picker. Nếu isPickup=true thì không cho chọn province == model.selectedProvinceDrop (và ngược lại)
+  Future<int?> _showProvincePickerForBooking(BuildContext context, BookingModel model, {required bool isPickup}) {
+    final otherSelected = isPickup ? model.selectedProvinceDrop : model.selectedProvincePickup;
+
+    return showModalBottomSheet<int?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+          ),
+          child: Column(
+            children: [
+              Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(isPickup ? "Chọn tỉnh đón khách" : "Chọn tỉnh điểm đến", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+                    TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text("Đóng"))
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: (model.provinces.isEmpty)
+                    ? const Center(child: CircularProgressIndicator())
+                    : ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  itemCount: model.provinces.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 20, endIndent: 20),
+                  itemBuilder: (context, index) {
+                    final p = model.provinces[index];
+                    final id = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString());
+                    final name = p['name']?.toString() ?? '';
+                    final bool isDisabled = (id != null && otherSelected != null && id == otherSelected);
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                      leading: Icon(Icons.location_on_outlined, color: isDisabled ? Colors.grey[300] : Colors.blue),
+                      title: Text(
+                        name,
+                        style: TextStyle(
+                          color: isDisabled ? Colors.grey : Colors.blue[700],
+                          fontWeight: isDisabled ? FontWeight.w400 : FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                      onTap: isDisabled || id == null ? null : () => Navigator.pop(ctx, id),
+                    );
+                  },
+                ),
+              )
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _districtDropdown({required List<dynamic> districts, required int? value, required void Function(int?) onChanged}) {
+    final items = districts.map((d) {
+      final id = d["id"] is int ? d["id"] as int : int.tryParse(d["id"].toString());
+      return DropdownMenuItem<int>(
+        value: id,
+        child: Text(d["name"] ?? ""),
+      );
+    }).toList();
+
+    return DropdownButtonFormField<int>(
+      value: value,
+      items: items,
+      onChanged: districts.isEmpty ? null : onChanged,
+      decoration: const InputDecoration(labelText: "Quận / Huyện", border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.map, size: 20)),
+    );
   }
 
   Widget _dateField({required String label, required DateTime? date, required VoidCallback onTap}) {

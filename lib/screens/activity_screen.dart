@@ -328,14 +328,21 @@ class _ActivityScreenState extends State<ActivityScreen>
                   leading: const Icon(Icons.history, color: Colors.grey),
                   title: Text(
                       "${trip.fromProvince} → ${trip.toProvince}",
+                      maxLines: 2,
                       style: const TextStyle(fontWeight: FontWeight.bold)
                   ),
-                  // --- CHỈNH SỬA Ở ĐÂY ---
                   subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, // Căn lề trái cho các dòng text
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text("Mã chuyến: ${trip.code}"), // Thêm mã chuyến
+                      Text(
+                        "Mã chuyến: ${trip.code}",
+                        style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                      Text(
+                        "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
+                        maxLines: 2,
+                      ),
                       Text("Ngày đặt: ${trip.createdAt.day}/${trip.createdAt.month}/${trip.createdAt.year}"),
                     ],
                   ),
@@ -372,10 +379,27 @@ class _ActivityScreenState extends State<ActivityScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 6),
-            Text("${trip.fromProvince} → ${trip.toProvince}", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            Text("Mã chuyến: ${trip.code}"),
+            Text("${trip.fromProvince} → ${trip.toProvince}", maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(
+              "Mã chuyến: ${trip.code}",
+              style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            Text(
+                "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
+              maxLines: 2,
+            ),
             Text("Giá: ${formatCurrency(trip.price)}"),
-            Text("Trạng thái: ${_getStatusText(trip.status)}"),
+            Text(
+              "Trạng thái: ${_getStatusText(trip.status)}",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: trip.status == 1
+                    ? Colors.orange
+                    : trip.status == 3
+                    ? Colors.blue
+                    : Colors.purple, // status 2
+              ),
+            ),
             if (trip.status == 1 || trip.status == 2)
               Align(
                 alignment: Alignment.centerRight,
@@ -401,32 +425,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             const SizedBox(height: 28),
             Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.black54)),
             const SizedBox(height: 20),
-            // if (showButton)
-            //   TextButton(
-            //     onPressed: () {
-            //       Navigator.push(
-            //         context,
-            //         MaterialPageRoute(
-            //           builder: (context) => BookingScreen(
-            //             // Sửa () thành (id) hoặc (_) để nhận tham số int mà BookingScreen truyền ra
-            //             onRideBooked: (id) {
-            //               setState(() {
-            //                 _ongoingFuture = _fetchOngoingTrips();
-            //               });
-            //             },
-            //           ),
-            //         ),
-            //       );
-            //     },
-            //     child: const Text(
-            //       "Đặt ngay",
-            //       style: TextStyle(
-            //         fontSize: 16,
-            //         color: Colors.blue,
-            //         fontWeight: FontWeight.w600,
-            //       ),
-            //     ),
-            //   ),
+
           ],
         ),
       ),
