@@ -1,3 +1,4 @@
+// NOTE: Đây là file đã được chỉnh sửa: chỉ thay _districtDropdown để hiển thị picker giống tỉnh (modal bottom sheet).
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/booking_model.dart';
@@ -575,7 +576,7 @@ class _BookingViewState extends State<_BookingView> {
                       title: Text(
                         name,
                         style: TextStyle(
-                          color: isDisabled ? Colors.grey : Colors.blue[700],
+                          color: isDisabled ? Colors.grey : Colors.black,
                           fontWeight: isDisabled ? FontWeight.w400 : FontWeight.w600,
                           fontSize: 16,
                         ),
@@ -592,20 +593,86 @@ class _BookingViewState extends State<_BookingView> {
     );
   }
 
+  // ---- CHỖ NÀY ĐÃ ĐƯỢC SỬA: district dropdown bây giờ hiển thị giống tỉnh (modal bottom sheet),
+  // ---- UI và logic bên ngoài KHÔNG đổi: vẫn truyền danh sách districts và callback onChanged.
   Widget _districtDropdown({required List<dynamic> districts, required int? value, required void Function(int?) onChanged}) {
-    final items = districts.map((d) {
-      final id = d["id"] is int ? d["id"] as int : int.tryParse(d["id"].toString());
-      return DropdownMenuItem<int>(
-        value: id,
-        child: Text(d["name"] ?? ""),
-      );
-    }).toList();
+    // Tìm tên quận/huyện đã chọn để hiển thị trong TextField
+    final selected = value == null ? null : districts.cast<dynamic?>().firstWhere(
+          (d) => d != null && (d['id'].toString() == value.toString()),
+      orElse: () => null,
+    );
+    final displayName = selected == null ? null : (selected['name']?.toString() ?? '');
+    final controller = TextEditingController(text: displayName ?? '');
 
-    return DropdownButtonFormField<int>(
-      value: value,
-      items: items,
-      onChanged: districts.isEmpty ? null : onChanged,
-      decoration: const InputDecoration(labelText: "Quận / Huyện", border: OutlineInputBorder(), isDense: true, prefixIcon: Icon(Icons.map, size: 20)),
+    return GestureDetector(
+      onTap: districts.isEmpty
+          ? null
+          : () async {
+        final chosen = await showModalBottomSheet<int?>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (ctx) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.65,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+              ),
+              child: Column(
+                children: [
+                  Container(margin: const EdgeInsets.only(top: 12), height: 4, width: 40, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        const Expanded(child: Text("Chọn Quận / Huyện", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+                        TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text("Đóng"))
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      itemCount: districts.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1, indent: 20, endIndent: 20),
+                      itemBuilder: (context, index) {
+                        final d = districts[index];
+                        final id = d["id"] is int ? d["id"] as int : int.tryParse(d["id"].toString());
+                        final name = d["name"]?.toString() ?? '';
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          leading: Icon(Icons.location_city_outlined, color: id == value ? Colors.blue : Colors.black54),
+                          title: Text(name, style: TextStyle(fontWeight: id == value ? FontWeight.w700 : FontWeight.w500)),
+                          onTap: id == null ? null : () => Navigator.pop(ctx, id),
+                        );
+                      },
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+        if (!mounted) return;
+        if (chosen == null) return;
+        onChanged(chosen);
+      },
+      child: AbsorbPointer(
+        child: TextFormField(
+          controller: controller,
+          readOnly: true,
+          decoration: InputDecoration(
+            labelText: "Quận / Huyện",
+            hintText: displayName == null ? 'Chọn quận / huyện' : null,
+            border: const OutlineInputBorder(),
+            isDense: true,
+            prefixIcon: const Icon(Icons.map, size: 20),
+            suffixIcon: const Icon(Icons.unfold_more_rounded),
+          ),
+        ),
+      ),
     );
   }
 

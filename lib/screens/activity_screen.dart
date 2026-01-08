@@ -318,6 +318,7 @@ class _ActivityScreenState extends State<ActivityScreen>
           itemBuilder: (context, index) {
             final trip = trips[index];
             if (isHistory) {
+              final appBarColor = Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).primaryColor;
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
@@ -335,14 +336,17 @@ class _ActivityScreenState extends State<ActivityScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      const SizedBox(height: 6),
                       Text(
                         "Mã chuyến: ${trip.code}",
-                        style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 15),
+                        style: TextStyle(color: appBarColor, fontWeight: FontWeight.bold, fontSize: 15),
                       ),
+                      const SizedBox(height: 6),
                       Text(
                         "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
                         maxLines: 2,
                       ),
+                      const SizedBox(height: 6),
                       Text("Ngày đặt: ${trip.createdAt.day}/${trip.createdAt.month}/${trip.createdAt.year}"),
                     ],
                   ),
@@ -365,6 +369,9 @@ class _ActivityScreenState extends State<ActivityScreen>
   }
 
   Widget _buildOngoingCard(TripItemModel trip) {
+    // Lấy màu appbar (nếu null thì fallback về primaryColor)
+    final appBarColor = Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).primaryColor;
+
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(rideId: trip.rideId))),
       child: Container(
@@ -380,15 +387,19 @@ class _ActivityScreenState extends State<ActivityScreen>
           children: [
             const SizedBox(height: 6),
             Text("${trip.fromProvince} → ${trip.toProvince}", maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8), // thêm khoảng cách
             Text(
               "Mã chuyến: ${trip.code}",
-              style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 15),
+              style: TextStyle(color: appBarColor, fontWeight: FontWeight.bold, fontSize: 17), // cùng màu appbar
             ),
+            const SizedBox(height: 8), // thêm khoảng cách
             Text(
-                "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
+              "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
               maxLines: 2,
             ),
+            const SizedBox(height: 8),
             Text("Giá: ${formatCurrency(trip.price)}"),
+            const SizedBox(height: 8),
             Text(
               "Trạng thái: ${_getStatusText(trip.status)}",
               style: TextStyle(
@@ -425,7 +436,6 @@ class _ActivityScreenState extends State<ActivityScreen>
             const SizedBox(height: 28),
             Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.black54)),
             const SizedBox(height: 20),
-
           ],
         ),
       ),
