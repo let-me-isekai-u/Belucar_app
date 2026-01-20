@@ -6,10 +6,12 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/booking_model.dart';
+// import '../models/tet_booking_model.dart';
 import '../services/api_service.dart'; // Đảm bảo bạn đã có ApiService.getCustomerProfile và ApiService.depositWallet
 import 'activity_screen.dart';
 import 'profile_screen.dart';
-import 'booking_screen.dart';
+import 'booking_screen.dart' as booking_old;
+import 'tet_booking_screen.dart' as tet;
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -39,11 +41,19 @@ class _HomeViewState extends State<_HomeView> {
   int _userId = 0;
   bool _isLoadingWallet = true;
 
+  //Banner quảng cáo (cái cũ vẫn giữ, nhưng hiển thị lần đầu sẽ qua dialog)
+  bool _showEventBanner = true;
+
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _fetchWalletInfo(); // Lấy số dư ví ngay khi khởi tạo
+
+    // Sau khi frame đầu tiên vẽ xong, kiểm tra xem có cần show banner không.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowEventBanner();
+    });
   }
 
   // ================= LOAD USER & WALLET INFO =================
@@ -80,6 +90,165 @@ class _HomeViewState extends State<_HomeView> {
     } catch (e) {
       if (mounted) setState(() => _isLoadingWallet = false);
     }
+  }
+
+  // ============== HIỂN THỊ BANNER 1 LẦN ================
+  Future<void> _maybeShowEventBanner() async {
+    final prefs = await SharedPreferences.getInstance();
+    final shouldShow = prefs.getBool('showEventBanner') ?? false;
+
+    if (!shouldShow) return;
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          // Khoảng cách từ dialog đến mép màn hình
+          insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
+          child: FractionallySizedBox(
+            heightFactor: 0.65, // Điều chỉnh tỉ lệ chiều cao (0.6 - 0.7 là đẹp nhất)
+            child: Stack(
+              children: [
+                // 1. LỚP NỀN: Chứa ảnh bo góc và tràn toàn bộ khung
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black38,
+                        blurRadius: 15,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    'lib/assets/tet_splash.png',
+                    fit: BoxFit.cover, // Ảnh phủ kín toàn bộ diện tích
+                  ),
+                ),
+
+                // 2. LỚP PHỦ NỀN TRONG SUỐT (GRADIENT) VÀ CHỮ
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 60, 20, 25),
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(20),
+                      ),
+                      // Hiệu ứng Gradient mờ từ trên xuống để làm nổi bật text
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.8), // Màu tối dần ở đáy
+                        ],
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Chúc Mừng Năm Mới! 🧧',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFFFFD700), // Màu vàng Gold
+                            shadows: [
+                              Shadow(
+                                offset: Offset(1, 1),
+                                blurRadius: 4,
+                                color: Colors.black,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Ưu đãi đặc biệt chỉ trong dịp Tết.\nĐặt chuyến ngay - Không lo tăng giá!',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.white,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 15),
+                        // Thêm nút hành động (Tùy chọn - tăng UX)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              // Đóng dialog rồi chuyển sang màn tet booking
+                              Navigator.of(dialogCtx).pop();
+                              // Push màn đặt chuyến TET
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => tet.BookingScreen(onRideBooked: _selectTab),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD32F2F), // Đỏ đậm
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'ĐẶT CHUYẾN NGAY!',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // 3. NÚT ĐÓNG (DẤU X)
+                Positioned(
+                  right: 10,
+                  top: 10,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('showEventBanner');
+                      if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.black45, // Nền mờ cho nút X
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   // ================= LOGIC NẠP TIỀN =================
@@ -256,7 +425,7 @@ class _HomeViewState extends State<_HomeView> {
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0: return _buildHomeScreen();
-      case 1: return BookingScreen(onRideBooked: _selectTab);
+      case 1: return booking_old.BookingScreen(onRideBooked: _selectTab);
       case 2: return const ActivityScreen();
       case 3: return const ProfileScreen();
       default: return const SizedBox();
@@ -524,7 +693,10 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-  Widget _buildBookingSection() {
+
+  //backup nút đặt chuyến tắt
+  /*
+  * Widget _buildBookingSection() {
     return InkWell(
       onTap: () {
         setState(() {
@@ -567,6 +739,91 @@ class _HomeViewState extends State<_HomeView> {
               Icons.arrow_forward_ios,
               color: Colors.grey,
               size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }*/
+
+
+  //nút sự kiện tết
+  Widget _buildBookingSection() {
+    return InkWell(
+      onTap: () {
+        // Mở màn hình tet booking bằng Navigator.push
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => tet.BookingScreen(onRideBooked: _selectTab),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        decoration: BoxDecoration(
+          // Đã sửa: Sử dụng 0xFF thay cho dấu #
+          gradient: const LinearGradient(
+            colors: [Color(0xFFD32F2F), Color(0xFFFF5252)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withOpacity(0.3),
+              spreadRadius: 2,
+              blurRadius: 12,
+              offset: const Offset(0, 5),
+            ),
+          ],
+          // Đã sửa: Viền vàng kim loại
+          border: Border.all(color: const Color(0xFFFFD700), width: 1.5),
+        ),
+        child: Row(
+          children: [
+            // Đã sửa: Dùng Text để hiển thị Emoji thay vì Icons
+            const Text(
+              "🧧",
+              style: TextStyle(fontSize: 28),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'VỀ NHÀ ĂN TẾT!',
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5
+                    ),
+                  ),
+                  Text(
+                    'Chọn vào đây để tham gia sự kiện!',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  Text(
+                    'Đặt lịch đón từ 07–14/02 ngay hôm nay - Giá không tăng dịp Tết!',
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Đã sửa: Màu vàng 0xFFFFD700
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: Color(0xFFFFD700),
+              size: 20,
             ),
           ],
         ),

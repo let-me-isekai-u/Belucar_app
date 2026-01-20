@@ -99,9 +99,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         await prefs.setString("fullName", fullName);
         await prefs.setInt("id", userId);
 
-        // Set flag để Home hiển thị banner 1 lần ngay sau khi đăng nhập
-        await prefs.setBool("showEventBanner", true);
-
+        _showSnack(
+          "Đăng nhập thành công!",
+          color: Theme.of(context).colorScheme.secondary,
+        );
 
         Navigator.pushReplacement(
           context,
@@ -390,4 +391,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       ),
     );
   }
+
+
 }

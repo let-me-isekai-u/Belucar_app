@@ -242,7 +242,7 @@ class BookingModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final res = await ApiService.getTripPrice(
+      final res = await ApiService.getTripPriceTET(
         fromDistrictId: selectedDistrictPickup!,
         toDistrictId: selectedDistrictDrop!,
         type: tripType,
@@ -293,7 +293,7 @@ class BookingModel extends ChangeNotifier {
   // =====================================================
   // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
   // =====================================================
-  Future<Map<String, dynamic>> createRide(String accessToken, {String content = ""}) async {
+  Future<Map<String, dynamic>> createRideTET(String accessToken, {String content = ""}) async {
     if (currentTripId == null) {
       throw Exception("Chưa có giá chuyến đi");
     }
@@ -307,7 +307,8 @@ class BookingModel extends ChangeNotifier {
       goTime!.minute,
     ).toIso8601String();
 
-    final res = await ApiService.createRide(
+    // GỌI API TẠO CHUYẾN TẾT (đồng bộ với ApiService.createRideTET)
+    final res = await ApiService.createRideTET(
       accessToken: accessToken,
       tripId: currentTripId!,
       fromAddress: addressPickup ?? "",

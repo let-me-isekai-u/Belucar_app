@@ -612,4 +612,85 @@ class ApiService {
   }
 
 
+  //====TẾT=========//
+//LẤY GIÁ SỰ KIỆN TÊT
+  static Future<http.Response> getTripPriceTET({
+    required int fromDistrictId,
+    required int toDistrictId,
+    required int type,
+    required int paymentMethod,
+    required String pickupTime,
+  }) async {
+    final url = Uri.parse(
+      "https://belucar.belugaexpress.com/api/tetapi/getprice",
+    ).replace(queryParameters: {
+      "fromDistrictId": fromDistrictId.toString(),
+      "toDistrictId": toDistrictId.toString(),
+      "type": type.toString(),
+      "paymentMethod": paymentMethod.toString(),
+      "pickupTime": pickupTime,
+    });
+
+    print("🔵 [PRICE] GET $url");
+
+    try {
+      final res = await http.get(url).timeout(
+        const Duration(seconds: 15),
+      );
+
+      print("📥 Status: ${res.statusCode}");
+      print("📥 Body: ${res.body}");
+      return res;
+    } catch (e) {
+      return http.Response('{"error":"$e"}', 500);
+    }
+  }
+
+  //TẠO CHUYẾN ĐI NGÀY TẾT POST
+  static Future<http.Response> createRideTET({
+    required String accessToken,
+    required int tripId,
+    required String fromAddress,
+    required String toAddress,
+    required String customerPhone,
+    required String pickupTime,
+    required int paymentMethod,
+    String note = "",
+    String content = "", // Để mặc định là rỗng nếu không truyền
+  }) async {
+    final url = Uri.parse(
+      "https://belucar.belugaexpress.com/api/tetapi/create",
+    );
+
+    final body = jsonEncode({
+      "tripId": tripId,
+      "fromAddress": fromAddress,
+      "toAddress": toAddress,
+      "customerPhone": customerPhone,
+      "pickupTime": pickupTime,
+      "note": note,
+      "paymentMethod": paymentMethod,
+      "content": content, // Truyền giá trị từ tham số vào Key của JSON
+    });
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $accessToken",
+        },
+        body: body,
+      ).timeout(const Duration(seconds: 15));
+
+      return response;
+    } catch (e) {
+      print("🔥 ERROR createRide(): $e");
+      // Trả về một Response giả lập lỗi để tránh crash app
+      return http.Response(
+        jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
+        500,
+      );
+    }
+  }
 }
