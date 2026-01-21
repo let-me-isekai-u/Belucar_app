@@ -637,19 +637,19 @@ class _BookingViewState extends State<_BookingView> {
                               await model.applyVoucherTET(
                                   await _getAccessToken() ?? "");
                               setState(() => _isApplyingVoucher = false);
-                              if (model.voucherMessage != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      model.voucherMessage!,
-                                      style: const TextStyle(color: Colors.white),
-                                    ),
-                                    backgroundColor: model.voucherDiscount > 0
-                                        ? Colors.green
-                                        : Colors.deepOrange,
-                                  ),
-                                );
-                              }
+                              // if (model.voucherMessage != null) {
+                              //   ScaffoldMessenger.of(context).showSnackBar(
+                              //     SnackBar(
+                              //       content: Text(
+                              //         model.voucherMessage!,
+                              //         style: const TextStyle(color: Colors.white),
+                              //       ),
+                              //       backgroundColor: model.voucherDiscount > 0
+                              //           ? Colors.green
+                              //           : Colors.deepOrange,
+                              //     ),
+                              //   );
+                              // }
                             },
                           ),
                         ),
