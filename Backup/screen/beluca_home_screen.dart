@@ -10,9 +10,6 @@ import '../services/api_service.dart';
 import 'activity_screen.dart';
 import 'profile_screen.dart';
 import 'booking_screen.dart' as booking_old;
-import 'tet_booking_screen.dart' as tet;
-
-
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -41,17 +38,11 @@ class _HomeViewState extends State<_HomeView> {
   int _userId = 0;
   bool _isLoadingWallet = true;
 
-  bool _showEventBanner = true;
-
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _fetchWalletInfo();
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _maybeShowEventBanner();
-    });
   }
 
   Future<void> _loadUserInfo() async {
@@ -85,155 +76,6 @@ class _HomeViewState extends State<_HomeView> {
     } catch (e) {
       if (mounted) setState(() => _isLoadingWallet = false);
     }
-  }
-
-  Future<void> _maybeShowEventBanner() async {
-    final prefs = await SharedPreferences.getInstance();
-    final shouldShow = prefs.getBool('showEventBanner') ?? false;
-
-    if (!shouldShow) return;
-
-    if (!mounted) return;
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 24),
-          child: FractionallySizedBox(
-            heightFactor: 0.65,
-            child: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black38,
-                        blurRadius: 15,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Image.asset(
-                    'lib/assets/tet_splash.png',
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                // Lớp phủ chữ và gradient
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 55, 20, 25),
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(20),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.8),
-                        ],
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Chúc Mừng Năm Mới! 🧧',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFFFD700),
-                            shadows: [
-                              Shadow(
-                                offset: Offset(1, 1),
-                                blurRadius: 4,
-                                color: Colors.black,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Ưu đãi đặc biệt chỉ trong dịp Tết.\nĐặt chuyến ngay - Không lo tăng giá!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: Colors.white,
-                            height: 1.4,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 15),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 44,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(dialogCtx).pop();
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => tet.BookingScreen(onRideBooked: _selectTab),
-                                ),
-                              );
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFD32F2F),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: const Text(
-                              'ĐẶT CHUYẾN NGAY!',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 10,
-                  top: 10,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.remove('showEventBanner');
-                      if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.black45,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   // ================= LOGIC NẠP TIỀN =================
@@ -365,7 +207,6 @@ class _HomeViewState extends State<_HomeView> {
   // ================= UI COMPONENTS  =================
 
   @override
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
@@ -403,8 +244,6 @@ class _HomeViewState extends State<_HomeView> {
 
   PreferredSizeWidget? _buildAppBar() {
     if (_selectedIndex != 0) return null;
-
-    // Hàm lấy lời chào theo thời gian thực
     String _getGreeting() {
       var hour = DateTime.now().hour;
       if (hour < 12) return 'Chào buổi sáng';
@@ -470,6 +309,7 @@ class _HomeViewState extends State<_HomeView> {
       ),
     );
   }
+
   void _selectTab(int index) {
     setState(() {
       _selectedIndex = index;
@@ -592,7 +432,6 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-
   /// --- Banner chào mừng --- ///
   Widget _buildEnhancedWelcomeBanner(BuildContext context) {
     return Stack(
@@ -608,7 +447,7 @@ class _HomeViewState extends State<_HomeView> {
               end: Alignment.bottomRight,
               colors: [
                 Theme.of(context).primaryColor,
-                Theme.of(context).primaryColor.withBlue(200), // Tạo độ sâu màu
+                Theme.of(context).primaryColor.withBlue(200),
               ],
             ),
             boxShadow: [
@@ -619,7 +458,7 @@ class _HomeViewState extends State<_HomeView> {
               ),
             ],
           ),
-          child: ClipRRect( // Bo góc cho cả các hiệu ứng trang trí bên trong
+          child: ClipRRect(
             borderRadius: BorderRadius.circular(24),
             child: Stack(
               children: [
@@ -631,7 +470,6 @@ class _HomeViewState extends State<_HomeView> {
                     backgroundColor: Colors.white.withOpacity(0.1),
                   ),
                 ),
-
                 Row(
                   children: [
                     Container(
@@ -700,18 +538,17 @@ class _HomeViewState extends State<_HomeView> {
             ),
           ),
         ),
-
       ],
     );
   }
 
-  /// --- Booking Section --- ///
+  /// --- Booking Section (bình thường) --- ///
   Widget _buildBookingSection() {
     return InkWell(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => tet.BookingScreen(onRideBooked: _selectTab),
+            builder: (_) => booking_old.BookingScreen(onRideBooked: _selectTab),
           ),
         );
       },
@@ -721,9 +558,9 @@ class _HomeViewState extends State<_HomeView> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFB71C1C).withOpacity(0.3),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+              color: Theme.of(context).primaryColor.withOpacity(0.22),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
@@ -731,79 +568,80 @@ class _HomeViewState extends State<_HomeView> {
           borderRadius: BorderRadius.circular(24),
           child: Stack(
             children: [
-              // 1. Nền Gradient đa tầng
               Container(
                 padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFFB71C1C), Color(0xFFE53935), Color(0xFFD32F2F)],
+                    colors: [
+                      Theme.of(context).primaryColor,
+                      Theme.of(context).primaryColor.withOpacity(0.7)
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                 ),
                 child: Row(
                   children: [
-                    // 2. Icon 🧧 với hiệu ứng phát sáng nhẹ
                     Container(
                       height: 60,
                       width: 60,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withOpacity(0.15),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                        border: Border.all(color: Colors.white.withOpacity(0.18), width: 1),
                       ),
                       child: const Center(
-                        child: Text("🧧", style: TextStyle(fontSize: 35)),
+                        child: Icon(Icons.directions_car, color: Colors.white, size: 35),
                       ),
                     ),
                     const SizedBox(width: 16),
 
-                    // 3. Nội dung văn bản
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                        children: const [
                           Text(
-                            'VỀ NHÀ ĂN TẾT!',
+                            'Đặt chuyến đi mới',
                             style: TextStyle(
                               fontSize: 22,
-                              color: const Color(0xFFFFD700),
+                              color: Colors.white,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 1.5,
+                              letterSpacing: 1.2,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  offset: const Offset(1, 2),
+                                  color: Colors.black26,
+                                  offset: Offset(1, 2),
                                   blurRadius: 4,
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Săn voucher - Vi vu đón xuân',
+                          SizedBox(height: 4),
+                          Text(
+                            'Nhanh chóng - An toàn - Giá hợp lý',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.white,
+                              color: Colors.white70,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          // 4. Tag ưu đãi kiểu Glassmorphism
+                          SizedBox(height: 12),
+                          // Ưu đãi/Tag
+                          /* Bạn có thể thêm dòng này nếu cần thêm một tag nhấn mạnh.
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
+                              color: Colors.white.withOpacity(0.10),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withOpacity(0.2)),
+                              border: Border.all(color: Colors.white.withOpacity(0.13)),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.stars, color: Color(0xFFFFD700), size: 16),
+                              children: [
+                                Icon(Icons.stars, color: Colors.blueAccent, size: 16),
                                 SizedBox(width: 6),
                                 Text(
-                                  '07–14/02 • Không lo giá',
+                                  'Nhận ưu đãi mỗi ngày',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: Colors.white,
@@ -813,39 +651,39 @@ class _HomeViewState extends State<_HomeView> {
                               ],
                             ),
                           ),
+                          */
                         ],
                       ),
                     ),
                     const Icon(
                       Icons.arrow_forward_ios_rounded,
-                      color: Color(0xFFFFD700),
+                      color: Colors.white,
                       size: 20,
                     ),
                   ],
                 ),
               ),
 
-              // 5. Các họa tiết trang trí (Decorations)
-              // Vòng tròn lớn mờ phía góc phải
+              // Trang trí nền phía góc/phía dưới
               Positioned(
                 right: -30,
                 top: -30,
                 child: Container(
-                  width: 120,
-                  height: 120,
+                  width: 110,
+                  height: 110,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withOpacity(0.05), width: 20),
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.04), width: 19),
                   ),
                 ),
               ),
-              // Điểm sáng nhỏ phía dưới
               Positioned(
                 bottom: -10,
-                left: 100,
+                left: 90,
                 child: CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Colors.white.withOpacity(0.03),
+                  radius: 38,
+                  backgroundColor: Colors.white.withOpacity(0.02),
                 ),
               ),
             ],
@@ -997,7 +835,6 @@ class _HomeViewState extends State<_HomeView> {
       ),
       child: Column(
         children: [
-          // Icon với nền gradient mờ
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(

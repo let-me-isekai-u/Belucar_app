@@ -5,9 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'activity_screen.dart';
 import 'dart:async';
-
-// Import màn hình chi tiết đơn để push bằng MaterialPageRoute
-// Nếu đường dẫn khác, hãy chỉnh lại import cho phù hợp.
 import 'order_detail_screen.dart';
 
 class BookingScreen extends StatelessWidget {
@@ -34,12 +31,22 @@ class _BookingView extends StatefulWidget {
 class _BookingViewState extends State<_BookingView> {
   final _phoneController = TextEditingController();
   final _noteController = TextEditingController();
+  final _voucherController = TextEditingController();
+  bool _isCreatingRide = false;
+  bool _isApplyingVoucher = false;
 
-  bool _isCreatingRide = false; //Chống double tap
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _noteController.dispose();
+    _voucherController.dispose();
+    super.dispose();
+  }
 
   void _resetControllers() {
     _phoneController.clear();
     _noteController.clear();
+    _voucherController.clear();
   }
 
   void _handlePaymentMethodChange(BookingModel model, int? value) {
@@ -47,12 +54,10 @@ class _BookingViewState extends State<_BookingView> {
     model.paymentMethod = value;
   }
 
-  // Helper: cố gắng lấy rideId từ response['data']
   int? _extractRideIdFromResponse(Map<String, dynamic> res) {
     try {
       final data = res['data'];
       if (data == null) return null;
-      // phổ biến: data['id'] hoặc data['rideId']
       final rawId = data['id'] ?? data['rideId'] ?? data['ride_id'];
       if (rawId == null) return null;
       if (rawId is int) return rawId;
@@ -64,32 +69,21 @@ class _BookingViewState extends State<_BookingView> {
     }
   }
 
-  // Helper: điều hướng tới màn hình chi tiết đơn bằng MaterialPageRoute
   Future<void> _navigateToOrderDetail(Map<String, dynamic> apiResult) async {
     final rideId = _extractRideIdFromResponse(apiResult);
-
-    if (!mounted) return;
-
     if (rideId != null) {
-      try {
-        // Push trực tiếp bằng widget (không cần routes trong MaterialApp)
-        await Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => OrderDetailScreen(rideId: rideId),
-          ),
-        );
-        return;
-      } catch (e) {
-        // Nếu có lỗi compile/run (ví dụ constructor khác), fallback về named route:
-        debugPrint('Navigate to OrderDetailScreen failed: $e');
-      }
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => OrderDetailScreen(rideId: rideId),
+        ),
+      );
+      return;
+    } else {
+      widget.onRideBooked(2);
     }
-
-    // Fallback: nếu không có rideId hoặc push trực tiếp không khả dụng, dùng callback cũ
-    widget.onRideBooked(2);
   }
 
-  // --- HÀM TẠO DÒNG GIÁ TRONG BẢNG CHI TIẾT ---
   Widget _buildPriceRow(String label, double amount, {bool isBold = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -110,9 +104,6 @@ class _BookingViewState extends State<_BookingView> {
     );
   }
 
-  // =====================================================
-  // GIÁ VÀ NÚT ĐẶT CHUYẾN (CẬP NHẬT CHI TIẾT GIÁ TẠI ĐÂY)
-  // =====================================================
   Widget _buildPriceAndBookingButton(BookingModel model, BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -126,7 +117,6 @@ class _BookingViewState extends State<_BookingView> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // --- BẢNG CHI TIẾT GIÁ ---
           if (model.isLoadingPrice)
             const Padding(padding: EdgeInsets.only(bottom: 10), child: LinearProgressIndicator(color: Colors.red))
           else if (model.tripPrice != null)
@@ -135,8 +125,13 @@ class _BookingViewState extends State<_BookingView> {
               child: Column(
                 children: [
                   _buildPriceRow("Giá cước gốc:", model.basePrice ?? 0),
-                  _buildPriceRow("Ưu đãi trả trước:", -(model.discount), color: Colors.green),
                   _buildPriceRow("Phụ phí ngày lễ:", model.surcharge, color: Colors.red, isBold: true),
+                  if (model.voucherDiscount > 0)
+                    _buildPriceRow(
+                      "Giảm giá voucher:",
+                      -(model.voucherDiscount),
+                      color: Colors.orange,
+                    ),
                   const Divider(height: 15, color: Color(0xFFFFD700)),
                   _buildPriceRow(
                     "Tổng cộng:",
@@ -147,8 +142,6 @@ class _BookingViewState extends State<_BookingView> {
                 ],
               ),
             ),
-
-          // --- NÚT ĐẶT CHUYẾN MÀU TẾT ---
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
@@ -205,7 +198,6 @@ class _BookingViewState extends State<_BookingView> {
     );
   }
 
-  // --- CÁC LOGIC THANH TOÁN (GIỮ NGUYÊN) ---
   void _showPaymentQR(BookingModel model, String accessToken) async {
     final prefs = await SharedPreferences.getInstance();
     final int userId = prefs.getInt("id") ?? 0;
@@ -224,11 +216,10 @@ class _BookingViewState extends State<_BookingView> {
         Timer? countdownTimer;
         Timer? pollTimer;
         bool isChecking = false;
-        bool rideCreated = false; // 🔒 đảm bảo 1 QR chỉ tạo 1 đơn
+        bool rideCreated = false;
 
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
-            // ⏱ Countdown timer
             countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
               if (countdown <= 0) {
                 t.cancel();
@@ -238,8 +229,6 @@ class _BookingViewState extends State<_BookingView> {
                 setDialogState(() => countdown--);
               }
             });
-
-            // 🔁 Poll backend kiểm tra thanh toán
             pollTimer ??= Timer.periodic(const Duration(seconds: 7), (t) async {
               if (isChecking || rideCreated) return;
 
@@ -251,7 +240,7 @@ class _BookingViewState extends State<_BookingView> {
                 );
 
                 if (result['success'] == true) {
-                  rideCreated = true; // 🔒 khóa vĩnh viễn
+                  rideCreated = true;
                   t.cancel();
 
                   if (dialogCtx.mounted) {
@@ -311,7 +300,7 @@ class _BookingViewState extends State<_BookingView> {
                         pollTimer?.cancel();
                         Navigator.pop(dialogCtx);
                         if (mounted) {
-                          setState(() => _isCreatingRide = false); // 🔓 mở khóa nút
+                          setState(() => _isCreatingRide = false);
                         }
                       },
                       child: const Text("Hủy giao dịch"),
@@ -324,7 +313,6 @@ class _BookingViewState extends State<_BookingView> {
         );
       },
     ).then((_) {
-      // PHÒNG TRƯỜNG HỢP dialog bị đóng bất thường
       if (mounted && _isCreatingRide) {
         setState(() => _isCreatingRide = false);
       }
@@ -342,7 +330,7 @@ class _BookingViewState extends State<_BookingView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
       );
-      setState(() => _isCreatingRide = false); // MỞ LẠI KHI LỖI
+      setState(() => _isCreatingRide = false);
     }
   }
 
@@ -412,7 +400,6 @@ class _BookingViewState extends State<_BookingView> {
     );
   }
 
-  // UI functions below are unchanged (kept as in your original file)...
   Widget _buildSectionCard({required String title, required IconData icon, required List<Widget> children}) {
     return Card(
       elevation: 3,
@@ -535,7 +522,189 @@ class _BookingViewState extends State<_BookingView> {
               RadioListTile<int>(dense: true, visualDensity: compactDensity, contentPadding: EdgeInsets.zero, value: 2, groupValue: model.paymentMethod, title: const Text("Thanh toán bằng ví", style: radioTextStyle), secondary: const Icon(Icons.wallet_giftcard, color: Colors.green), onChanged: (v) => _handlePaymentMethodChange(model, v)),
             ],
           ),
-          const SizedBox(height: 100),
+          const SizedBox(height: 12),
+          // ==== PHẦN NHẬP VOUCHER Ở CUỐI FORM ====
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 2),
+          child: Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Color(0xFFD32F2F), width: 1.0),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.local_offer_rounded, color: Color(0xFFD32F2F)),
+                      SizedBox(width: 8),
+                      Text(
+                        "Voucher - Mã khuyến mãi",
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // === Field ở riêng ===
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _voucherController,
+                          autocorrect: false,
+                          textInputAction: TextInputAction.done,
+                          decoration: const InputDecoration(
+                            border: OutlineInputBorder(),
+                            labelText: "Nhập mã voucher ưu đãi tết!",
+                          ),
+                          onChanged: (val) {
+                            model.voucherCode = val.trim();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // === Note thông báo ===
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline, size: 18, color: Colors.black87),
+                        const SizedBox(width: 6),
+                        const Expanded(
+                          child: Text(
+                            'Vui lòng chọn "Áp dụng" lần nữa sau mỗi lần thay đổi thông tin phía trên, xin cám ơn!',
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // === Buttons xuống dưới bên phải ===
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        SizedBox(
+                          height: 48,
+                          child: ElevatedButton.icon(
+                            icon: _isApplyingVoucher
+                                ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                                : const Icon(Icons.check_circle_outline, size: 20),
+                            label: const Text(
+                              "Áp dụng",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFD32F2F),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                            ),
+                            onPressed: _isApplyingVoucher
+                                ? null
+                                : () async {
+                              final code = _voucherController.text.trim();
+                              if (code.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Vui lòng nhập mã giảm giá!"),
+                                    backgroundColor: Colors.deepOrange,
+                                  ),
+                                );
+                                return;
+                              }
+                              setState(() => _isApplyingVoucher = true);
+                              model.voucherCode = code;
+                              await model.applyVoucherTET(
+                                  await _getAccessToken() ?? "");
+                              setState(() => _isApplyingVoucher = false);
+                              if (model.voucherMessage != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      model.voucherMessage!,
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    backgroundColor: model.voucherDiscount > 0
+                                        ? Colors.green
+                                        : Colors.deepOrange,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        SizedBox(
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.cancel_outlined,
+                                color: Color(0xFFD32F2F)),
+                            label: const Text(
+                              "Hủy",
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFD32F2F),
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Color(0xFFD32F2F)),
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                            onPressed: () async {
+                              _voucherController.clear();
+                              model.voucherCode = "";
+                              model.voucherDiscount = 0;
+                              model.voucherMessage = null;
+                              await model.fetchTripPrice();
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // === Kết quả voucher ===
+                  if (model.voucherMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(
+                        model.voucherMessage!,
+                        style: TextStyle(
+                          color: model.voucherDiscount > 0
+                              ? Colors.green
+                              : Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 100),
         ],
       ),
     );

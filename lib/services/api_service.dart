@@ -621,9 +621,7 @@ class ApiService {
     required int paymentMethod,
     required String pickupTime,
   }) async {
-    final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/tetapi/getprice",
-    ).replace(queryParameters: {
+    final url = Uri.parse("https://belucar.belugaexpress.com/api/tetapi/getprice").replace(queryParameters: {
       "fromDistrictId": fromDistrictId.toString(),
       "toDistrictId": toDistrictId.toString(),
       "type": type.toString(),
@@ -631,22 +629,17 @@ class ApiService {
       "pickupTime": pickupTime,
     });
 
-    print("🔵 [PRICE] GET $url");
-
     try {
       final res = await http.get(url).timeout(
         const Duration(seconds: 15),
       );
-
-      print("📥 Status: ${res.statusCode}");
-      print("📥 Body: ${res.body}");
       return res;
     } catch (e) {
       return http.Response('{"error":"$e"}', 500);
     }
   }
 
-  //TẠO CHUYẾN ĐI NGÀY TẾT POST
+  /// Tạo chuyến đi Tết (bổ sung voucherCode, trả đúng theo tài liệu)
   static Future<http.Response> createRideTET({
     required String accessToken,
     required int tripId,
@@ -656,11 +649,10 @@ class ApiService {
     required String pickupTime,
     required int paymentMethod,
     String note = "",
-    String content = "", // Để mặc định là rỗng nếu không truyền
+    String content = "", // truyền "" nếu thanh toán sau, truyền mã cố định nếu chuyển khoản
+    String voucherCode = "", // voucherCode nên có parameter riêng
   }) async {
-    final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/tetapi/create",
-    );
+    final url = Uri.parse("https://belucar.belugaexpress.com/api/tetapi/create");
 
     final body = jsonEncode({
       "tripId": tripId,
@@ -670,7 +662,8 @@ class ApiService {
       "pickupTime": pickupTime,
       "note": note,
       "paymentMethod": paymentMethod,
-      "content": content, // Truyền giá trị từ tham số vào Key của JSON
+      "content": content,
+      "voucherCode": voucherCode,
     });
 
     try {
@@ -682,15 +675,54 @@ class ApiService {
         },
         body: body,
       ).timeout(const Duration(seconds: 15));
-
       return response;
     } catch (e) {
-      print("🔥 ERROR createRide(): $e");
-      // Trả về một Response giả lập lỗi để tránh crash app
       return http.Response(
         jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
         500,
       );
     }
   }
+
+  /// Áp dụng voucher Tết lấy giá (chuẩn hóa đúng spec)
+  static Future<Map<String, dynamic>> applyVoucherTET({
+    required String accessToken,
+    required int tripId,
+    required String pickupTime,
+    required String voucherCode,
+  }) async {
+    final url = Uri.parse("https://belucar.belugaexpress.com/api/tetapi/apply-voucher");
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $accessToken',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "tripId": tripId,
+          "pickupTime": pickupTime,
+          "voucherCode": voucherCode,
+        }),
+      );
+
+      final json = jsonDecode(response.body);
+
+      // Chuẩn hóa mọi trường hợp kể cả success = false
+      return {
+        "success": json["success"] == true,
+        "data": json["data"],
+        "message": json["message"] ?? json["error"] ?? null,
+      };
+
+    } catch (e) {
+      return {
+        "success": false,
+        "message": "Không thể kết nối hệ thống",
+        "data": null,
+      };
+    }
+  }
+
 }

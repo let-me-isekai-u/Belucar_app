@@ -38,8 +38,8 @@ class BookingModel extends ChangeNotifier {
   }
 
   // ================== PHƯƠNG THỨC THANH TOÁN ==================
-  // 1: Chuyển khoản | 2: Thanh toán bằng ví | 3: Tiền mặt (Thanh toán sau)
-  int _paymentMethod = 1;
+  // 1: Chuyển khoản | 2: Thanh toán sau qua tài xế
+  int _paymentMethod = 1; // Đúng với API docs (chỉ 1 hoặc 2)
   int get paymentMethod => _paymentMethod;
 
   set paymentMethod(int value) {
@@ -50,6 +50,11 @@ class BookingModel extends ChangeNotifier {
     }
   }
 
+  // ================== MÃ VOUCHER ==================
+  String? voucherCode;
+  String? voucherMessage; // Lưu thông báo từ API apply-voucher (nếu có)
+  double voucherDiscount = 0;
+
   // ================== RADIO STATE ==================
   TripCategory tripCategory = TripCategory.choNguoi;
 
@@ -59,12 +64,10 @@ class BookingModel extends ChangeNotifier {
 
   // ================== DANH SÁCH ==================
   List<dynamic> provinces = [];
-
   List<dynamic> pickupDistricts = [];
   List<dynamic> dropDistricts = [];
 
   // ================== ĐIỂM ĐÓN ==================
-  // lưu id thay vì string để dễ dùng với API
   int? _selectedProvincePickup;
   int? get selectedProvincePickup => _selectedProvincePickup;
 
@@ -87,7 +90,7 @@ class BookingModel extends ChangeNotifier {
   String? note;
 
   // ================== GIÁ ==================
-  double? tripPrice; // thành  tiền
+  double? tripPrice; // thành tiền
   int? currentTripId;
   double? basePrice;
   double discount = 0;
@@ -99,7 +102,6 @@ class BookingModel extends ChangeNotifier {
 
   BookingModel() {
     fetchProvinces();
-    // Không gọi fetchDistricts() ở đây vì chưa có provinceId cụ thể
   }
 
   // =====================================================
@@ -107,7 +109,6 @@ class BookingModel extends ChangeNotifier {
   // =====================================================
   void setTripCategory(TripCategory value) {
     tripCategory = value;
-
     if (value == TripCategory.choNguoi) {
       isChoNguoi = true;
       isHoaToc = false;
@@ -115,7 +116,6 @@ class BookingModel extends ChangeNotifier {
       isChoNguoi = false;
       isBaoXe = false;
     }
-
     notifyListeners();
     fetchTripPrice();
   }
@@ -129,39 +129,27 @@ class BookingModel extends ChangeNotifier {
   }
 
   Future<void> fetchPickupDistricts(int provinceId) async {
-    pickupDistricts = await ApiService.getDistricts(
-      provinceId: provinceId,
-    );
+    pickupDistricts = await ApiService.getDistricts(provinceId: provinceId);
     notifyListeners();
   }
 
   Future<void> fetchDropDistricts(int provinceId) async {
-    dropDistricts = await ApiService.getDistricts(
-      provinceId: provinceId,
-    );
+    dropDistricts = await ApiService.getDistricts(provinceId: provinceId);
     notifyListeners();
   }
 
-  // Setter cho province pickup: khi đổi tỉnh sẽ load danh sách huyện cho điểm đón
   Future<void> setSelectedProvincePickup(int? provinceId) async {
     if (_selectedProvincePickup == provinceId) return;
-
     _selectedProvincePickup = provinceId;
-    // reset district selection khi đổi tỉnh
     _selectedDistrictPickup = null;
     pickupDistricts = [];
-
     notifyListeners();
-
     if (provinceId != null) {
       await fetchPickupDistricts(provinceId);
     }
-
-    // cập nhật giá nếu cần
     fetchTripPrice();
   }
 
-  // Setter cho district pickup
   void setSelectedDistrictPickup(int? districtId) {
     if (_selectedDistrictPickup == districtId) return;
     _selectedDistrictPickup = districtId;
@@ -169,31 +157,23 @@ class BookingModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setSelectedProvinceDrop(int? provinceId) async {
+    if (_selectedProvinceDrop == provinceId) return;
+    _selectedProvinceDrop = provinceId;
+    _selectedDistrictDrop = null;
+    dropDistricts = [];
+    notifyListeners();
+    if (provinceId != null) {
+      await fetchDropDistricts(provinceId);
+    }
+    fetchTripPrice();
+  }
+
   void setSelectedDistrictDrop(int? districtId) {
     if (_selectedDistrictDrop == districtId) return;
     _selectedDistrictDrop = districtId;
     fetchTripPrice();
     notifyListeners();
-  }
-
-
-  // Setter cho province drop: khi đổi tỉnh sẽ load danh sách huyện cho điểm đến
-  Future<void> setSelectedProvinceDrop(int? provinceId) async {
-    if (_selectedProvinceDrop == provinceId) return;
-
-    _selectedProvinceDrop = provinceId;
-    // reset district selection khi đổi tỉnh
-    _selectedDistrictDrop = null;
-    dropDistricts = [];
-
-    notifyListeners();
-
-    if (provinceId != null) {
-      await fetchDropDistricts(provinceId);
-    }
-
-    // cập nhật giá nếu cần
-    fetchTripPrice();
   }
 
   // =====================================================
@@ -208,7 +188,7 @@ class BookingModel extends ChangeNotifier {
   }
 
   // =====================================================
-  // 12. LẤY GIÁ
+  // LẤY GIÁ
   // =====================================================
   Future<void> fetchTripPrice() async {
     if (selectedProvincePickup == null ||
@@ -217,14 +197,6 @@ class BookingModel extends ChangeNotifier {
         selectedDistrictDrop == null ||
         goDate == null ||
         goTime == null) {
-      _resetPrice();
-      notifyListeners();
-      return;
-    }
-
-    final fromId = selectedProvincePickup;
-    final toId = selectedProvinceDrop;
-    if (fromId == null || toId == null) {
       _resetPrice();
       notifyListeners();
       return;
@@ -246,7 +218,7 @@ class BookingModel extends ChangeNotifier {
         fromDistrictId: selectedDistrictPickup!,
         toDistrictId: selectedDistrictDrop!,
         type: tripType,
-        paymentMethod: _paymentMethod,
+        paymentMethod: paymentMethod,
         pickupTime: pickupDateTime,
       );
 
@@ -256,14 +228,12 @@ class BookingModel extends ChangeNotifier {
           json["success"] == true &&
           json["data"] != null) {
         final data = json["data"];
-
         currentTripId = data["id"];
-        basePrice = (data["basePrice"] as num).toDouble();
-        discount = (data["discount"] as num).toDouble();
-        surcharge = (data["surcharge"] as num).toDouble();
-        tripPrice = (data["finalPrice"] as num).toDouble();
-        isHoliday = data["isHoliday"] ?? false;
-
+        basePrice = (data["basePrice"] as num?)?.toDouble();
+        discount = (data["discount"] as num?)?.toDouble() ?? 0;
+        surcharge = (data["surcharge"] as num?)?.toDouble() ?? 0;
+        tripPrice = (data["finalPrice"] as num?)?.toDouble();
+        isHoliday = data["isHoliday"] == true;
         priceErrorMessage = null;
       } else {
         _resetPrice();
@@ -288,18 +258,21 @@ class BookingModel extends ChangeNotifier {
     discount = 0;
     surcharge = 0;
     isHoliday = false;
+    voucherDiscount = 0;
+    voucherMessage = null;
   }
 
   // =====================================================
-  // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
+  // ÁP DỤNG VOUCHER
   // =====================================================
-  Future<Map<String, dynamic>> createRideTET(String accessToken, {String content = ""}) async {
-    if (currentTripId == null) {
-      throw Exception("Chưa có giá chuyến đi");
+  Future<void> applyVoucherTET(String accessToken) async {
+    if (currentTripId == null || voucherCode == null || voucherCode!.isEmpty) {
+      voucherDiscount = 0;
+      voucherMessage = null;
+      notifyListeners();
+      return;
     }
-
-    // Kết hợp ngày và giờ thành chuỗi ISO
-    final String pickupDateTime = DateTime(
+    final pickupDateTime = DateTime(
       goDate!.year,
       goDate!.month,
       goDate!.day,
@@ -307,7 +280,48 @@ class BookingModel extends ChangeNotifier {
       goTime!.minute,
     ).toIso8601String();
 
-    // GỌI API TẠO CHUYẾN TẾT (đồng bộ với ApiService.createRideTET)
+    try {
+      final json = await ApiService.applyVoucherTET(
+        accessToken: accessToken,
+        tripId: currentTripId!,
+        pickupTime: pickupDateTime,
+        voucherCode: voucherCode!,
+      );
+      if (json["success"] == true && json["data"] != null) {
+        final data = json["data"];
+        voucherDiscount = (data["discount"] as num?)?.toDouble() ?? 0;
+        voucherMessage = data["voucherMessage"]?.toString();
+        if (data["finalPrice"] != null) {
+          tripPrice = (data["finalPrice"] as num?)?.toDouble();
+        }
+        priceErrorMessage = null;
+      } else {
+        voucherDiscount = 0;
+        voucherMessage = "Mã voucher không đúng, vui lòng kiểm tra lại hoặc liên hệ CSKH để được hỗ trợ, xin cám ơn!";
+      }
+    } catch (e) {
+      voucherDiscount = 0;
+      voucherMessage = "Áp dụng voucher thất bại!";
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // =====================================================
+  // TẠO CHUYẾN ĐI
+  // =====================================================
+  Future<Map<String, dynamic>> createRideTET(String accessToken, {String content = ""}) async {
+    if (currentTripId == null) {
+      throw Exception("Chưa có giá chuyến đi");
+    }
+    final pickupDateTime = DateTime(
+      goDate!.year,
+      goDate!.month,
+      goDate!.day,
+      goTime!.hour,
+      goTime!.minute,
+    ).toIso8601String();
+
     final res = await ApiService.createRideTET(
       accessToken: accessToken,
       tripId: currentTripId!,
@@ -316,13 +330,13 @@ class BookingModel extends ChangeNotifier {
       customerPhone: customerPhone ?? "",
       pickupTime: pickupDateTime,
       note: note ?? "",
-      paymentMethod: _paymentMethod,
+      paymentMethod: paymentMethod,
       content: content,
+      voucherCode: voucherCode ?? "",
     );
 
     final data = ApiService.safeDecode(res.body);
 
-    // Kiểm tra lỗi từ backend (ví dụ: "Chưa chuyển khoản thành công!")
     if (res.statusCode != 200 || data['success'] == false) {
       throw data['message'] ?? "Lỗi không xác định khi tạo chuyến";
     }
@@ -334,36 +348,26 @@ class BookingModel extends ChangeNotifier {
   // RESET FORM
   // =====================================================
   void resetForm() {
-    // 1️⃣ Reset loại chuyến & payment
     tripCategory = TripCategory.choNguoi;
     isChoNguoi = true;
     isBaoXe = false;
     isHoaToc = false;
-    _paymentMethod = 3;
-
-    // 2️⃣ Reset địa điểm
+    _paymentMethod = 1;
     _selectedProvincePickup = null;
     _selectedDistrictPickup = null;
     addressPickup = null;
     pickupDistricts = [];
-
     _selectedProvinceDrop = null;
     _selectedDistrictDrop = null;
     addressDrop = null;
     dropDistricts = [];
-
-    // 3️⃣ Reset thời gian & thông tin khách
     goDate = null;
     goTime = null;
     customerPhone = null;
     note = null;
-
-    // 4️⃣ Reset giá (1 nơi duy nhất)
     _resetPrice();
-
-    // 5️⃣ Reset loading
+    voucherCode = null;
     isLoadingPrice = false;
-
     notifyListeners();
   }
 }
