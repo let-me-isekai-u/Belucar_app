@@ -20,7 +20,7 @@ class ApiService {
   // BASE URL CHUẨN
   // -----------------------------------------------------------
   static const String _baseUrl =
-      "https://belucar.belugaexpress.com/api/accountcustomerapi";
+      "https://belucar.com/api/accountcustomerapi";
 
   // Default headers
   static Map<String, String> _defaultHeaders() => {
@@ -276,7 +276,7 @@ class ApiService {
     required String oldPassword,
     required String newPassword,
   }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/accountcustomerapi/change-password");
+    final url = Uri.parse("https://belucar.com/api/accountcustomerapi/change-password");
 
     print("🔵 [API] CALL CHANGE PASSWORD → $url");
     print("📌 oldPassword: $oldPassword");
@@ -314,7 +314,7 @@ class ApiService {
 // =============================
   static Future<List<dynamic>> getProvinces() async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/provinceapi/active",
+      "https://belucar.com/api/provinceapi/active",
     );
 
     try {
@@ -340,7 +340,7 @@ class ApiService {
     required int  provinceId,
   })
   async{
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/provinceapi/district/$provinceId",
+    final url = Uri.parse("https://belucar.com/api/provinceapi/district/$provinceId",
     );
 
     try{
@@ -371,7 +371,7 @@ class ApiService {
     required String pickupTime,
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/tripapi/getprice",
+      "https://belucar.com/api/tripapi/getprice",
     ).replace(queryParameters: {
       "fromDistrictId": fromDistrictId.toString(),
       "toDistrictId": toDistrictId.toString(),
@@ -410,7 +410,7 @@ class ApiService {
     String content = "", // Để mặc định là rỗng nếu không truyền
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/rideapi/create",
+      "https://belucar.com/api/rideapi/create",
     );
 
     // --- LỖI TẠI ĐÂY TRƯỚC ĐÓ: Bạn không được khai báo 'String content = ""' bên trong Map ---
@@ -456,7 +456,7 @@ class ApiService {
       "Authorization": "Bearer $accessToken",
     };
     return await http.get(
-        Uri.parse("https://belucar.belugaexpress.com/api/rideapi/current"),
+        Uri.parse("https://belucar.com/api/rideapi/current"),
         headers: headers);
   }
 
@@ -469,7 +469,7 @@ class ApiService {
       "Authorization": "Bearer $accessToken",
     };
     return await http.get(
-        Uri.parse("https://belucar.belugaexpress.com/api/rideapi/history"),
+        Uri.parse("https://belucar.com/api/rideapi/history"),
         headers: headers);
   }
 
@@ -479,7 +479,7 @@ class ApiService {
     required int rideId,
   }) async {
     final uri = Uri.parse(
-      'https://belucar.belugaexpress.com/api/rideapi/ride-detail/$rideId',
+      'https://belucar.com/api/rideapi/ride-detail/$rideId',
     );
 
     try {
@@ -519,7 +519,7 @@ class ApiService {
     required String accessToken,
     required int rideId,
 }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/rideapi/cancel/$rideId",);
+    final url = Uri.parse("https://belucar.com/api/rideapi/cancel/$rideId",);
     final headers = {
       "Authorization": "Bearer $accessToken",
     };
@@ -534,7 +534,7 @@ class ApiService {
     required String accessToken,
     required int rideId,
   }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/rideapi/cancel-confirmed/$rideId",);
+    final url = Uri.parse("https://belucar.com/api/rideapi/cancel-confirmed/$rideId",);
     final headers = {
       "Authorization": "Bearer $accessToken",
     };
@@ -552,7 +552,7 @@ class ApiService {
     required String content,
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/paymentapi/deposite",
+      "https://belucar.com/api/paymentapi/deposite",
     );
 
     try {
@@ -587,7 +587,7 @@ class ApiService {
     required String accessToken,
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/paymentapi/history",
+      "https://belucar.com/api/paymentapi/history",
     );
 
     print("🔵 [API] WALLET HISTORY → $url");
@@ -621,7 +621,7 @@ class ApiService {
     required int paymentMethod,
     required String pickupTime,
   }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/tetapi/getprice").replace(queryParameters: {
+    final url = Uri.parse("https://belucar.com/api/tetapi/getprice").replace(queryParameters: {
       "fromDistrictId": fromDistrictId.toString(),
       "toDistrictId": toDistrictId.toString(),
       "type": type.toString(),
@@ -652,7 +652,7 @@ class ApiService {
     String content = "", // truyền "" nếu thanh toán sau, truyền mã cố định nếu chuyển khoản
     String voucherCode = "", // voucherCode nên có parameter riêng
   }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/tetapi/create");
+    final url = Uri.parse("https://belucar.com/api/tetapi/create");
 
     final body = jsonEncode({
       "tripId": tripId,
@@ -691,7 +691,7 @@ class ApiService {
     required String pickupTime,
     required String voucherCode,
   }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/tetapi/apply-voucher");
+    final url = Uri.parse("https://belucar.com/api/tetapi/apply-voucher");
 
     try {
       final response = await http.post(

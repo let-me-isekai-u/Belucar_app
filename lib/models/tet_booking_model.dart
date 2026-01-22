@@ -38,7 +38,7 @@ class BookingModel extends ChangeNotifier {
   }
 
   // ================== PHƯƠNG THỨC THANH TOÁN ==================
-  // 1: Chuyển khoản | 2: Thanh toán sau qua tài xế
+  // 1: Chuyển khoản | 2: Thanh toán bằng ví | 3: Tiền mặt (Thanh toán sau)
   int _paymentMethod = 1; // Đúng với API docs (chỉ 1 hoặc 2)
   int get paymentMethod => _paymentMethod;
 
