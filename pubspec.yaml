@@ -44,12 +44,16 @@ flutter:
     - lib/assets/icons/ActivityLogo.png
     - lib/assets/tet_splash.png
     - lib/assets/icons/tet_launcher_icon.png
+    - lib/assets/carousel_01.jpg
+    - lib/assets/carousel_02.png
+    - lib/assets/carousel_03.jpg
+    - lib/assets/icons/new_launcher_icon.png
 
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "lib/assets/icons/tet_launcher_icon.png"
+  image_path: "lib/assets/icons/new_launcher_icon.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "lib/assets/icons/tet_launcher_icon.png"
+  adaptive_icon_foreground: "lib/assets/icons/new_launcher_icon.png"
   remove_alpha_ios: true
   min_sdk_android: 21

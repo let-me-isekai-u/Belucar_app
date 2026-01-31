@@ -43,16 +43,46 @@ class _HomeViewState extends State<_HomeView> {
 
   bool _showEventBanner = true;
 
+  //lặp ảnh carousel
+  late PageController _bannerController;
+  int _currentBanner = 0;
+
+  final List<String> _carouselImages = [
+    'lib/assets/carousel_01.jpg',
+    'lib/assets/carousel_02.png',
+    'lib/assets/carousel_03.jpg',
+  ];
+
+
   @override
   void initState() {
     super.initState();
+
     _loadUserInfo();
     _fetchWalletInfo();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _maybeShowEventBanner();
     });
+
+    _bannerController = PageController(viewportFraction: 0.92);
+
+    Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!_bannerController.hasClients) return;
+
+      final totalPages = _carouselImages.length + 1;
+
+      _currentBanner = (_currentBanner + 1) % totalPages;
+
+      _bannerController.animateToPage(
+        _currentBanner,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+    });
   }
+
+
 
   Future<void> _loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
@@ -479,7 +509,9 @@ class _HomeViewState extends State<_HomeView> {
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0: return _buildHomeScreen();
-      case 1: return booking_old.BookingScreen(onRideBooked: _selectTab);
+      case 1:
+        return tet.BookingScreen(onRideBooked: _selectTab);
+
       case 2: return const ActivityScreen();
       case 3: return const ProfileScreen();
       default: return const SizedBox();
@@ -496,7 +528,7 @@ class _HomeViewState extends State<_HomeView> {
           const SizedBox(height: 19),
           _buildWalletSection(),
           const SizedBox(height: 17),
-          _buildEnhancedWelcomeBanner(context),
+        _buildHomeCarousel(context),
           const SizedBox(height: 26),
           _buildActivityButton(),
           const SizedBox(height: 26),
@@ -592,118 +624,150 @@ class _HomeViewState extends State<_HomeView> {
     );
   }
 
-
-  /// --- Banner chào mừng --- ///
-  Widget _buildEnhancedWelcomeBanner(BuildContext context) {
-    return Stack(
+  /// --- Ảnh 'carousel' --- ///
+  Widget _buildHomeCarousel(BuildContext context) {
+    return Column(
       children: [
-        // Lớp nền chính với hiệu ứng Gradient đa tầng
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Theme.of(context).primaryColor,
-                Theme.of(context).primaryColor.withBlue(200), // Tạo độ sâu màu
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Theme.of(context).primaryColor.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: ClipRRect( // Bo góc cho cả các hiệu ứng trang trí bên trong
-            borderRadius: BorderRadius.circular(24),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -20,
-                  top: -20,
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.white.withOpacity(0.1),
+        SizedBox(
+          height: 250,
+          child: PageView.builder(
+            controller: _bannerController,
+            itemCount: _carouselImages.length + 1,
+            onPageChanged: (index) {
+              setState(() => _currentBanner = index);
+            },
+            itemBuilder: (context, index) {
+              // Banner chào mừng (index 0)
+              if (index == 0) {
+                return _buildEnhancedWelcomeBanner(context);
+              }
+
+              // Ảnh carousel
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.asset(
+                    _carouselImages[index - 1],
+                    fit: BoxFit.cover,
+                    width: double.infinity,
                   ),
                 ),
-
-                Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white24, width: 2),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black12, blurRadius: 8)
-                          ]
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.asset(
-                          'lib/assets/icons/BeluCar_logo.jpg',
-                          height: 70,
-                          width: 70,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Xin chào bạn 👋',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white70,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const Text(
-                            'Vi vu cùng BeluCar!',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              '📍 Phủ sóng toàn Miền Bắc',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
 
+        const SizedBox(height: 8),
+
+        _buildCarouselIndicator(),
       ],
     );
   }
+
+
+
+  /// --- Banner chào mừng --- ///
+  Widget _buildEnhancedWelcomeBanner(BuildContext context) {
+    return Container(
+      height: 270,
+      width: 450,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).primaryColor,
+            Theme.of(context).primaryColor.withBlue(200),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).primaryColor.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.asset(
+              'lib/assets/icons/BeluCar_logo.jpg',
+              height: 60,
+              width: 60,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Xin chào bạn 👋',
+                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                ),
+                const Text(
+                  'Vi vu cùng BeluCar!',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    '📍 Phủ sóng toàn Miền Bắc',
+                    style: TextStyle(fontSize: 11, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCarouselIndicator() {
+    final total = _carouselImages.length + 1;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(total, (index) {
+        final isActive = index == _currentBanner;
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 500),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: isActive ? 12 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: isActive
+                ? Theme.of(context).primaryColor
+                : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        );
+      }),
+    );
+  }
+
+
+
 
   /// --- Booking Section --- ///
   Widget _buildBookingSection() {
