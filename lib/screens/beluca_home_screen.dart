@@ -395,7 +395,6 @@ class _HomeViewState extends State<_HomeView> {
   // ================= UI COMPONENTS  =================
 
   @override
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
@@ -409,23 +408,30 @@ class _HomeViewState extends State<_HomeView> {
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) {
-            setState(() {
-              _selectedIndex = index;
-            });
+            if (index == 1) {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => tet.BookingScreen(onRideBooked: _selectTab),
+                ),
+              );
+            } else {
+              setState(() {
+                _selectedIndex = index;
+              });
+            }
           },
           type: BottomNavigationBarType.fixed,
           selectedItemColor: Theme.of(context).primaryColor,
           unselectedItemColor: Colors.grey.shade400,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-          elevation: 0, // Tắt elevation mặc định vì đã dùng BoxShadow ở trên
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Trang chủ'),
             BottomNavigationBarItem(icon: Icon(Icons.directions_car_rounded), label: 'Đặt chuyến'),
             BottomNavigationBarItem(icon: Icon(Icons.access_time_rounded), label: 'Hoạt động'),
             BottomNavigationBarItem(icon: Icon(Icons.person_rounded), label: 'Tài khoản'),
           ],
-        ),
+        )
       ),
       backgroundColor: Colors.grey.shade50,
     );
@@ -508,13 +514,16 @@ class _HomeViewState extends State<_HomeView> {
 
   Widget _buildBody() {
     switch (_selectedIndex) {
-      case 0: return _buildHomeScreen();
+      case 0:
+        return _buildHomeScreen(); // Màn hình Trang chủ
       case 1:
-        return tet.BookingScreen(onRideBooked: _selectTab);
-
-      case 2: return const ActivityScreen();
-      case 3: return const ProfileScreen();
-      default: return const SizedBox();
+        return Container(); // Nội dung trống vì Tab này chuyển hướng qua Navigator
+      case 2:
+        return const ActivityScreen(); // Màn hình Hoạt động
+      case 3:
+        return const ProfileScreen(); // Màn hình Tài khoản
+      default:
+        return const SizedBox(); // Phòng trường hợp ngoại lệ
     }
   }
 
