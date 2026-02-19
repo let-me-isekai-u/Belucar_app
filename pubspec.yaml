@@ -48,6 +48,15 @@ flutter:
     - lib/assets/carousel_02.png
     - lib/assets/carousel_03.jpg
     - lib/assets/icons/new_launcher_icon.png
+    - lib/assets/icons/lantern.png
+    - lib/assets/icons/user_avatar_placeholder.png
+    - lib/assets/icons/tet_decoration.png
+    - lib/assets/icons/lantern.png
+    - lib/assets/icons/Tet_appbar_background.png
+    - lib/assets/icons/wallet.png
+    - lib/assets/icons/booking_car.png
+    - lib/assets/icons/activity_history.png
+    - lib/assets/icons/new_background_appbar.png
 
 flutter_launcher_icons:
   android: "launcher_icon"

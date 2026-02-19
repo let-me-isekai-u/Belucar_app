@@ -35,7 +35,6 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     emailController.text = widget.email;
   }
 
-  // PICK AVATAR
   Future<void> _pickAvatar() async {
     try {
       final picker = ImagePicker();
@@ -49,7 +48,6 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     }
   }
 
-  // CALL API UPDATE
   Future<void> _saveProfile() async {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString("accessToken");
@@ -79,7 +77,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
     if (res.statusCode == 200) {
       _showSnack("Cập nhật thành công!");
-      Navigator.pop(context, true); // reload lại profile
+      Navigator.pop(context, true);
     } else {
       try {
         final data = jsonDecode(res.body);
@@ -96,8 +94,20 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Cập nhật thông tin")),
+      appBar: AppBar(
+        title: Text(
+          "Cập nhật thông tin",
+          style: TextStyle(
+            color: theme.colorScheme.secondary, // ✅ Vàng gold
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: IconThemeData(color: theme.colorScheme.secondary), // ✅ Icon back vàng
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -111,15 +121,15 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   children: [
                     CircleAvatar(
                       radius: 55,
-                      backgroundColor: Colors.teal.shade100,
+                      backgroundColor: theme.colorScheme.secondary.withOpacity(0.15), // ✅ Vàng nhạt
                       backgroundImage: _avatar != null
                           ? FileImage(File(_avatar!.path))
                           : (widget.avatarUrl != null
                           ? NetworkImage(widget.avatarUrl!)
                           : null),
                       child: (_avatar == null && widget.avatarUrl == null)
-                          ? const Icon(Icons.person,
-                          size: 55, color: Colors.black54)
+                          ? Icon(Icons.person,
+                          size: 55, color: theme.colorScheme.secondary) // ✅ Icon vàng
                           : null,
                     ),
                     Positioned(
@@ -127,11 +137,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                       right: 4,
                       child: InkWell(
                         onTap: _pickAvatar,
-                        child: const CircleAvatar(
+                        child: CircleAvatar(
                           radius: 18,
-                          backgroundColor: Colors.teal,
-                          child: Icon(Icons.camera_alt,
-                              size: 18, color: Colors.white),
+                          backgroundColor: theme.colorScheme.secondary, // ✅ Nền vàng
+                          child: const Icon(Icons.camera_alt,
+                              size: 18, color: Colors.black87), // ✅ Icon đen
                         ),
                       ),
                     )
@@ -146,6 +156,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 controller: nameController,
                 hint: "Họ và tên",
                 icon: Icons.person_outline,
+                theme: theme,
               ),
               const SizedBox(height: 20),
 
@@ -154,6 +165,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 controller: emailController,
                 hint: "Email",
                 icon: Icons.email_outlined,
+                theme: theme,
               ),
 
               const SizedBox(height: 40),
@@ -164,12 +176,20 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 child: ElevatedButton(
                   onPressed: _saveProfile,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.secondary, // ✅ Nền vàng
+                    foregroundColor: Colors.black87, // ✅ Chữ đen
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text("Lưu", style: TextStyle(fontSize: 16)),
+                  child: const Text(
+                    "Lưu",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
 
@@ -181,12 +201,20 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
                   style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.secondary, // ✅ Chữ vàng
+                    side: BorderSide(color: theme.colorScheme.secondary, width: 2), // ✅ Border vàng
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text("Huỷ", style: TextStyle(fontSize: 16)),
+                  child: const Text(
+                    "Huỷ",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -201,17 +229,24 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     required TextEditingController controller,
     required String hint,
     required IconData icon,
+    required ThemeData theme,
   }) {
     return TextField(
       controller: controller,
+      style: const TextStyle(color: Colors.white), // ✅ Chữ trắng
       decoration: InputDecoration(
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: Colors.transparent, // ✅ Nền trong suốt
         hintText: hint,
-        prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
+        hintStyle: const TextStyle(color: Colors.white54), // ✅ Hint trắng nhạt
+        prefixIcon: Icon(icon, color: theme.colorScheme.secondary), // ✅ Icon vàng
+        enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: Colors.white54), // ✅ Border trắng nhạt
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2), // ✅ Border vàng khi focus
         ),
       ),
     );

@@ -9,7 +9,6 @@ import 'update_profile_screen.dart';
 import 'wallet_history_screen.dart';
 import 'package:flutter/services.dart';
 
-
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -25,22 +24,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _phoneController = TextEditingController();
   String? _referralCode;
 
-
-  // 🔥 THÊM BIẾN LƯU URL AVATAR (GIỮ NGUYÊN LOGIC CŨ)
   String? _avatarUrl;
 
   bool _loading = true;
 
   double _wallet = 0.0;
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
   }
 
-  //hàm mở Zalo
   Future<void> _openZalo() async {
-    final Uri zaloUrl = Uri.parse('https://zalo.me/037 9550130');
+    final Uri zaloUrl = Uri.parse('https://zalo.me/0379550130');
     if (await canLaunchUrl(zaloUrl)) {
       await launchUrl(zaloUrl, mode: LaunchMode.externalApplication);
     } else {
@@ -48,8 +45,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-
-  // ================= LOGIC API VÀ STATE (GIỮ NGUYÊN) =================
   Future<void> _loadProfile() async {
     print("🔍 [PROFILE] Bắt đầu load profile...");
 
@@ -65,7 +60,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // Logic gọi API giữ nguyên
       final res = await ApiService.getCustomerProfile(accessToken: accessToken);
 
       print("📥 [PROFILE] Status: ${res.statusCode}");
@@ -81,7 +75,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           _wallet = (data["wallet"] ?? 0.0).toDouble();
 
-          // LƯU URL AVATAR VÀO BIẾN TRẠNG THÁI
           _avatarUrl = data["avatarUrl"];
           _referralCode = data["referralCode"];
 
@@ -116,8 +109,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showSupportDialog(BuildContext context) {
+    final theme = Theme.of(context);
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
@@ -137,13 +133,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
 
-              const Icon(Icons.headset_mic_rounded,
-                  size: 50, color: Colors.blue),
+              Icon(Icons.headset_mic_rounded,
+                  size: 50, color: theme.colorScheme.secondary),
               const SizedBox(height: 16),
 
-              const Text(
+              Text(
                 "Hỗ trợ khách hàng BeluCar",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.secondary, // ✅ Vàng gold
+                ),
               ),
               const SizedBox(height: 8),
 
@@ -154,7 +154,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Gọi điện
               _buildSupportAction(
                 leading: CircleAvatar(
                   backgroundColor: Colors.green.withOpacity(0.1),
@@ -174,7 +173,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 12),
 
-              // Zalo
               _buildSupportAction(
                 leading: Image.asset(
                   'lib/assets/icons/icons8-zalo-100.png',
@@ -194,6 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
   }
+
   Widget _buildSupportAction({
     required Widget leading,
     required String title,
@@ -217,11 +216,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(subtitle,
-                      style: TextStyle(
-                          color: Colors.grey[600], fontSize: 12)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87, // ✅ Đen cho dialog (nền trắng)
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -233,15 +241,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-
-  // ================= UI BUILD =================
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Tài khoản Cá nhân"), // Tiêu đề thân thiện hơn
+        title: Text(
+          "Tài khoản Cá nhân",
+          style: TextStyle(
+            color: theme.colorScheme.secondary, // ✅ Màu vàng gold
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
       ),
       body: _loading
@@ -251,35 +263,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 1. PHẦN TỔNG QUAN HỒ SƠ (AVATAR VÀ TÊN)
-            _buildProfileHeader(primaryColor),
+            _buildProfileHeader(theme),
 
             const SizedBox(height: 16),
-            _buildWalletCard(context),
+            _buildWalletCard(context, theme),
 
             const SizedBox(height: 24),
 
-            // 2. CÁC LỰA CHỌN THAO TÁC (MENU ACTIONS: Update, Change Password)
-            _buildActionButtons(context),
+            _buildActionButtons(context, theme),
 
             const SizedBox(height: 24),
 
-            // 3. THÔNG TIN CHI TIẾT (Hiển thị Email)
-            _buildDetailsCard(context),
+            _buildDetailsCard(context, theme),
 
             const SizedBox(height: 30),
 
-            // 4. ĐĂNG XUẤT VÀ XÓA TÀI KHOẢN (Actions nguy hiểm)
-            _buildDangerousActions(context),
+            _buildDangerousActions(context, theme),
           ],
         ),
       ),
     );
   }
 
-  // ================= WIDGET CON CHO GIAO DIỆN MỚI =================
-
-  Widget _buildWalletCard(BuildContext context) {
+  Widget _buildWalletCard(BuildContext context, ThemeData theme) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -290,20 +296,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.15),
+                color: theme.colorScheme.secondary.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.account_balance_wallet,
-                  color: Colors.green, size: 28),
+              child: Icon(Icons.account_balance_wallet,
+                  color: theme.colorScheme.secondary, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     "Số dư ví",
-                    style: TextStyle(color: Colors.grey),
+                    style: TextStyle(
+                      color: theme.colorScheme.secondary, // ✅ Vàng gold
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -311,6 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
+                      color: Colors.white, // ✅ Trắng
                     ),
                   ),
                 ],
@@ -322,8 +333,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 1. Header (Avatar và Tên)
-  Widget _buildProfileHeader(Color primaryColor) {
+  Widget _buildProfileHeader(ThemeData theme) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -331,34 +341,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         child: Column(
           children: [
-            // AVATAR
             CircleAvatar(
               radius: 60,
-              backgroundColor: primaryColor.withOpacity(0.15),
+              backgroundColor: theme.colorScheme.secondary.withOpacity(0.15),
               backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
                   ? NetworkImage(_avatarUrl!) as ImageProvider<Object>?
                   : null,
               child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                  ? Icon(Icons.person, size: 70, color: primaryColor)
+                  ? Icon(Icons.person, size: 70, color: theme.colorScheme.secondary)
                   : null,
             ),
             const SizedBox(height: 16),
 
-            // HỌ TÊN NỔI BẬT (Lấy từ Controller đã load data)
             Text(
               _nameController.text.isNotEmpty
                   ? _nameController.text
                   : "Người dùng BeluCar",
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary, // ✅ Vàng gold
+              ),
             ),
             const SizedBox(height: 4),
 
-            // SỐ ĐIỆN THOẠI (Lấy từ Controller đã load data)
             Text(
               _phoneController.text.isNotEmpty
                   ? _phoneController.text
                   : "Chưa cập nhật SĐT",
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white, // ✅ Trắng
+              ),
             ),
           ],
         ),
@@ -366,15 +380,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 2. Các Lựa chọn Thao tác (Cập nhật, Đổi mật khẩu)
-  Widget _buildActionButtons(BuildContext context) {
+  Widget _buildActionButtons(BuildContext context, ThemeData theme) {
     return Column(
       children: [
         _buildProfileListItem(
           icon: Icons.edit,
           title: "Cập nhật Thông tin cá nhân",
+          iconColor: theme.colorScheme.secondary,
           onTap: () {
-            // LOGIC CHUYỂN MÀN HÌNH CŨ ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -385,7 +398,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ).then((_) {
-              // Reload profile sau khi update xong
               _loadProfile();
             });
           },
@@ -393,6 +405,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildProfileListItem(
           icon: Icons.lock,
           title: "Đổi Mật khẩu",
+          iconColor: theme.colorScheme.secondary,
           onTap: () {
             Navigator.push(
               context,
@@ -404,12 +417,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildProfileListItem(
           icon: Icons.headset_mic_rounded,
           title: "Liên hệ hỗ trợ",
+          iconColor: theme.colorScheme.secondary,
           onTap: () => _showSupportDialog(context),
         ),
 
         _buildProfileListItem(
           icon: Icons.attach_money,
           title: "Lịch sử tài chính",
+          iconColor: theme.colorScheme.secondary,
           onTap: () {
             Navigator.push(
               context,
@@ -421,8 +436,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 3. Thông tin chi tiết (Hiển thị Email)
-  Widget _buildDetailsCard(BuildContext context) {
+  Widget _buildDetailsCard(BuildContext context, ThemeData theme) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -432,14 +446,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             icon: Icons.email,
             title: "Email",
             subtitle: _emailController.text,
-            showArrow: false, // Không cần mũi tên
-            onTap: () {}, // Không làm gì
+            iconColor: theme.colorScheme.secondary,
+            showArrow: false,
+            onTap: () {},
           ),
           if (_referralCode != null && _referralCode!.isNotEmpty)
             _buildProfileListItem(
               icon: Icons.card_giftcard,
               title: "Mã giới thiệu",
               subtitle: _referralCode!,
+              iconColor: theme.colorScheme.secondary,
               showArrow: false,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: _referralCode!));
@@ -453,12 +469,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 4. Đăng xuất và Xóa tài khoản
-  Widget _buildDangerousActions(BuildContext context) {
+  Widget _buildDangerousActions(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ----- Đăng xuất (Sử dụng OutlinedButton) -----
         OutlinedButton.icon(
           icon: const Icon(Icons.logout),
           label: const Text("Đăng xuất"),
@@ -469,7 +483,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           onPressed: () async {
-            // LOGIC ĐĂNG XUẤT CŨ ĐÃ ĐƯỢC ĐƯA VÀO ĐÂY
             final prefs = await SharedPreferences.getInstance();
             final accessToken = prefs.getString("accessToken");
 
@@ -489,54 +502,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 12),
 
-        // ----- Xoá tài khoản (Sử dụng TextButton) -----
         TextButton(
           style: TextButton.styleFrom(
             foregroundColor: Colors.red.shade700,
           ),
-          onPressed: () => _showDeleteConfirmation(context), // Logic được tách ra hàm dưới
+          onPressed: () => _showDeleteConfirmation(context, theme),
           child: const Text("Xoá tài khoản", style: TextStyle(decoration: TextDecoration.underline)),
         ),
       ],
     );
   }
 
-  // ================= HELPERS VÀ LOGIC PHỤ =================
-
-  // Widget ListItem dùng chung cho các Menu/Thông tin
   Widget _buildProfileListItem({
     required IconData icon,
     required String title,
     String? subtitle,
     required VoidCallback onTap,
+    Color? iconColor,
     bool showArrow = true,
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Icon(icon, color: Colors.grey.shade700),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: showArrow ? const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.grey) : null,
+      leading: Icon(icon, color: iconColor ?? Colors.white70),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w500,
+          color: Colors.white, // ✅ Trắng
+          fontSize: 15,
+        ),
+      ),
+      subtitle: subtitle != null
+          ? Text(
+        subtitle,
+        style: const TextStyle(color: Colors.white70), // ✅ Trắng nhạt
+      )
+          : null,
+      trailing: showArrow
+          ? const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.white70)
+          : null,
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 
-  // Hàm xử lý xác nhận xóa tài khoản (Logic xóa tài khoản CŨ)
-  void _showDeleteConfirmation(BuildContext context) {
+  void _showDeleteConfirmation(BuildContext context, ThemeData theme) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Xoá tài khoản"),
-        content: const Text("Bạn có chắc muốn xoá tài khoản không? Hành động này không thể hoàn tác."),
+        backgroundColor: Colors.white,
+        title: Text(
+          "Xoá tài khoản",
+          style: TextStyle(color: theme.colorScheme.primary),
+        ),
+        content: const Text(
+          "Bạn có chắc muốn xoá tài khoản không? Hành động này không thể hoàn tác.",
+          style: TextStyle(color: Colors.black87),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Huỷ"),
+            child: Text(
+              "Huỷ",
+              style: TextStyle(
+                color: theme.colorScheme.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context); // đóng popup
+              Navigator.pop(context);
 
               final prefs = await SharedPreferences.getInstance();
               final accessToken = prefs.getString("accessToken");
@@ -548,13 +584,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 return;
               }
 
-              // Gọi API xoá tài khoản (LOGIC CŨ)
               final res = await ApiService.deleteAccount(accessToken: accessToken);
 
               if (!mounted) return;
 
               if (res.statusCode == 200) {
-                // Xoá token khỏi máy
                 await prefs.remove("accessToken");
                 await prefs.remove("refreshToken");
 
@@ -562,7 +596,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SnackBar(content: Text("Tài khoản đã bị xoá")),
                 );
 
-                // Chuyển về login
                 _goToLogin();
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -570,7 +603,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }
             },
-            child: const Text("Xoá", style: TextStyle(color: Colors.red)),
+            child: const Text(
+              "Xoá",
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

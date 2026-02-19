@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 
 import '../widgets/dashed_line_vertical.dart';
 
-
 class OrderDetailScreen extends StatelessWidget {
   final int rideId;
 
@@ -45,15 +44,20 @@ class OrderDetailScreen extends StatelessWidget {
     return TripDetailModel.fromJson(data);
   }
 
-  // ===== HELPER =====
   String _statusText(int status) {
     switch (status) {
-      case 1: return "Đang tìm tài xế";
-      case 2: return "Đã tìm thấy tài xế";
-      case 3: return "Đang di chuyển";
-      case 4: return "Hoàn thành";
-      case 5: return "Đã huỷ";
-      default: return "Không xác định";
+      case 1:
+        return "Đang tìm tài xế";
+      case 2:
+        return "Đã tìm thấy tài xế";
+      case 3:
+        return "Đang di chuyển";
+      case 4:
+        return "Hoàn thành";
+      case 5:
+        return "Đã huỷ";
+      default:
+        return "Không xác định";
     }
   }
 
@@ -71,10 +75,19 @@ class OrderDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Chi tiết chuyến xe"),
+        title: Text(
+          "Chi tiết chuyến xe",
+          style: TextStyle(
+            color: theme.colorScheme.secondary, // ✅ Vàng gold
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
+        iconTheme: IconThemeData(color: theme.colorScheme.secondary), // ✅ Icon back vàng
       ),
       body: FutureBuilder<TripDetailModel>(
         future: _fetchTripDetail(),
@@ -87,7 +100,10 @@ class OrderDetailScreen extends StatelessWidget {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Text("Lỗi tải chi tiết chuyến đi:\n${snapshot.error.toString()}"),
+                child: Text(
+                  "Lỗi tải chi tiết chuyến đi:\n${snapshot.error.toString()}",
+                  style: const TextStyle(color: Colors.red),
+                ),
               ),
             );
           }
@@ -99,28 +115,17 @@ class OrderDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 1. Trạng thái & Mã chuyến
-                _buildStatusHeader(trip),
+                _buildStatusHeader(trip, theme),
                 const SizedBox(height: 16),
-
-                // 2. Chi tiết giá tiền (Mới cập nhật theo Model)
-                _buildPriceDetailCard(trip),
+                _buildPriceDetailCard(trip, theme),
                 const SizedBox(height: 16),
-
-                // 3. Phương thức thanh toán
-                _buildPaymentMethodCard(trip),
+                _buildPaymentMethodCard(trip, theme),
                 const SizedBox(height: 16),
-
-                // 4. Tuyến đường
-                _buildRouteCard(context, trip),
+                _buildRouteCard(context, trip, theme),
                 const SizedBox(height: 16),
-
-                // 5. Thông tin thời gian & Ghi chú
-                _buildDetailInfoCard(context, trip),
+                _buildDetailInfoCard(context, trip, theme),
                 const SizedBox(height: 16),
-
-                // 6. Thông tin tài xế
-                _buildDriverInfoCard(context, trip),
+                _buildDriverInfoCard(context, trip, theme),
                 const SizedBox(height: 30),
               ],
             ),
@@ -130,11 +135,10 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  // Khối Header Trạng thái
-  Widget _buildStatusHeader(TripDetailModel trip) {
+  Widget _buildStatusHeader(TripDetailModel trip, ThemeData theme) {
     final statusColor = _statusColor(trip.status);
     return Card(
-      elevation: 0,
+      elevation: 3,
       color: statusColor.withOpacity(0.1),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -144,7 +148,14 @@ class OrderDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Text("Mã chuyến: ${trip.code}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+            Text(
+              "Mã chuyến: ${trip.code}",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary, // ✅ Vàng gold
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -163,8 +174,7 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  // KHỐI CHI TIẾT GIÁ (CẬP NHẬT THEO MODEL MỚI)
-  Widget _buildPriceDetailCard(TripDetailModel trip) {
+  Widget _buildPriceDetailCard(TripDetailModel trip, ThemeData theme) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -173,19 +183,37 @@ class OrderDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Chi tiết thanh toán", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const Divider(height: 24),
-            _priceRow("Giá cước gốc", trip.price),
-            _priceRow("Ưu đãi", -trip.discount, color: Colors.green),
-            _priceRow("Phụ phí", trip.surcharge, color: Colors.orange),
-            const Divider(height: 24),
+            Text(
+              "Chi tiết thanh toán",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary, // ✅ Vàng gold
+              ),
+            ),
+            Divider(height: 24, color: theme.colorScheme.secondary.withOpacity(0.3)),
+            _priceRow("Giá cước gốc", trip.price, theme),
+            _priceRow("Ưu đãi", -trip.discount, theme, color: Colors.greenAccent),
+            _priceRow("Phụ phí", trip.surcharge, theme, color: Colors.orangeAccent),
+            Divider(height: 24, color: theme.colorScheme.secondary.withOpacity(0.5)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("Tổng thanh toán", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text(
+                  "Tổng thanh toán",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white, // ✅ Trắng
+                  ),
+                ),
                 Text(
                   formatCurrency(trip.finalPrice),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.secondary, // ✅ Vàng gold
+                  ),
                 ),
               ],
             ),
@@ -195,32 +223,54 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _priceRow(String label, double amount, {Color? color}) {
+  Widget _priceRow(String label, double amount, ThemeData theme, {Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.black87)),
-          Text(formatCurrency(amount), style: TextStyle(fontWeight: FontWeight.w600, color: color)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white), // ✅ Trắng
+          ),
+          Text(
+            formatCurrency(amount),
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: color ?? Colors.white, // ✅ Trắng hoặc màu custom
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPaymentMethodCard(TripDetailModel trip) {
+  Widget _buildPaymentMethodCard(TripDetailModel trip, ThemeData theme) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: ListTile(
-        leading: const Icon(Icons.account_balance_wallet, color: Colors.blue),
-        title: const Text("Phương thức thanh toán", style: TextStyle(fontSize: 13, color: Colors.grey)),
-        subtitle: Text(trip.paymentMethod, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+        leading: Icon(Icons.account_balance_wallet, color: theme.colorScheme.secondary), // ✅ Icon vàng
+        title: Text(
+          "Phương thức thanh toán",
+          style: TextStyle(
+            fontSize: 13,
+            color: theme.colorScheme.secondary, // ✅ Vàng gold
+          ),
+        ),
+        subtitle: Text(
+          trip.paymentMethod,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white, // ✅ Trắng
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildRouteCard(BuildContext context, TripDetailModel trip) {
+  Widget _buildRouteCard(BuildContext context, TripDetailModel trip, ThemeData theme) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -232,13 +282,11 @@ class OrderDetailScreen extends StatelessWidget {
             Column(
               children: [
                 Icon(Icons.circle, color: Colors.green, size: 18),
-                DashedLineVertical(height: 40, color: Colors.brown),
+                DashedLineVertical(height: 40, color: theme.colorScheme.secondary), // ✅ Vàng gold
                 Icon(Icons.location_on, color: Colors.red, size: 18),
               ],
             ),
             const SizedBox(width: 10),
-
-            // cột bên phải: text
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,12 +295,14 @@ class OrderDetailScreen extends StatelessWidget {
                     title: trip.fromProvince,
                     district: trip.fromDistrict,
                     address: trip.fromAddress,
+                    theme: theme,
                   ),
                   const SizedBox(height: 8),
                   _routePointText(
                     title: trip.toProvince,
                     district: trip.toDistrict,
                     address: trip.toAddress,
+                    theme: theme,
                   ),
                 ],
               ),
@@ -263,38 +313,31 @@ class OrderDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _routePointText({required String title, required String district, required String address}) {
+  Widget _routePointText({
+    required String title,
+    required String district,
+    required String address,
+    required ThemeData theme,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("$title - $district", style: const TextStyle(fontWeight: FontWeight.w600)),
-        Text(address),
-      ],
-    );
-  }
-
-
-  Widget _routePoint({required IconData icon, required Color color, required String title, required String district, required String address}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              Text(district, style: TextStyle(color: Colors.grey.shade600, fontSize: 15)),
-              Text(address, style: TextStyle(color: Colors.grey.shade600, fontSize: 15)),
-            ],
+        Text(
+          "$title - $district",
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: theme.colorScheme.secondary, // ✅ Vàng gold
           ),
+        ),
+        Text(
+          address,
+          style: const TextStyle(color: Colors.white), // ✅ Trắng
         ),
       ],
     );
   }
 
-  Widget _buildDetailInfoCard(BuildContext context, TripDetailModel trip) {
+  Widget _buildDetailInfoCard(BuildContext context, TripDetailModel trip, ThemeData theme) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -303,33 +346,51 @@ class OrderDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Thông tin bổ sung", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const Divider(height: 20),
-            _infoRow("Ngày đón", DateFormat('dd/MM/yyyy').format(trip.pickupTime), icon: Icons.calendar_today),
-            _infoRow("Giờ đón", DateFormat('HH:mm').format(trip.pickupTime), icon: Icons.access_time),
-            _infoRow("Ngày đặt", DateFormat('HH:mm - dd/MM/yyyy').format(trip.createdAt), icon: Icons.history),
-            _infoRow("Ghi chú", trip.note ?? "Không có ghi chú", icon: Icons.note_outlined),
+            Text(
+              "Thông tin bổ sung",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary, // ✅ Vàng gold
+              ),
+            ),
+            Divider(height: 20, color: theme.colorScheme.secondary.withOpacity(0.3)),
+            _infoRow("Ngày đón", DateFormat('dd/MM/yyyy').format(trip.pickupTime), icon: Icons.calendar_today, theme: theme),
+            _infoRow("Giờ đón", DateFormat('HH:mm').format(trip.pickupTime), icon: Icons.access_time, theme: theme),
+            _infoRow("Ngày đặt", DateFormat('HH:mm - dd/MM/yyyy').format(trip.createdAt), icon: Icons.history, theme: theme),
+            _infoRow("Ghi chú", trip.note ?? "Không có ghi chú", icon: Icons.note_outlined, theme: theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _infoRow(String label, String value, {IconData? icon}) {
+  Widget _infoRow(String label, String value, {IconData? icon, required ThemeData theme}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Colors.grey),
+          Icon(icon, size: 18, color: theme.colorScheme.secondary), // ✅ Icon vàng
           const SizedBox(width: 12),
-          Text("$label: ", style: const TextStyle(fontWeight: FontWeight.w500)),
-          Expanded(child: Text(value, style: const TextStyle(color: Colors.black87))),
+          Text(
+            "$label: ",
+            style: TextStyle(
+              fontWeight: FontWeight.w500,
+              color: theme.colorScheme.secondary, // ✅ Label vàng
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white), // ✅ Giá trị trắng
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDriverInfoCard(BuildContext context, TripDetailModel trip) {
+  Widget _buildDriverInfoCard(BuildContext context, TripDetailModel trip, ThemeData theme) {
     final bool hasDriver = trip.status >= 2 && trip.driverName != null;
     return Card(
       elevation: 2,
@@ -339,30 +400,56 @@ class OrderDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text("Tài xế", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const Divider(height: 20),
+            Text(
+              "Tài xế",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.secondary, // ✅ Vàng gold
+              ),
+            ),
+            Divider(height: 20, color: theme.colorScheme.secondary.withOpacity(0.3)),
             if (hasDriver)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   radius: 25,
-                  backgroundImage: _buildAvatarUrl(trip.avatar) != null ? NetworkImage(_buildAvatarUrl(trip.avatar)!) : null,
-                  child: trip.avatar == null ? const Icon(Icons.person) : null,
+                  backgroundColor: theme.colorScheme.secondary.withOpacity(0.15), // ✅ Vàng nhạt
+                  backgroundImage: _buildAvatarUrl(trip.avatar) != null
+                      ? NetworkImage(_buildAvatarUrl(trip.avatar)!)
+                      : null,
+                  child: trip.avatar == null
+                      ? Icon(Icons.person, color: theme.colorScheme.secondary)
+                      : null,
                 ),
-                title: Text(trip.driverName!, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(
+                  trip.driverName!,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white, // ✅ Trắng
+                  ),
+                ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("SĐT: ${trip.phoneNumber ?? 'Đang cập nhật'}"),
-                    Text("BSX: ${trip.licenseNumber ?? 'Đang cập nhật'}"),
+                    Text(
+                      "SĐT: ${trip.phoneNumber ?? 'Đang cập nhật'}",
+                      style: const TextStyle(color: Colors.white70), // ✅ Trắng nhạt
+                    ),
+                    Text(
+                      "BSX: ${trip.licenseNumber ?? 'Đang cập nhật'}",
+                      style: const TextStyle(color: Colors.white70), // ✅ Trắng nhạt
+                    ),
                   ],
                 ),
-
               )
             else
               Text(
                 trip.status == 1 ? "Hệ thống đang tìm tài xế..." : "Chưa có thông tin tài xế",
-                style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
+                style: const TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: Colors.white70, // ✅ Trắng nhạt
+                ),
               ),
           ],
         ),

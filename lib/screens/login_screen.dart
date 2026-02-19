@@ -217,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Image.asset(
-                'lib/assets/icons/BeluCar_logo.jpg',
+                'lib/assets/icons/new_launcher_icon.png',
                 fit: BoxFit.contain,
               ),
             ),
@@ -242,27 +242,19 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            // THÊM TEXT TẠI ĐÂY VỚI MÀU CHỦ ĐẠO
+            // ✅ TIÊU ĐỀ CHÍNH - Dùng headlineLarge từ theme (đã sửa trong app_theme.dart)
             Text(
               "Đăng nhập BeluCar",
-              style: theme.textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                fontSize: 28,
-                color: theme.colorScheme.primary, // Dùng màu chủ đạo
-              ) ??
-                  const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 28,
-                  ),
+              style: theme.textTheme.headlineLarge,
             ),
             const SizedBox(height: 10),
 
-            // Tiêu đề form
+            // ✅ TIÊU ĐỀ PHỤ - Màu trắng rõ ràng
             Text(
               "Tiếp tục hành trình của bạn",
               style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade600, // Làm mờ đi
+                fontWeight: FontWeight.w600,
+                color: Colors.white70, // Trắng nhạt nhưng vẫn rõ
               ),
             ),
             const SizedBox(height: 24),
@@ -315,26 +307,32 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               // Sử dụng spaceBetween để tối đa hóa khoảng cách giữa hai nút
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Bọc bằng Expanded để nút Quên mật khẩu chiếm 1 phần không gian
+                // ✅ NÚT QUÊN MẬT KHẨU - Màu vàng rõ
                 Expanded(
                   child: TextButton(
                     onPressed: _goToForgotPassword,
                     child: Text(
                       "Quên mật khẩu?",
-                      style: TextStyle(color: theme.colorScheme.primary),
-                      textAlign: TextAlign.start, // Căn lề trái
+                      style: TextStyle(
+                        color: theme.colorScheme.secondary, // Màu vàng
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.start,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8), // Thêm khoảng cách nhỏ giữa 2 nút
-                // Bọc bằng Expanded để nút Đăng ký chiếm 1 phần không gian
+                const SizedBox(width: 8),
+                // ✅ NÚT ĐĂNG KÝ - Màu trắng rõ
                 Expanded(
                   child: TextButton(
                     onPressed: _goToRegister,
-                    child: Text(
+                    child: const Text(
                       "Đăng ký Tài khoản",
-                      style: TextStyle(color: theme.colorScheme.secondary),
-                      textAlign: TextAlign.end, // Căn lề phải
+                      style: TextStyle(
+                        color: Colors.white, // Màu trắng rõ
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.end,
                     ),
                   ),
                 ),
@@ -363,13 +361,19 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       decoration: InputDecoration(
         hintText: hint,
         labelText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
-        // Cải tiến: Thêm fill color và bo góc
+        hintStyle: const TextStyle(
+          color: Colors.black54, // ✅ Đổi từ Colors.grey sang đen nhạt
+          fontWeight: FontWeight.w500, // ✅ Thêm độ đậm
+        ),
+        labelStyle: const TextStyle(
+          color: Colors.black54, // ✅ Thêm màu cho label
+          fontWeight: FontWeight.w500,
+        ),
         filled: true,
         fillColor: Colors.grey.shade100,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none, // Bỏ đường viền mặc định
+          borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

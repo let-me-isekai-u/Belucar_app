@@ -39,7 +39,7 @@ class BookingModel extends ChangeNotifier {
 
   // ================== PHƯƠNG THỨC THANH TOÁN ==================
   // 1: Chuyển khoản | 2: Thanh toán bằng ví | 3: Tiền mặt (Thanh toán sau)
-  int _paymentMethod = 1;
+  int _paymentMethod = 2;
   int get paymentMethod => _paymentMethod;
 
   set paymentMethod(int value) {

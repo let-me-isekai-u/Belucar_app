@@ -141,16 +141,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // Trong _RegisterScreenState
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Đăng ký Tài khoản"), // Tiêu đề thân thiện hơn
+        title: Text(
+          "Đăng ký Tài khoản",
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.secondary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
-        elevation: 0, // Bỏ bóng AppBar
+        elevation: 0,
       ),
       body: SafeArea(
         child: Stack(
@@ -159,57 +164,61 @@ class _RegisterScreenState extends State<RegisterScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 children: [
-                  // 1. ẢNH AVATAR (GIỮ NGUYÊN)
-                  _buildAvatarSection(primary),
+                  // 1. ẢNH AVATAR
+                  _buildAvatarSection(theme),
                   const SizedBox(height: 24),
 
-                  // 2. NHÓM THÔNG TIN CÁ NHÂN (Họ tên, Email)
+                  // 2. NHÓM THÔNG TIN CÁ NHÂN
                   _buildInfoCard(
+                    theme: theme,
                     title: "Thông tin cá nhân",
                     children: [
-                      _buildTextField(_fullNameController, "Họ và tên", Icons.badge, false, false),
+                      _buildTextField(_fullNameController, "Họ và tên", Icons.badge, false, false, theme),
                       const SizedBox(height: 16),
-                      _buildTextField(_emailController, "Email", Icons.email, false, false),
+                      _buildTextField(_emailController, "Email", Icons.email, false, false, theme),
                     ],
                   ),
                   const SizedBox(height: 16),
 
-                  // 3. NHÓM THÔNG TIN LIÊN HỆ (SĐT)
+                  // 3. NHÓM THÔNG TIN LIÊN HỆ
                   _buildInfoCard(
+                    theme: theme,
                     title: "Thông tin liên hệ",
                     children: [
-                      _buildTextField(_phoneController, "Số điện thoại", Icons.phone, false, true),
+                      _buildTextField(_phoneController, "Số điện thoại", Icons.phone, false, true, theme),
                       const SizedBox(height: 16),
-                      _buildTextField(_confirmPhoneController, "Nhập lại số điện thoại", Icons.phone_android, false, true),
+                      _buildTextField(_confirmPhoneController, "Nhập lại số điện thoại", Icons.phone_android, false, true, theme),
                     ],
                   ),
                   const SizedBox(height: 16),
 
-                  // 4. NHÓM BẢO MẬT (Mật khẩu)
+                  // 4. NHÓM BẢO MẬT
                   _buildInfoCard(
+                    theme: theme,
                     title: "Bảo mật",
                     children: [
-                      // MẬT KHẨU CÓ TOGGLE
                       _buildPasswordTextField(
                         controller: _passwordController,
                         hint: "Mật khẩu",
                         isConfirm: false,
+                        theme: theme,
                       ),
                       const SizedBox(height: 16),
-                      // NHẬP LẠI MẬT KHẨU CÓ TOGGLE
                       _buildPasswordTextField(
                         controller: _confirmPasswordController,
                         hint: "Nhập lại mật khẩu",
                         isConfirm: true,
+                        theme: theme,
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // 3.5. NHÓM MÃ GIỚI THIỆU
+                  // 5. NHÓM MÃ GIỚI THIỆU
                   _buildInfoCard(
-                    title: "Mã giới thiệu",
+                    theme: theme,
+                    title: "Mã giới thiệu (Tùy chọn)",
                     children: [
                       _buildTextField(
                         _referralCodeController,
@@ -217,18 +226,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         Icons.card_giftcard,
                         false,
                         false,
+                        theme,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-
-                  // 5. ĐIỀU KHOẢN VÀ ĐĂNG KÝ
-                  _buildTermsAndButton(primary),
+                  // 6. ĐIỀU KHOẢN VÀ ĐĂNG KÝ
+                  _buildTermsAndButton(theme),
 
                   const SizedBox(height: 25),
 
-                  // 6. LIÊN KẾT QUAY LẠI LOGIN
+                  // 7. LIÊN KẾT QUAY LẠI LOGIN
                   TextButton(
                     onPressed: () {
                       Navigator.pushReplacement(
@@ -239,17 +248,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     child: Text(
                       "Bạn đã có tài khoản? Quay về đăng nhập",
                       style: TextStyle(
-                        color: primary,
+                        color: theme.colorScheme.secondary, // ✅ Màu vàng
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20), // Đảm bảo padding dưới cùng
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
 
-            // LOADING OVERLAY (GIỮ NGUYÊN)
+            // LOADING OVERLAY
             if (_loading)
               Container(
                 color: Colors.black12,
@@ -263,20 +272,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-// ================= WIDGET CON MỚI =================
+// ================= WIDGET CON =================
 
-// Widget con cho phần Avatar
-  Widget _buildAvatarSection(Color primary) {
+  Widget _buildAvatarSection(ThemeData theme) {
     return Center(
       child: Stack(
         children: [
           CircleAvatar(
             radius: 55,
-            backgroundColor: primary.withOpacity(.15),
+            backgroundColor: Colors.grey.shade300, // ✅ Đổi sang màu xám sáng hơn
             backgroundImage:
             _avatar != null ? FileImage(File(_avatar!.path)) : null,
             child: _avatar == null
-                ? const Icon(Icons.person, size: 55, color: Colors.black54)
+                ? Icon(
+              Icons.person,
+              size: 60, // ✅ Tăng size icon
+              color: Colors.grey.shade600, // ✅ Icon xám đậm rõ ràng
+            )
                 : null,
           ),
           Positioned(
@@ -286,9 +298,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               onTap: _pickAvatar,
               child: CircleAvatar(
                 radius: 18,
-                backgroundColor: primary,
+                backgroundColor: theme.colorScheme.secondary, // Vàng
                 child: const Icon(Icons.camera_alt,
-                    size: 18, color: Colors.white),
+                    size: 18, color: Colors.black87),
               ),
             ),
           ),
@@ -297,8 +309,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-// Widget con cho việc phân nhóm các TextField
-  Widget _buildInfoCard({required String title, required List<Widget> children}) {
+  Widget _buildInfoCard({
+    required ThemeData theme,
+    required String title,
+    required List<Widget> children,
+  }) {
     return Card(
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -312,33 +327,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: theme.colorScheme.secondary, // ✅ Tiêu đề màu vàng
               ),
             ),
-            const Divider(height: 20),
-            ...children, // Thêm các TextField
+            Divider(height: 20, color: theme.colorScheme.secondary.withOpacity(0.3)), // ✅ Divider vàng nhạt
+            ...children,
           ],
         ),
       ),
     );
   }
 
-// Widget con TextField đã tối ưu
   Widget _buildTextField(
       TextEditingController controller,
       String hint,
       IconData icon,
       bool isPassword,
       bool isPhone,
+      ThemeData theme,
       ) {
-    final theme = Theme.of(context);
     return TextField(
       controller: controller,
       keyboardType: isPhone ? TextInputType.phone : TextInputType.text,
+      style: const TextStyle(color: Colors.black87),
       decoration: InputDecoration(
         labelText: hint,
-        prefixIcon: Icon(icon, color: theme.colorScheme.primary),
-        // Dùng kiểu Filled và bo góc nhẹ
+        labelStyle: const TextStyle(
+          color: Colors.black54,
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: Icon(icon, color: theme.colorScheme.primary), // ✅ Icon xanh
         filled: true,
         fillColor: Colors.grey.shade100,
         border: OutlineInputBorder(
@@ -347,19 +365,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+          borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2), // ✅ Viền vàng khi focus
         ),
       ),
     );
   }
 
-// Widget con cho Mật khẩu (có Toggle)
   Widget _buildPasswordTextField({
     required TextEditingController controller,
     required String hint,
     required bool isConfirm,
+    required ThemeData theme,
   }) {
-    final theme = Theme.of(context);
     final isObscure = isConfirm ? _obscureConfirmPassword : _obscurePassword;
     final toggleObscure = isConfirm
         ? () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword)
@@ -368,13 +385,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextField(
       controller: controller,
       obscureText: isObscure,
+      style: const TextStyle(color: Colors.black87),
       decoration: InputDecoration(
         labelText: hint,
-        prefixIcon: Icon(Icons.lock, color: theme.colorScheme.primary),
+        labelStyle: const TextStyle(
+          color: Colors.black54,
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: Icon(Icons.lock, color: theme.colorScheme.primary), // ✅ Icon xanh
         suffixIcon: IconButton(
           icon: Icon(
             isObscure ? Icons.visibility_off : Icons.visibility,
-            color: theme.colorScheme.secondary,
+            color: theme.colorScheme.secondary, // ✅ Icon vàng
           ),
           onPressed: toggleObscure,
         ),
@@ -386,14 +408,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
+          borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2), // ✅ Viền vàng
         ),
       ),
     );
   }
 
-// Widget con cho Điều khoản và Nút Đăng ký
-  Widget _buildTermsAndButton(Color primary) {
+  Widget _buildTermsAndButton(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -401,6 +422,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           children: [
             Checkbox(
               value: _agreeTerms,
+              activeColor: theme.colorScheme.secondary, // ✅ Checkbox vàng
               onChanged: (v) {
                 setState(() => _agreeTerms = v!);
               },
@@ -417,7 +439,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   "Tôi đồng ý với Chính sách & Điều khoản sử dụng",
                   style: TextStyle(
                     decoration: TextDecoration.underline,
-                    color: primary,
+                    color: theme.colorScheme.secondary, // ✅ Text vàng
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -426,11 +449,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: 24),
         SizedBox(
-          height: 50, // Chiều cao cố định cho nút lớn
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+          height: 50,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.secondary, // ✅ Nút vàng
+              foregroundColor: Colors.black87, // ✅ Chữ đen
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), // Bo tròn như web
+              textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              elevation: 3,
             ),
             onPressed: _loading ? null : _handleRegister,
             child: _loading
@@ -439,14 +465,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
               height: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                color: Colors.white,
+                color: Colors.black87, // ✅ Loading đen
               ),
             )
-                : const Text("Đăng ký"),
+                : const Text("ĐĂNG KÝ"),
           ),
         ),
       ],
     );
   }
-
 }

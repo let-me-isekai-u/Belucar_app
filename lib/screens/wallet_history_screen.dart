@@ -15,7 +15,6 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  // 1. Khai báo biến lưu số dư ở đây để dùng chung toàn màn hình
   String _currentBalance = "0";
 
   @override
@@ -24,7 +23,6 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     _fetchData();
   }
 
-  // 2. Hàm gộp để lấy cả Profile (Số dư) và Lịch sử giao dịch
   Future<void> _fetchData() async {
     setState(() {
       _isLoading = true;
@@ -64,7 +62,6 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     } catch (e) {
       _errorMessage = "Đã có lỗi xảy ra: $e";
     } finally {
-      // Kết thúc tải, cập nhật giao diện 1 lần duy nhất
       setState(() => _isLoading = false);
     }
   }
@@ -74,30 +71,38 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text("Lịch sử giao dịch"),
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+        title: Text(
+          "Lịch sử giao dịch",
+          style: TextStyle(
+            color: theme.colorScheme.secondary, // ✅ Vàng gold
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: IconThemeData(color: theme.colorScheme.secondary), // ✅ Icon back vàng
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: theme.colorScheme.secondary), // ✅ Icon refresh vàng
             onPressed: _fetchData,
           )
         ],
       ),
       body: Column(
         children: [
-          // Hiển thị số dư thực tế
           _buildBalanceCard(theme),
 
-          const Padding(
-            padding: EdgeInsets.all(16.0),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 "Biến động số dư",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.secondary, // ✅ Vàng gold
+                ),
               ),
             ),
           ),
@@ -106,9 +111,9 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _errorMessage != null
-                ? _buildErrorWidget()
+                ? _buildErrorWidget(theme)
                 : _transactions.isEmpty
-                ? const Center(child: Text("Bạn chưa có giao dịch nào."))
+                ? _buildEmptyState(theme)
                 : _buildTransactionList(theme),
           ),
         ],
@@ -116,7 +121,6 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     );
   }
 
-  // 3. SỬA ĐOẠN HIỂN THỊ VÍ Ở ĐÂY
   Widget _buildBalanceCard(ThemeData theme) {
     return Container(
       width: double.infinity,
@@ -124,21 +128,41 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [theme.colorScheme.primary, theme.colorScheme.primary.withOpacity(0.8)],
+          colors: [
+            theme.colorScheme.secondary,
+            theme.colorScheme.secondary.withOpacity(0.7)
+          ], // ✅ Gradient vàng gold
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.secondary.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("Số dư ví BeluDriver", style: TextStyle(color: Colors.white70, fontSize: 14)),
+          const Text(
+            "Số dư ví BeluCar",
+            style: TextStyle(
+              color: Colors.black54, // ✅ Chữ đen nhạt
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
-          // Sử dụng biến _currentBalance đã lấy từ API
           Text(
             "$_currentBalance đ",
-            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              color: Colors.black87, // ✅ Chữ đen đậm
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -149,19 +173,24 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: _transactions.length,
-      separatorBuilder: (context, index) => const Divider(height: 1),
+      separatorBuilder: (context, index) => Divider(
+        height: 1,
+        color: Colors.white30, // ✅ Divider trắng nhạt
+      ),
       itemBuilder: (context, index) {
         final item = _transactions[index];
         final num amount = item['amount'] ?? 0;
         final bool isNegative = amount < 0;
 
         return Container(
-          color: Colors.white,
+          color: Colors.transparent,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
           child: Row(
             children: [
               CircleAvatar(
-                backgroundColor: isNegative ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                backgroundColor: isNegative
+                    ? Colors.red.withOpacity(0.15)
+                    : Colors.green.withOpacity(0.15),
                 child: Icon(
                   isNegative ? Icons.remove_circle_outline : Icons.add_circle_outline,
                   color: isNegative ? Colors.red : Colors.green,
@@ -172,14 +201,32 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item['type'] ?? "Giao dịch", style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text(_formatDateTime(item['createdDate']), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text(
+                      item['type'] ?? "Giao dịch",
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white, // ✅ Chữ trắng
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDateTime(item['createdDate']),
+                      style: const TextStyle(
+                        color: Colors.white70, // ✅ Chữ trắng nhạt
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
               Text(
                 "${isNegative ? '' : '+'}$amount đ",
-                style: TextStyle(fontWeight: FontWeight.bold, color: isNegative ? Colors.red : Colors.green),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: isNegative ? Colors.red.shade300 : Colors.green.shade300, // ✅ Màu sáng hơn
+                ),
               ),
             ],
           ),
@@ -188,14 +235,62 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     );
   }
 
-  Widget _buildErrorWidget() {
+  Widget _buildEmptyState(ThemeData theme) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-          const SizedBox(height: 10),
-          ElevatedButton(onPressed: _fetchData, child: const Text("Thử lại")),
+          Icon(
+            Icons.account_balance_wallet_outlined,
+            size: 80,
+            color: theme.colorScheme.secondary.withOpacity(0.5), // ✅ Icon vàng nhạt
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "Bạn chưa có giao dịch nào.",
+            style: TextStyle(
+              color: Colors.white70, // ✅ Chữ trắng nhạt
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 80,
+            color: Colors.red.shade300,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _errorMessage!,
+            style: const TextStyle(
+              color: Colors.red,
+              fontSize: 16,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _fetchData,
+            icon: const Icon(Icons.refresh),
+            label: const Text("Thử lại"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.secondary, // ✅ Nền vàng
+              foregroundColor: Colors.black87, // ✅ Chữ đen
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -206,6 +301,8 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     try {
       final DateTime dt = DateTime.parse(dateStr);
       return "${dt.hour}:${dt.minute.toString().padLeft(2, '0')} - ${dt.day}/${dt.month}/${dt.year}";
-    } catch (e) { return dateStr; }
+    } catch (e) {
+      return dateStr;
+    }
   }
 }

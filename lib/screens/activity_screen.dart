@@ -7,7 +7,6 @@ import 'order_detail_screen.dart';
 import '../models/trip_item_model.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
-import 'booking_screen.dart';
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
@@ -23,34 +22,24 @@ class _ActivityScreenState extends State<ActivityScreen>
   late Future<List<TripItemModel>> _ongoingFuture;
   late Future<List<TripItemModel>> _historyFuture;
 
-  // Biến kiểm soát để chỉ load API lịch sử 1 lần khi nhấn vào tab
   bool _isHistoryLoaded = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-
-    // 1. Chỉ gọi API cho tab "Đang diễn ra" ngay từ đầu
     _ongoingFuture = _fetchOngoingTrips();
-
-    // 2. Khởi tạo Future lịch sử rỗng trước để tránh lỗi build
     _historyFuture = Future.value([]);
-
-    // 3. Lắng nghe sự kiện chuyển tab
     _tabController.addListener(_handleTabSelection);
   }
 
   void _handleTabSelection() {
-    // Nếu người dùng chuyển sang tab Lịch sử (index 1) và chưa từng load trước đó
     if (_tabController.index == 1 && !_isHistoryLoaded) {
       setState(() {
         _historyFuture = _fetchHistoryTrips();
         _isHistoryLoaded = true;
       });
     }
-    // Nếu quay lại tab Đang diễn ra, bạn có thể chọn load lại hoặc không
-    // Ở đây mình giữ nguyên để tiết kiệm tài nguyên
   }
 
   String formatCurrency(double value) {
@@ -68,8 +57,6 @@ class _ActivityScreenState extends State<ActivityScreen>
     _tabController.dispose();
     super.dispose();
   }
-
-  // ================= UTIL =================
 
   String _getStatusText(int status) {
     switch (status) {
@@ -94,8 +81,6 @@ class _ActivityScreenState extends State<ActivityScreen>
       MaterialPageRoute(builder: (_) => const HomeScreen()),
     );
   }
-
-  // ================= API =================
 
   Future<String?> _getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -136,8 +121,6 @@ class _ActivityScreenState extends State<ActivityScreen>
     return [];
   }
 
-  // ================= HUỶ CHUYẾN =================
-
   Future<void> _callCancelTrip(int rideId) async {
     final token = await _getAccessToken();
     if (token == null) return;
@@ -166,7 +149,6 @@ class _ActivityScreenState extends State<ActivityScreen>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     setState(() {
       _ongoingFuture = _fetchOngoingTrips();
-      // Nếu đã từng xem lịch sử thì mới load lại lịch sử
       if (_isHistoryLoaded) {
         _historyFuture = _fetchHistoryTrips();
       }
@@ -186,7 +168,16 @@ class _ActivityScreenState extends State<ActivityScreen>
           "Bạn có chắc chắn muốn huỷ chuyến đi này không?\nHành động này không thể hoàn tác.",
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Không")),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              "Không",
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.secondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
@@ -196,31 +187,41 @@ class _ActivityScreenState extends State<ActivityScreen>
                 _callCancelTrip(rideId);
               }
             },
-            child: const Text("Huỷ chuyến", style: TextStyle(color: Colors.red)),
+            child: const Text(
+              "Huỷ chuyến",
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ================= UI BUILD =================
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Hoạt động", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+        title: Text(
+          "Hoạt động",
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.secondary, // ✅ Màu vàng gold
+          ),
+        ),
         centerTitle: false,
         elevation: 0,
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
+          labelColor: Theme.of(context).colorScheme.secondary, // ✅ Tab được chọn màu vàng gold
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
           unselectedLabelColor: Colors.white70,
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-          indicatorColor: Colors.green.shade700,
+          indicatorColor: Theme.of(context).colorScheme.secondary,
           indicatorWeight: 5.5,
           tabs: const [
             Tab(text: "Đang diễn ra"),
@@ -244,7 +245,7 @@ class _ActivityScreenState extends State<ActivityScreen>
         setState(() {
           _ongoingFuture = _fetchOngoingTrips();
         });
-        await _ongoingFuture; // Đợi load xong để vòng xoay biến mất
+        await _ongoingFuture;
       },
       child: FutureBuilder<List<TripItemModel>>(
         future: _ongoingFuture,
@@ -254,7 +255,6 @@ class _ActivityScreenState extends State<ActivityScreen>
           }
           final trips = snapshot.data ?? [];
           if (trips.isEmpty) {
-            // Bọc empty state trong SingleChildScrollView để có thể vuốt reload
             return SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
@@ -318,48 +318,7 @@ class _ActivityScreenState extends State<ActivityScreen>
           itemBuilder: (context, index) {
             final trip = trips[index];
             if (isHistory) {
-              final appBarColor = Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).primaryColor;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => OrderDetailScreen(rideId: trip.rideId))
-                  ),
-                  leading: const Icon(Icons.history, color: Colors.grey),
-                  title: Text(
-                      "${trip.fromProvince} → ${trip.toProvince}",
-                      maxLines: 2,
-                      style: const TextStyle(fontWeight: FontWeight.bold)
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 6),
-                      Text(
-                        "Mã chuyến: ${trip.code}",
-                        style: TextStyle(color: appBarColor, fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 6),
-                      Text("Ngày đặt: ${trip.createdAt.day}/${trip.createdAt.month}/${trip.createdAt.year}"),
-                    ],
-                  ),
-                  // -----------------------
-                  trailing: Text(
-                    _getStatusText(trip.status),
-                    style: TextStyle(
-                        color: trip.status == 4 ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold
-                    ),
-                  ),
-                ),
-              );
+              return _buildHistoryCard(trip);
             }
             return _buildOngoingCard(trip);
           },
@@ -368,61 +327,228 @@ class _ActivityScreenState extends State<ActivityScreen>
     );
   }
 
+  // ✅ CARD CHO LỊCH SỬ
+  Widget _buildHistoryCard(TripItemModel trip) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 3,
+      color: Colors.white, // ✅ Nền trắng đục 100%
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => OrderDetailScreen(rideId: trip.rideId)),
+        ),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.history, color: theme.colorScheme.secondary, size: 22),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      "${trip.fromProvince} → ${trip.toProvince}",
+                      maxLines: 2,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Mã chuyến: ${trip.code}",
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
+                maxLines: 2,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Ngày đặt: ${trip.createdAt.day}/${trip.createdAt.month}/${trip.createdAt.year}",
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: trip.status == 4 ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: trip.status == 4 ? Colors.green : Colors.red,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      _getStatusText(trip.status),
+                      style: TextStyle(
+                        color: trip.status == 4 ? Colors.green.shade800 : Colors.red.shade800,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ✅ CARD CHO ĐANG DIỄN RA
   Widget _buildOngoingCard(TripItemModel trip) {
-    // Lấy màu appbar (nếu null thì fallback về primaryColor)
-    final appBarColor = Theme.of(context).appBarTheme.backgroundColor ?? Theme.of(context).primaryColor;
+    final theme = Theme.of(context);
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(rideId: trip.rideId))),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => OrderDetailScreen(rideId: trip.rideId)),
+      ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.92),
+          color: Colors.white, // ✅ Nền trắng đục 100%
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black26, // ✅ Shadow đậm hơn
+              blurRadius: 8,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 6),
-            Text("${trip.fromProvince} → ${trip.toProvince}", maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8), // thêm khoảng cách
+            Text(
+              "${trip.fromProvince} → ${trip.toProvince}",
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 10),
             Text(
               "Mã chuyến: ${trip.code}",
-              style: TextStyle(color: appBarColor, fontWeight: FontWeight.bold, fontSize: 17), // cùng màu appbar
+              style: TextStyle(
+                color: theme.colorScheme.secondary,
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+              ),
             ),
-            const SizedBox(height: 8), // thêm khoảng cách
+            const SizedBox(height: 8),
             Text(
               "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
               maxLines: 2,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 14,
+              ),
             ),
             const SizedBox(height: 8),
-            Text("Giá: ${formatCurrency(trip.price)}"),
-            const SizedBox(height: 8),
             Text(
-              "Trạng thái: ${_getStatusText(trip.status)}",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: trip.status == 1
-                    ? Colors.orange
-                    : trip.status == 3
-                    ? Colors.blue
-                    : Colors.purple, // status 2
+              "Giá: ${formatCurrency(trip.price)}",
+              style: const TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
               ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _getStatusBgColor(trip.status),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getStatusBorderColor(trip.status),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Text(
+                      "Trạng thái: ${_getStatusText(trip.status)}",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: _getStatusBorderColor(trip.status),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             if (trip.status == 1 || trip.status == 2)
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => _showCancelTripDialog(rideId: trip.rideId, isConfirmCancel: trip.status == 2),
-                  child: const Text("Huỷ chuyến", style: TextStyle(color: Colors.red)),
+                child: TextButton.icon(
+                  onPressed: () => _showCancelTripDialog(
+                    rideId: trip.rideId,
+                    isConfirmCancel: trip.status == 2,
+                  ),
+                  icon: const Icon(Icons.cancel, color: Colors.red, size: 18),
+                  label: const Text(
+                    "Huỷ chuyến",
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
               ),
           ],
         ),
       ),
     );
+  }
+
+  // ✅ HÀM TRẢ VỀ MÀU NỀN CHO TRẠNG THÁI
+  Color _getStatusBgColor(int status) {
+    if (status == 1) return Colors.orange.shade50;
+    if (status == 2) return Colors.purple.shade50;
+    if (status == 3) return Colors.blue.shade50;
+    return Colors.grey.shade50;
+  }
+
+  // ✅ HÀM TRẢ VỀ MÀU VIỀN CHO TRẠNG THÁI
+  Color _getStatusBorderColor(int status) {
+    if (status == 1) return Colors.orange.shade700;
+    if (status == 2) return Colors.purple.shade700;
+    if (status == 3) return Colors.blue.shade700;
+    return Colors.grey.shade700;
   }
 
   Widget _buildEmptyState(String message, {bool showButton = false}) {
@@ -434,7 +560,15 @@ class _ActivityScreenState extends State<ActivityScreen>
           children: [
             Image.asset('lib/assets/icons/ActivityLogo.png', width: 140, height: 140),
             const SizedBox(height: 28),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, color: Colors.black54)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.secondary, // ✅ Màu vàng gold
+                fontWeight: FontWeight.w600, // ✅ Đậm hơn để dễ đọc
+              ),
+            ),
             const SizedBox(height: 20),
           ],
         ),

@@ -390,7 +390,6 @@ class _BookingViewState extends State<_BookingView> {
         title: const Text("Xác nhận thông tin"),
         content: const Text("Bạn đã kiểm tra kỹ thông tin chuyến đi chưa?\n\n⚠️ Lưu ý: KHÔNG tắt ứng dụng hoặc đóng mã QR cho đến khi hệ thống báo thành công."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Hủy")),
           ElevatedButton(onPressed: () {
             Navigator.pop(ctx);
             _showPaymentQR(model, accessToken);

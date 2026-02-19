@@ -240,6 +240,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      foregroundColor: Colors.white, // Màu chữ
+                    ),
                     onPressed: _isResetting ? null : _resetPassword,
                     child: _isResetting
                         ? const SizedBox(
@@ -266,7 +269,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   child: Text(
                     "Quay về đăng nhập",
                     style: TextStyle(
-                      color: primary,
+                      color: Theme.of(context).colorScheme.secondary, // Màu vàng gold
                       fontWeight: FontWeight.w600,
                     ),
                   ),
