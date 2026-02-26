@@ -14,11 +14,13 @@ class Booking1Screen extends StatefulWidget {
 class _Booking1ScreenState extends State<Booking1Screen> {
   final _phoneController = TextEditingController();
   final _noteController = TextEditingController();
+  final _quantityController = TextEditingController(text: "1");
 
   @override
   void dispose() {
     _phoneController.dispose();
     _noteController.dispose();
+    _quantityController.dispose();
     super.dispose();
   }
 
@@ -54,6 +56,12 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     );
   }
 
+  int? _parseQuantity() {
+    final raw = _quantityController.text.trim();
+    if (raw.isEmpty) return null;
+    return int.tryParse(raw);
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
@@ -61,6 +69,20 @@ class _Booking1ScreenState extends State<Booking1Screen> {
 
     const compactDensity = VisualDensity(vertical: -4);
     const radioTextStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.w500);
+
+    // Chỉ hiện số lượng khi: Chở người && không bao xe
+    final bool showQuantityField = model.isChoNguoi && !model.isBaoXe;
+
+    // Sync text field với model khi field đang hiển thị
+    if (showQuantityField) {
+      final modelQuantityText = model.quantity.toString();
+      if (_quantityController.text != modelQuantityText) {
+        _quantityController.text = modelQuantityText;
+        _quantityController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _quantityController.text.length),
+        );
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -76,7 +98,6 @@ class _Booking1ScreenState extends State<Booking1Screen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // LOẠI CHUYẾN
             _buildSectionCard(
               title: "Chọn Loại Chuyến",
               icon: Icons.directions_car,
@@ -87,7 +108,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                   contentPadding: EdgeInsets.zero,
                   value: TripCategory.choNguoi,
                   groupValue: model.tripCategory,
-                  activeColor: theme.colorScheme.secondary, // ✅ Màu vàng gold khi được chọn
+                  activeColor: theme.colorScheme.secondary,
                   title: const Text("Chở người", style: radioTextStyle),
                   onChanged: (v) {
                     if (v != null) model.setTripCategory(v);
@@ -99,7 +120,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                   contentPadding: EdgeInsets.zero,
                   value: TripCategory.choHang,
                   groupValue: model.tripCategory,
-                  activeColor: theme.colorScheme.secondary, // ✅ Màu vàng gold khi được chọn
+                  activeColor: theme.colorScheme.secondary,
                   title: const Text("Giao hàng", style: radioTextStyle),
                   onChanged: (v) {
                     if (v != null) model.setTripCategory(v);
@@ -111,7 +132,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                     visualDensity: compactDensity,
                     contentPadding: EdgeInsets.zero,
                     value: model.isBaoXe,
-                    activeColor: theme.colorScheme.secondary, // ✅ Đã có rồi, giữ nguyên
+                    activeColor: theme.colorScheme.secondary,
                     title: const Text("Bao trọn chuyến xe", style: radioTextStyle),
                     onChanged: (v) => model.setIsBaoXe(v ?? false),
                   ),
@@ -121,16 +142,44 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                     visualDensity: compactDensity,
                     contentPadding: EdgeInsets.zero,
                     value: model.isHoaToc,
-                    activeColor: theme.colorScheme.secondary, // ✅ Đã có rồi, giữ nguyên
+                    activeColor: theme.colorScheme.secondary,
                     title: const Text("Giao Hỏa tốc (Thêm phí)", style: radioTextStyle),
                     onChanged: (v) => model.setIsHoaToc(v ?? false),
                   ),
+
+                if (showQuantityField) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _quantityController,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: "Số lượng người",
+                      labelStyle: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.people, color: theme.colorScheme.secondary),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                      ),
+                      helperText: "Nhập số nguyên ≥ 1",
+                      helperStyle: const TextStyle(color: Colors.white70),
+                    ),
+                    onChanged: (v) {
+                      final q = int.tryParse(v.trim());
+                      if (q != null) {
+                        model.quantity = q;
+                      }
+                    },
+                  ),
+                ],
               ],
             ),
 
             const SizedBox(height: 18),
 
-            // THÔNG TIN KHÁCH HÀNG
             _buildSectionCard(
               title: "Thông tin Khách hàng & Ghi chú",
               icon: Icons.person_pin,
@@ -146,7 +195,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                       fontWeight: FontWeight.w500,
                     ),
                     border: const OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.phone, color: theme.colorScheme.secondary), // ✅ Đổi sang màu vàng gold
+                    prefixIcon: Icon(Icons.phone, color: theme.colorScheme.secondary),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
                     ),
@@ -194,7 +243,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () {
-              // Validate
+              // Validate phone
               if (_phoneController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -205,11 +254,36 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                 return;
               }
 
-              // Lưu vào model
+              // Validate quantity CHỈ khi field đang hiển thị
+              if (showQuantityField) {
+                final q = _parseQuantity();
+                if (q == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Vui lòng nhập số lượng người'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                if (q < 1) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Số lượng người phải >= 1'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+                model.quantity = q;
+              } else {
+                // Khi không dùng số lượng (bao xe hoặc chở hàng), set mặc định 1 để tránh rác dữ liệu
+                model.quantity = 1;
+              }
+
               model.customerPhone = _phoneController.text.trim();
               model.note = _noteController.text.trim();
 
-              // Chuyển sang màn hình 2
               Navigator.push(
                 context,
                 MaterialPageRoute(

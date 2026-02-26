@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart'; // ✅ Thêm import
+import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../models/booking_model.dart';
@@ -14,6 +14,8 @@ class Booking2Screen extends StatefulWidget {
 }
 
 class _Booking2ScreenState extends State<Booking2Screen> {
+  bool _isCalculatingPrice = false;
+
   Widget _buildSectionCard({
     required String title,
     required IconData icon,
@@ -91,7 +93,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     required BookingModel model,
     required bool isPickup,
   }) {
-    final int? selectedId = isPickup ? model.selectedProvincePickup : model.selectedProvinceDrop;
+    final int? selectedId =
+    isPickup ? model.selectedProvincePickup : model.selectedProvinceDrop;
     final String label = "Tỉnh / Thành phố";
     final displayName = () {
       final sel = selectedId == null
@@ -108,7 +111,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
 
     return GestureDetector(
       onTap: () async {
-        final chosen = await _showProvincePickerForBooking(context, model, isPickup: isPickup);
+        final chosen =
+        await _showProvincePickerForBooking(context, model, isPickup: isPickup);
         if (!mounted) return;
         if (chosen == null) return;
         if (isPickup) {
@@ -137,7 +141,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
               borderSide: BorderSide(color: Colors.white54),
             ),
             isDense: true,
-            prefixIcon: Icon(Icons.location_city, size: 20, color: theme.colorScheme.secondary),
+            prefixIcon: Icon(Icons.location_city,
+                size: 20, color: theme.colorScheme.secondary),
             suffixIcon: const Icon(Icons.unfold_more_rounded, color: Colors.white70),
             focusedBorder: OutlineInputBorder(
               borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
@@ -153,7 +158,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
       BookingModel model, {
         required bool isPickup,
       }) {
-    final otherSelected = isPickup ? model.selectedProvinceDrop : model.selectedProvincePickup;
+    final otherSelected =
+    isPickup ? model.selectedProvinceDrop : model.selectedProvincePickup;
 
     return showModalBottomSheet<int?>(
       context: context,
@@ -204,17 +210,24 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   itemCount: model.provinces.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 20, endIndent: 20),
+                  separatorBuilder: (context, index) =>
+                  const Divider(height: 1, indent: 20, endIndent: 20),
                   itemBuilder: (context, index) {
                     final p = model.provinces[index];
-                    final id = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString());
+                    final id = p['id'] is int
+                        ? p['id'] as int
+                        : int.tryParse(p['id'].toString());
                     final name = p['name']?.toString() ?? '';
-                    final bool isDisabled = (id != null && otherSelected != null && id == otherSelected);
+                    final bool isDisabled =
+                    (id != null && otherSelected != null && id == otherSelected);
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                      contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                       leading: Icon(
                         Icons.location_on_outlined,
-                        color: isDisabled ? Colors.grey[300] : Theme.of(context).colorScheme.secondary,
+                        color: isDisabled
+                            ? Colors.grey[300]
+                            : Theme.of(context).colorScheme.secondary,
                       ),
                       title: Text(
                         name,
@@ -310,15 +323,19 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     child: ListView.separated(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       itemCount: districts.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1, indent: 20, endIndent: 20),
+                      separatorBuilder: (context, index) =>
+                      const Divider(height: 1, indent: 20, endIndent: 20),
                       itemBuilder: (context, index) {
                         final d = districts[index];
-                        final id = d["id"] is int ? d["id"] as int : int.tryParse(d["id"].toString());
+                        final id = d["id"] is int
+                            ? d["id"] as int
+                            : int.tryParse(d["id"].toString());
                         final name = d["name"]?.toString() ?? '';
                         final isSelected = id == value;
 
                         return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
                           leading: Icon(
                             Icons.location_city_outlined,
                             color: isSelected ? theme.colorScheme.secondary : Colors.black54,
@@ -326,7 +343,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                           title: Text(
                             name,
                             style: TextStyle(
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
                               color: Colors.black87,
                               fontSize: 16,
                             ),
@@ -418,162 +436,174 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     final theme = Theme.of(context);
 
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
         int selectedHour = model.goTime?.hour ?? TimeOfDay.now().hour;
         int selectedMinute = model.goTime?.minute ?? TimeOfDay.now().minute;
 
-        showModalBottomSheet(
+        await showDialog<void>(
           context: context,
-          backgroundColor: Colors.transparent,
-          builder: (ctx) {
-            return StatefulBuilder(
-              builder: (context, setModalState) {
-                return Container(
-                  height: 300,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        margin: const EdgeInsets.only(top: 12),
-                        height: 4,
-                        width: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: Text(
-                                "Hủy",
-                                style: TextStyle(
-                                  color: theme.colorScheme.secondary, // ✅ Vàng gold
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
+          barrierDismissible: true,
+          builder: (dialogCtx) {
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: StatefulBuilder(
+                builder: (context, setDialogState) {
+                  return Container(
+                    height: 320,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogCtx),
+                                child: Text(
+                                  "Hủy",
+                                  style: TextStyle(
+                                    color: theme.colorScheme.secondary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Text(
-                              "Chọn giờ đón",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.secondary, // ✅ Vàng gold
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                model.goTime = TimeOfDay(hour: selectedHour, minute: selectedMinute);
-                                model.notifyListeners();
-                                Navigator.pop(ctx);
-                              },
-                              child: Text(
-                                "Xong",
+                              Text(
+                                "Chọn giờ đón",
                                 style: TextStyle(
-                                  color: theme.colorScheme.secondary, // ✅ Vàng gold
-                                  fontSize: 16,
+                                  fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.secondary,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Divider(height: 1),
-                      Expanded(
-                        child: Row(
-                          children: [
-                            // Giờ
-                            Expanded(
-                              child: CupertinoPicker(
-                                scrollController: FixedExtentScrollController(
-                                  initialItem: selectedHour,
-                                ),
-                                itemExtent: 40,
-                                selectionOverlay: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      top: BorderSide(color: theme.colorScheme.secondary, width: 1.5),
-                                      bottom: BorderSide(color: theme.colorScheme.secondary, width: 1.5),
-                                    ),
-                                  ),
-                                ), // ✅ Viền vàng cho item được chọn
-                                onSelectedItemChanged: (index) {
-                                  setModalState(() {
-                                    selectedHour = index;
-                                  });
+                              TextButton(
+                                onPressed: () {
+                                  model.goTime = TimeOfDay(
+                                    hour: selectedHour,
+                                    minute: selectedMinute,
+                                  );
+                                  model.notifyListeners();
+                                  Navigator.pop(dialogCtx);
                                 },
-                                children: List.generate(24, (index) {
-                                  return Center(
-                                    child: Text(
-                                      index.toString().padLeft(2, '0'),
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87, // ✅ Chữ đen đậm
+                                child: Text(
+                                  "Xong",
+                                  style: TextStyle(
+                                    color: theme.colorScheme.secondary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              // Giờ
+                              Expanded(
+                                child: CupertinoPicker(
+                                  scrollController: FixedExtentScrollController(
+                                    initialItem: selectedHour,
+                                  ),
+                                  itemExtent: 40,
+                                  selectionOverlay: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: theme.colorScheme.secondary,
+                                          width: 1.5,
+                                        ),
+                                        bottom: BorderSide(
+                                          color: theme.colorScheme.secondary,
+                                          width: 1.5,
+                                        ),
                                       ),
                                     ),
-                                  );
-                                }),
-                              ),
-                            ),
-                            Text(
-                              ":",
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.secondary, // ✅ Dấu hai chấm vàng
-                              ),
-                            ),
-                            // Phút
-                            Expanded(
-                              child: CupertinoPicker(
-                                scrollController: FixedExtentScrollController(
-                                  initialItem: selectedMinute,
-                                ),
-                                itemExtent: 40,
-                                selectionOverlay: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      top: BorderSide(color: theme.colorScheme.secondary, width: 1.5),
-                                      bottom: BorderSide(color: theme.colorScheme.secondary, width: 1.5),
-                                    ),
                                   ),
-                                ), // ✅ Viền vàng cho item được chọn
-                                onSelectedItemChanged: (index) {
-                                  setModalState(() {
-                                    selectedMinute = index;
-                                  });
-                                },
-                                children: List.generate(60, (index) {
-                                  return Center(
-                                    child: Text(
-                                      index.toString().padLeft(2, '0'),
-                                      style: const TextStyle(
-                                        fontSize: 24,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87, // ✅ Chữ đen đậm
+                                  onSelectedItemChanged: (index) {
+                                    setDialogState(() {
+                                      selectedHour = index;
+                                    });
+                                  },
+                                  children: List.generate(24, (index) {
+                                    return Center(
+                                      child: Text(
+                                        index.toString().padLeft(2, '0'),
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                              ),
+
+                              Text(
+                                ":",
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.secondary,
+                                ),
+                              ),
+
+                              // Phút
+                              Expanded(
+                                child: CupertinoPicker(
+                                  scrollController: FixedExtentScrollController(
+                                    initialItem: selectedMinute,
+                                  ),
+                                  itemExtent: 40,
+                                  selectionOverlay: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(
+                                          color: theme.colorScheme.secondary,
+                                          width: 1.5,
+                                        ),
+                                        bottom: BorderSide(
+                                          color: theme.colorScheme.secondary,
+                                          width: 1.5,
+                                        ),
                                       ),
                                     ),
-                                  );
-                                }),
+                                  ),
+                                  onSelectedItemChanged: (index) {
+                                    setDialogState(() {
+                                      selectedMinute = index;
+                                    });
+                                  },
+                                  children: List.generate(60, (index) {
+                                    return Center(
+                                      child: Text(
+                                        index.toString().padLeft(2, '0'),
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                      ],
+                    ),
+                  );
+                },
+              ),
             );
           },
         );
@@ -613,6 +643,44 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
+  bool _validate(BookingModel model) {
+    if (model.selectedProvincePickup == null ||
+        model.selectedDistrictPickup == null ||
+        (model.addressPickup?.trim().isEmpty ?? true)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập đầy đủ điểm đón'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    if (model.selectedProvinceDrop == null ||
+        model.selectedDistrictDrop == null ||
+        (model.addressDrop?.trim().isEmpty ?? true)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập đầy đủ điểm đến'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    if (model.goDate == null || model.goTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập ngày giờ đón'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
@@ -646,7 +714,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     value: model.selectedDistrictPickup,
                     onChanged: (v) {
                       model.setSelectedDistrictPickup(v);
-                      model.fetchTripPrice();
+                      // ❌ Không gọi model.fetchTripPrice() ở đây nữa
                     },
                   ),
                   addressField: TextField(
@@ -672,7 +740,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
                 _buildSectionCard(
                   title: "Ngày & Giờ Đón",
                   icon: Icons.calendar_today,
@@ -718,13 +785,11 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     _timeInputFields(model: model),
                   ],
                 ),
-
                 const SizedBox(height: 25),
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
                   child: Icon(Icons.arrow_downward, color: Colors.grey),
                 ),
-
                 _buildLocationInput(
                   label: "Điểm đến",
                   icon: Icons.location_on,
@@ -735,7 +800,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     value: model.selectedDistrictDrop,
                     onChanged: (v) {
                       model.setSelectedDistrictDrop(v);
-                      model.fetchTripPrice();
+                      // ❌ Không gọi model.fetchTripPrice() ở đây nữa
                     },
                   ),
                   addressField: TextField(
@@ -762,7 +827,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 100),
           ],
         ),
@@ -784,7 +848,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _isCalculatingPrice ? null : () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
                   side: BorderSide(color: theme.colorScheme.secondary, width: 2),
@@ -805,50 +869,43 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: () {
-                  if (model.selectedProvincePickup == null ||
-                      model.selectedDistrictPickup == null ||
-                      (model.addressPickup?.trim().isEmpty ?? true)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Vui lòng nhập đầy đủ điểm đón'),
-                        backgroundColor: Colors.red,
+                onPressed: _isCalculatingPrice
+                    ? null
+                    : () async {
+                  if (!_validate(model)) return;
+
+                  setState(() => _isCalculatingPrice = true);
+
+                  try {
+                    await model.fetchTripPrice();
+
+                    if (!mounted) return;
+
+                    if (model.tripPrice == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            model.priceErrorMessage ??
+                                'Không thể tính giá. Vui lòng kiểm tra lại thông tin.',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChangeNotifierProvider.value(
+                          value: model,
+                          child: Booking3Screen(onRideBooked: widget.onRideBooked),
+                        ),
                       ),
                     );
-                    return;
+                  } finally {
+                    if (mounted) setState(() => _isCalculatingPrice = false);
                   }
-
-                  if (model.selectedProvinceDrop == null ||
-                      model.selectedDistrictDrop == null ||
-                      (model.addressDrop?.trim().isEmpty ?? true)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Vui lòng nhập đầy đủ điểm đến'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  if (model.goDate == null || model.goTime == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Vui lòng nhập ngày giờ đón'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                    return;
-                  }
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChangeNotifierProvider.value(
-                        value: model,
-                        child: Booking3Screen(onRideBooked: widget.onRideBooked),
-                      ),
-                    ),
-                  );
                 },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
@@ -858,7 +915,16 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   backgroundColor: theme.colorScheme.secondary,
                   foregroundColor: Colors.black87,
                 ),
-                child: const Text(
+                child: _isCalculatingPrice
+                    ? const SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.black87,
+                  ),
+                )
+                    : const Text(
                   "TIẾP THEO",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),

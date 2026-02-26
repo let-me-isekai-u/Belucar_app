@@ -82,12 +82,12 @@ class OrderDetailScreen extends StatelessWidget {
         title: Text(
           "Chi tiết chuyến xe",
           style: TextStyle(
-            color: theme.colorScheme.secondary, // ✅ Vàng gold
+            color: theme.colorScheme.secondary,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary), // ✅ Icon back vàng
+        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
       ),
       body: FutureBuilder<TripDetailModel>(
         future: _fetchTripDetail(),
@@ -117,13 +117,13 @@ class OrderDetailScreen extends StatelessWidget {
               children: [
                 _buildStatusHeader(trip, theme),
                 const SizedBox(height: 16),
-                _buildPriceDetailCard(trip, theme),
+                _buildPriceDetailCard(trip, theme), // ✅ đã thêm quantity ở đây
                 const SizedBox(height: 16),
                 _buildPaymentMethodCard(trip, theme),
                 const SizedBox(height: 16),
                 _buildRouteCard(context, trip, theme),
                 const SizedBox(height: 16),
-                _buildDetailInfoCard(context, trip, theme),
+                _buildDetailInfoCard(context, trip, theme), // ✅ đã thêm quantity ở đây
                 const SizedBox(height: 16),
                 _buildDriverInfoCard(context, trip, theme),
                 const SizedBox(height: 30),
@@ -152,7 +152,7 @@ class OrderDetailScreen extends StatelessWidget {
               "Mã chuyến: ${trip.code}",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: theme.colorScheme.secondary, // ✅ Vàng gold
+                color: theme.colorScheme.secondary,
                 fontSize: 16,
               ),
             ),
@@ -188,10 +188,13 @@ class OrderDetailScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: theme.colorScheme.secondary, // ✅ Vàng gold
+                color: theme.colorScheme.secondary,
               ),
             ),
             Divider(height: 24, color: theme.colorScheme.secondary.withOpacity(0.3)),
+
+            _textRow("Số lượng", "x${trip.quantity}", theme),
+
             _priceRow("Giá cước gốc", trip.price, theme),
             _priceRow("Ưu đãi", -trip.discount, theme, color: Colors.greenAccent),
             _priceRow("Phụ phí", trip.surcharge, theme, color: Colors.orangeAccent),
@@ -204,7 +207,7 @@ class OrderDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white, // ✅ Trắng
+                    color: Colors.white,
                   ),
                 ),
                 Text(
@@ -212,7 +215,7 @@ class OrderDetailScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.secondary, // ✅ Vàng gold
+                    color: theme.colorScheme.secondary,
                   ),
                 ),
               ],
@@ -231,13 +234,33 @@ class OrderDetailScreen extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Colors.white), // ✅ Trắng
+            style: const TextStyle(color: Colors.white),
           ),
           Text(
             formatCurrency(amount),
             style: TextStyle(
               fontWeight: FontWeight.w600,
-              color: color ?? Colors.white, // ✅ Trắng hoặc màu custom
+              color: color ?? Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✅ NEW: row text (không format tiền) cho phần "Chi tiết thanh toán"
+  Widget _textRow(String label, String value, ThemeData theme, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white)),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: color ?? Colors.white,
             ),
           ),
         ],
@@ -250,12 +273,12 @@ class OrderDetailScreen extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: ListTile(
-        leading: Icon(Icons.account_balance_wallet, color: theme.colorScheme.secondary), // ✅ Icon vàng
+        leading: Icon(Icons.account_balance_wallet, color: theme.colorScheme.secondary),
         title: Text(
           "Phương thức thanh toán",
           style: TextStyle(
             fontSize: 13,
-            color: theme.colorScheme.secondary, // ✅ Vàng gold
+            color: theme.colorScheme.secondary,
           ),
         ),
         subtitle: Text(
@@ -263,7 +286,7 @@ class OrderDetailScreen extends StatelessWidget {
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.white, // ✅ Trắng
+            color: Colors.white,
           ),
         ),
       ),
@@ -281,9 +304,9 @@ class OrderDetailScreen extends StatelessWidget {
           children: [
             Column(
               children: [
-                Icon(Icons.circle, color: Colors.green, size: 18),
-                DashedLineVertical(height: 40, color: theme.colorScheme.secondary), // ✅ Vàng gold
-                Icon(Icons.location_on, color: Colors.red, size: 18),
+                const Icon(Icons.circle, color: Colors.green, size: 18),
+                DashedLineVertical(height: 40, color: theme.colorScheme.secondary),
+                const Icon(Icons.location_on, color: Colors.red, size: 18),
               ],
             ),
             const SizedBox(width: 10),
@@ -326,12 +349,12 @@ class OrderDetailScreen extends StatelessWidget {
           "$title - $district",
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: theme.colorScheme.secondary, // ✅ Vàng gold
+            color: theme.colorScheme.secondary,
           ),
         ),
         Text(
           address,
-          style: const TextStyle(color: Colors.white), // ✅ Trắng
+          style: const TextStyle(color: Colors.white),
         ),
       ],
     );
@@ -351,14 +374,19 @@ class OrderDetailScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: theme.colorScheme.secondary, // ✅ Vàng gold
+                color: theme.colorScheme.secondary,
               ),
             ),
             Divider(height: 20, color: theme.colorScheme.secondary.withOpacity(0.3)),
-            _infoRow("Ngày đón", DateFormat('dd/MM/yyyy').format(trip.pickupTime), icon: Icons.calendar_today, theme: theme),
-            _infoRow("Giờ đón", DateFormat('HH:mm').format(trip.pickupTime), icon: Icons.access_time, theme: theme),
-            _infoRow("Ngày đặt", DateFormat('HH:mm - dd/MM/yyyy').format(trip.createdAt), icon: Icons.history, theme: theme),
-            _infoRow("Ghi chú", trip.note ?? "Không có ghi chú", icon: Icons.note_outlined, theme: theme),
+            _infoRow("Số lượng người", "${trip.quantity}", icon: Icons.people, theme: theme), // ✅ NEW
+            _infoRow("Ngày đón", DateFormat('dd/MM/yyyy').format(trip.pickupTime),
+                icon: Icons.calendar_today, theme: theme),
+            _infoRow("Giờ đón", DateFormat('HH:mm').format(trip.pickupTime),
+                icon: Icons.access_time, theme: theme),
+            _infoRow("Ngày đặt", DateFormat('HH:mm - dd/MM/yyyy').format(trip.createdAt),
+                icon: Icons.history, theme: theme),
+            _infoRow("Ghi chú", trip.note ?? "Không có ghi chú",
+                icon: Icons.note_outlined, theme: theme),
           ],
         ),
       ),
@@ -370,19 +398,19 @@ class OrderDetailScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: theme.colorScheme.secondary), // ✅ Icon vàng
+          Icon(icon, size: 18, color: theme.colorScheme.secondary),
           const SizedBox(width: 12),
           Text(
             "$label: ",
             style: TextStyle(
               fontWeight: FontWeight.w500,
-              color: theme.colorScheme.secondary, // ✅ Label vàng
+              color: theme.colorScheme.secondary,
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(color: Colors.white), // ✅ Giá trị trắng
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -405,7 +433,7 @@ class OrderDetailScreen extends StatelessWidget {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: theme.colorScheme.secondary, // ✅ Vàng gold
+                color: theme.colorScheme.secondary,
               ),
             ),
             Divider(height: 20, color: theme.colorScheme.secondary.withOpacity(0.3)),
@@ -414,7 +442,7 @@ class OrderDetailScreen extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   radius: 25,
-                  backgroundColor: theme.colorScheme.secondary.withOpacity(0.15), // ✅ Vàng nhạt
+                  backgroundColor: theme.colorScheme.secondary.withOpacity(0.15),
                   backgroundImage: _buildAvatarUrl(trip.avatar) != null
                       ? NetworkImage(_buildAvatarUrl(trip.avatar)!)
                       : null,
@@ -426,7 +454,7 @@ class OrderDetailScreen extends StatelessWidget {
                   trip.driverName!,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.white, // ✅ Trắng
+                    color: Colors.white,
                   ),
                 ),
                 subtitle: Column(
@@ -434,11 +462,11 @@ class OrderDetailScreen extends StatelessWidget {
                   children: [
                     Text(
                       "SĐT: ${trip.phoneNumber ?? 'Đang cập nhật'}",
-                      style: const TextStyle(color: Colors.white70), // ✅ Trắng nhạt
+                      style: const TextStyle(color: Colors.white70),
                     ),
                     Text(
                       "BSX: ${trip.licenseNumber ?? 'Đang cập nhật'}",
-                      style: const TextStyle(color: Colors.white70), // ✅ Trắng nhạt
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
@@ -448,7 +476,7 @@ class OrderDetailScreen extends StatelessWidget {
                 trip.status == 1 ? "Hệ thống đang tìm tài xế..." : "Chưa có thông tin tài xế",
                 style: const TextStyle(
                   fontStyle: FontStyle.italic,
-                  color: Colors.white70, // ✅ Trắng nhạt
+                  color: Colors.white70,
                 ),
               ),
           ],

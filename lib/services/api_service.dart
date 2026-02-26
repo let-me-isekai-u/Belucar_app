@@ -369,23 +369,23 @@ class ApiService {
     required int type,
     required int paymentMethod,
     required String pickupTime,
+    required int quantity,
   }) async {
     final url = Uri.parse(
       "https://belucar.com/api/tripapi/getprice",
-    ).replace(queryParameters: {
+    ).replace(queryParameters: <String, String>{
       "fromDistrictId": fromDistrictId.toString(),
       "toDistrictId": toDistrictId.toString(),
       "type": type.toString(),
       "paymentMethod": paymentMethod.toString(),
       "pickupTime": pickupTime,
+      "quantity": quantity.toString(),
     });
 
     print("🔵 [PRICE] GET $url");
 
     try {
-      final res = await http.get(url).timeout(
-        const Duration(seconds: 15),
-      );
+      final res = await http.get(url).timeout(const Duration(seconds: 15));
 
       print("📥 Status: ${res.statusCode}");
       print("📥 Body: ${res.body}");
@@ -394,7 +394,6 @@ class ApiService {
       return http.Response('{"error":"$e"}', 500);
     }
   }
-
 
 
 // 13. API TẠO CHUYẾN ĐI
@@ -406,6 +405,7 @@ class ApiService {
     required String customerPhone,
     required String pickupTime,
     required int paymentMethod,
+    required int quantity,
     String note = "",
     String content = "", // Để mặc định là rỗng nếu không truyền
   }) async {
@@ -413,7 +413,6 @@ class ApiService {
       "https://belucar.com/api/rideapi/create",
     );
 
-    // --- LỖI TẠI ĐÂY TRƯỚC ĐÓ: Bạn không được khai báo 'String content = ""' bên trong Map ---
     final body = jsonEncode({
       "tripId": tripId,
       "fromAddress": fromAddress,
@@ -422,23 +421,25 @@ class ApiService {
       "pickupTime": pickupTime,
       "note": note,
       "paymentMethod": paymentMethod,
-      "content": content, // Truyền giá trị từ tham số vào Key của JSON
+      "content": content,
+      "quantity": quantity,
     });
 
     try {
-      final response = await http.post(
+      final response = await http
+          .post(
         url,
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $accessToken",
         },
         body: body,
-      ).timeout(const Duration(seconds: 15));
+      )
+          .timeout(const Duration(seconds: 15));
 
       return response;
     } catch (e) {
       print("🔥 ERROR createRide(): $e");
-      // Trả về một Response giả lập lỗi để tránh crash app
       return http.Response(
         jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
         500,
@@ -505,14 +506,11 @@ class ApiService {
         throw Exception('Unauthorized - Token hết hạn');
       }
 
-      throw Exception(
-        'Lỗi API ${response.statusCode}: ${response.body}',
-      );
+      throw Exception('Lỗi API ${response.statusCode}: ${response.body}');
     } catch (e) {
       throw Exception('getTripDetail error: $e');
     }
   }
-
 
   //API 17: Cho phép người dùng huỷ cuốc đã đặt nhưng chưa có tài xế nhận (trạng thái 1)
   static Future<void> cancelTrip({

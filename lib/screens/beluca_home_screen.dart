@@ -44,6 +44,9 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
   bool _isLoadingWeather = true;
   Timer? _weatherTimer;
 
+  // ✅ Carousel timer (FIX build failed: missing field)
+  Timer? _carouselTimer;
+
   // ✅ Avatar
   String? _avatarUrl;
 
@@ -71,7 +74,7 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
 
     _bannerController = PageController(viewportFraction: 0.92);
 
-    Timer.periodic(const Duration(seconds: 3), (timer) {
+    _carouselTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!_bannerController.hasClients) return;
 
       final totalPages = _carouselImages.length + 1;
@@ -90,6 +93,7 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
     _bannerController.dispose();
     _weatherTimer?.cancel();
     super.dispose();
+    _carouselTimer?.cancel();
   }
 
   Future<void> _loadUserInfo() async {
@@ -127,12 +131,11 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
       const lat = 21.0285;
       const lon = 105.8542;
 
-      final url = Uri.parse(
-          'https://api.open-meteo.com/v1/forecast?'
-              'latitude=$lat&'
-              'longitude=$lon&'
-              'current_weather=true&'
-              'timezone=Asia/Bangkok');
+      final url = Uri.parse('https://api.open-meteo.com/v1/forecast?'
+          'latitude=$lat&'
+          'longitude=$lon&'
+          'current_weather=true&'
+          'timezone=Asia/Bangkok');
 
       final response = await http.get(url);
 
@@ -210,12 +213,13 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Hủy",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            child: const Text(
+              "Hủy",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           ElevatedButton(
@@ -311,7 +315,8 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                           color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(8)), child: const Text(
+                          borderRadius: BorderRadius.circular(8)),
+                      child: const Text(
                         "⚠️ Vui lòng KHÔNG tắt ứng dụng hoặc đóng mã QR cho đến khi hệ thống xác nhận chuyển khoản thành công.",
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -332,7 +337,9 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
                       child: Text(
                         "Huỷ giao dịch",
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.secondary, // ✅ Màu vàng gold
+                          color: Theme.of(context)
+                              .colorScheme
+                              .secondary, // ✅ Màu vàng gold
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -362,7 +369,9 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
           });
         },
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Theme.of(context).colorScheme.secondary, // ✅ Đổi sang màu vàng gold
+        selectedItemColor: Theme.of(context)
+            .colorScheme
+            .secondary, // ✅ Đổi sang màu vàng gold
         unselectedItemColor: Colors.grey.shade400,
         selectedLabelStyle:
         const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
@@ -402,7 +411,8 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
       flexibleSpace: Container(
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: const AssetImage('lib/assets/icons/new_background_appbar.png'),
+            image:
+            const AssetImage('lib/assets/icons/new_background_appbar.png'),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
               Colors.white.withOpacity(0.3), // Làm mờ ảnh nền
@@ -484,8 +494,8 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
             },
             borderRadius: BorderRadius.circular(12),
             child: Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
@@ -539,21 +549,15 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
   }
 
   Widget _buildBody() {
-    switch (_selectedIndex) {
-      case 0:
-        return _buildHomeScreen();
-      case 1:
-        return ChangeNotifierProvider(
-          create: (_) => BookingModel(),
-          child: Booking1Screen(onRideBooked: _selectTab),
-        );
-      case 2:
-        return const ActivityScreen();
-      case 3:
-        return const ProfileScreen();
-      default:
-        return const SizedBox();
-    }
+    return IndexedStack(
+      index: _selectedIndex,
+      children: [
+        _buildHomeScreen(),
+        Booking1Screen(onRideBooked: _selectTab),
+        const ActivityScreen(),
+        const ProfileScreen(),
+      ],
+    );
   }
 
   Widget _buildHomeScreen() {
@@ -571,7 +575,6 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
     );
   }
 
-
   Widget _buildActionButtons() {
     return Row(
       children: [
@@ -581,14 +584,9 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
             assetPath: 'lib/assets/icons/booking_car.png',
             label: 'Đặt chuyến',
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ChangeNotifierProvider(
-                    create: (_) => BookingModel(),
-                    child: Booking1Screen(onRideBooked: _selectTab),
-                  ),
-                ),
-              );
+              setState(() {
+                _selectedIndex = 1;
+              });
             },
           ),
         ),
@@ -647,7 +645,7 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
                   assetPath,
-                  width: 72,   // chỉnh tuỳ layout
+                  width: 72, // chỉnh tuỳ layout
                   height: 72,
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.high,
@@ -655,9 +653,7 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
                 ),
               ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               label,
               textAlign: TextAlign.center,
@@ -672,8 +668,6 @@ class _HomeViewState extends State<_HomeView> with TickerProviderStateMixin {
       ),
     );
   }
-
-
 
   /// --- Carousel --- ///
   Widget _buildHomeCarousel(BuildContext context) {

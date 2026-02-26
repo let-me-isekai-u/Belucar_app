@@ -71,6 +71,38 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     );
   }
 
+  Widget _buildTextPriceRow(
+      String label,
+      String value, {
+        bool isBold = false,
+        Color? color,
+      }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+              color: color ?? Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPriceRow(String label, double amount, {bool isBold = false, Color? color}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -172,18 +204,13 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     try {
       final result = await model.createRide(accessToken);
 
-      print("🔥 createRide result: $result"); // ✅ Debug log
+      print("🔥 createRide result: $result");
 
       if (result['success'] == true) {
         if (mounted) {
-          // ✅ Đóng tất cả màn hình booking và quay về HomeScreen
-          // Pop 3 lần: booking3 -> booking2 -> booking1 -> back to home
           Navigator.of(context).popUntil((route) => route.isFirst);
-
-          // ✅ Gọi callback để chuyển sang tab "Hoạt động"
           widget.onRideBooked(2);
 
-          // ✅ Hiển thị thông báo thành công
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Row(
@@ -206,7 +233,6 @@ class _Booking3ScreenState extends State<Booking3Screen> {
           setState(() => _isCreatingRide = false);
         }
       } else {
-        // ✅ Hiển thị lỗi từ server
         final errorMsg = result['message'] ?? 'Đặt chuyến thất bại';
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -219,7 +245,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
         }
       }
     } catch (e) {
-      print("❌ Error creating ride: $e"); // ✅ Debug log
+      print("❌ Error creating ride: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -266,6 +292,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                   _buildInfoRow("Dịch vụ:", "Bao trọn chuyến xe"),
                 if (!model.isChoNguoi && model.isHoaToc)
                   _buildInfoRow("Dịch vụ:", "Giao hỏa tốc"),
+                _buildInfoRow("Số lượng:", "${model.quantity}"),
                 _buildInfoRow("SĐT liên hệ:", model.customerPhone ?? ''),
                 if (model.note?.isNotEmpty ?? false)
                   _buildInfoRow("Ghi chú:", model.note ?? ''),
@@ -314,6 +341,8 @@ class _Booking3ScreenState extends State<Booking3Screen> {
 
             const SizedBox(height: 16),
 
+
+
             _buildSectionCard(
               title: "Chi tiết giá",
               icon: Icons.payments_outlined,
@@ -329,6 +358,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                   _buildPriceRow("Giá cước gốc:", model.basePrice ?? 0),
                   _buildPriceRow("Ưu đãi giảm giá:", -(model.discount), color: Colors.greenAccent),
                   _buildPriceRow("Phụ phí ngày lễ:", model.surcharge, color: Colors.orangeAccent),
+                  _buildTextPriceRow("Số lượng:", "x${model.quantity}", isBold: true),
                   Divider(
                     height: 20,
                     color: theme.colorScheme.secondary.withOpacity(0.5),

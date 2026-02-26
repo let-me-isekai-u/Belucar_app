@@ -57,6 +57,19 @@ class BookingModel extends ChangeNotifier {
   DateTime? goDate;
   TimeOfDay? goTime;
 
+  // ================== SỐ LƯỢNG (NEW) ==================
+  int _quantity = 1;
+  int get quantity => _quantity;
+
+  set quantity(int value) {
+    final v = value < 1 ? 1 : value;
+    if (_quantity != v) {
+      _quantity = v;
+      notifyListeners();
+      fetchTripPrice();
+    }
+  }
+
   // ================== DANH SÁCH ==================
   List<dynamic> provinces = [];
 
@@ -176,7 +189,6 @@ class BookingModel extends ChangeNotifier {
     notifyListeners();
   }
 
-
   // Setter cho province drop: khi đổi tỉnh sẽ load danh sách huyện cho điểm đến
   Future<void> setSelectedProvinceDrop(int? provinceId) async {
     if (_selectedProvinceDrop == provinceId) return;
@@ -248,6 +260,7 @@ class BookingModel extends ChangeNotifier {
         type: tripType,
         paymentMethod: _paymentMethod,
         pickupTime: pickupDateTime,
+        quantity: _quantity, // NEW
       );
 
       final json = ApiService.safeDecode(res.body);
@@ -268,7 +281,7 @@ class BookingModel extends ChangeNotifier {
       } else {
         _resetPrice();
         priceErrorMessage =
-            json["message"] ?? "Tuyến đường này hiện chưa có đơn giá";
+            json["message"] ?? "Tuyến đường này hi���n chưa có đơn giá";
       }
     } catch (e) {
       _resetPrice();
@@ -293,7 +306,10 @@ class BookingModel extends ChangeNotifier {
   // =====================================================
   // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
   // =====================================================
-  Future<Map<String, dynamic>> createRide(String accessToken, {String content = ""}) async {
+  Future<Map<String, dynamic>> createRide(
+      String accessToken, {
+        String content = "",
+      }) async {
     if (currentTripId == null) {
       throw Exception("Chưa có giá chuyến đi");
     }
@@ -316,6 +332,7 @@ class BookingModel extends ChangeNotifier {
       pickupTime: pickupDateTime,
       note: note ?? "",
       paymentMethod: _paymentMethod,
+      quantity: _quantity, // NEW
       content: content,
     );
 
@@ -339,6 +356,9 @@ class BookingModel extends ChangeNotifier {
     isBaoXe = false;
     isHoaToc = false;
     _paymentMethod = 3;
+
+    // 1.1️⃣ Reset quantity (NEW)
+    _quantity = 1;
 
     // 2️⃣ Reset địa điểm
     _selectedProvincePickup = null;

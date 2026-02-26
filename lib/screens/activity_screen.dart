@@ -24,6 +24,17 @@ class _ActivityScreenState extends State<ActivityScreen>
 
   bool _isHistoryLoaded = false;
 
+  // ✅ NEW: Expose a method for parent (BottomNav) to force refresh after booking
+  void refreshOngoing() {
+    if (!mounted) return;
+    setState(() {
+      _ongoingFuture = _fetchOngoingTrips();
+      if (_isHistoryLoaded) {
+        _historyFuture = _fetchHistoryTrips();
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
