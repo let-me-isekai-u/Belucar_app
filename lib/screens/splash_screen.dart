@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
+import '../services/firebase_notification_service.dart';
 
 void appLog(String tag, String msg) {
   debugPrint('[$tag] $msg');
@@ -22,7 +23,13 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _splashStart = DateTime.now();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await FirebaseNotificationService.init();
+      } catch (e, s) {
+        debugPrint('NOTI INIT ERROR: $e');
+        debugPrint('$s');
+      }
       _checkAuth();
     });
   }
