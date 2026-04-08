@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import '../models/message_model.dart';
 import '../services/chat_to_order_api_service.dart';
 import '../services/signalr_service.dart';
@@ -249,7 +250,9 @@ class ChatProvider extends ChangeNotifier {
         hubUrl: _chatHubUrl,
         accessToken: accessToken,
       );
-      _log('SignalR connected. state=${_signalRService.state}');
+      _log(
+        'SignalR connected. state=${_signalRService.state}, connectionId=${_signalRService.connectionId}',
+      );
 
       if (!_hasRegisteredConnectionLifecycleListeners) {
         _log('Registering SignalR lifecycle listeners...');
@@ -357,6 +360,29 @@ class ChatProvider extends ChangeNotifier {
 
           _log(
             'Parsed message: id=${message.id}, conversationId=${message.conversationId}',
+          );
+
+          addIncomingMessage(message);
+
+          if (message.conversationId == _conversationId) {
+            await markAsRead(
+              accessToken: accessToken,
+              silent: true,
+            );
+          }
+        } else if (raw is String) {
+          final decoded = jsonDecode(raw);
+          if (decoded is! Map) {
+            _log('Unsupported string payload for $_newMessageEventName: ${decoded.runtimeType}');
+            return;
+          }
+
+          final message = MessageModel.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+
+          _log(
+            'Parsed string message: id=${message.id}, conversationId=${message.conversationId}',
           );
 
           addIncomingMessage(message);

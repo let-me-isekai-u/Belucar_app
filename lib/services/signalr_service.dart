@@ -14,6 +14,7 @@ class SignalRService {
   late final Logger _logger = Logger('BeluCar.SignalR');
 
   HubConnectionState? get state => _connection?.state;
+  String? get connectionId => _connection?.connectionId;
   bool get isConnected => _connection?.state == HubConnectionState.Connected;
   bool get isReconnecting =>
       _connection?.state == HubConnectionState.Reconnecting;
@@ -49,7 +50,8 @@ class SignalRService {
         hubUrl,
         options: HttpConnectionOptions(
           accessTokenFactory: () async => accessToken,
-          transport: HttpTransportType.ServerSentEvents,
+          // Production currently advertises LongPolling reliably for mobile.
+          transport: HttpTransportType.LongPolling,
           httpClient: BeluCarSignalRHttpClient(_logger),
           logger: _logger,
           logMessageContent: true,
@@ -80,8 +82,16 @@ class SignalRService {
   }
 
   Future<void> invoke(String methodName, {List<Object>? args}) async {
-    if (_connection == null || _connection!.state != HubConnectionState.Connected) {
-      return;
+    if (_connection == null) {
+      throw StateError(
+        "Cannot invoke '$methodName' because HubConnection has not been created.",
+      );
+    }
+
+    if (_connection!.state != HubConnectionState.Connected) {
+      throw StateError(
+        "Cannot invoke '$methodName' because HubConnection is in state ${_connection!.state}.",
+      );
     }
 
     await _connection!.invoke(methodName, args: args);
