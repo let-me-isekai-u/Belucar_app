@@ -1,5 +1,6 @@
 ///Tài liệu cho file api này:
 ///https://docs.google.com/document/d/1MD5Tx42I-CpFgTNwrrwUhB8FsdQFhiiqAN_Xy0kUfAc/edit?tab=t.d9q2g56xpd8j
+///API 21, 22 TẠM chưa dùng tới
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -722,5 +723,64 @@ class ApiService {
       };
     }
   }
+
+// 21. Tạo content trả về khi nạp tiền (POST)
+  static Future<Map<String, dynamic>> createDepositContent({
+    required String accessToken,
+    required double amount,
+  }) async {
+    final url = Uri.parse("https://belucar.com/api/depositapi/create");
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: jsonEncode({"amount": amount}),
+      ).timeout(const Duration(seconds: 20));
+
+      final data = safeDecode(response.body);
+
+      return {
+        "success": data["success"] == true,
+        "content": data["data"] != null ? data["data"]["content"] : null,
+        "message": data["message"] ?? "",
+      };
+    } catch (e) {
+      return {
+        "success": false,
+        "content": null,
+        "message": "Không thể tạo nạp tiền, lỗi: $e",
+      };
+    }
+  }
+
+// 22. Hủy nạp tiền sau khi hiện QR (PUT)
+  static Future<bool> cancelDeposit({
+    required String accessToken,
+    required int depositId,
+  }) async {
+    final url = Uri.parse("https://belucar.com/api/depositapi/cancel/$depositId");
+    try {
+      final response = await http.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Accept": "application/json",
+        },
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = safeDecode(response.body);
+        return data["success"] == true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
 
 }

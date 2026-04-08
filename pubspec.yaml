@@ -26,6 +26,8 @@ dependencies:
   flutter_local_notifications: ^17.0.0
   change_app_package_name: ^1.1.0
   image_picker: ^1.0.4
+  signalr_netcore: ^1.4.4
+  logging: ^1.3.0
 
 dev_dependencies:
   flutter_test:
@@ -57,6 +59,8 @@ flutter:
     - lib/assets/icons/booking_car.png
     - lib/assets/icons/activity_history.png
     - lib/assets/icons/new_background_appbar.png
+    - lib/assets/icons/chat_icon.png
+    - lib/assets/belucar_summer_splash.png
 
 flutter_launcher_icons:
   android: "launcher_icon"

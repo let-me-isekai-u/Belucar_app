@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/booking_model.dart';
+import '../../models/booking_model.dart';
 import 'booking2_screen.dart';
 
 class Booking1Screen extends StatefulWidget {

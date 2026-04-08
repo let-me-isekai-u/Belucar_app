@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
-import '../models/booking_model.dart';
+import '../../models/booking_model.dart';
 import 'booking3_screen.dart';
 
 class Booking2Screen extends StatefulWidget {

@@ -15,7 +15,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  static const Duration _minDisplayDuration = Duration(seconds: 3);
+  static const Duration _minDisplayDuration = Duration(milliseconds: 1500);
   late final DateTime _splashStart;
 
   @override
@@ -50,7 +50,6 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
 
       if (res.statusCode == 200) {
-        // Đánh dấu để Home hiển thị banner 1 lần khi vừa vào
         await prefs.setBool('showEventBanner', true);
         await _ensureMinDisplay();
         _goHome();
@@ -79,7 +78,6 @@ class _SplashScreenState extends State<SplashScreen> {
         if (newAccess != null && newRefresh != null) {
           await prefs.setString('accessToken', newAccess);
           await prefs.setString('refreshToken', newRefresh);
-          // Sau khi refresh token thành công, vẫn muốn show banner một lần
           await prefs.setBool('showEventBanner', true);
           await _ensureMinDisplay();
           _goHome();
@@ -113,8 +111,8 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       body: SizedBox.expand(
         child: Image.asset(
-          'lib/assets/tet_splash.png',
-          fit: BoxFit.cover,
+          'lib/assets/belucar_summer_splash.png',
+          fit: BoxFit.contain,
         ),
       ),
     );
