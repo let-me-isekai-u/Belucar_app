@@ -14,7 +14,8 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen>
+    with TickerProviderStateMixin {
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -47,7 +48,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       ),
     );
   }
-
 
   //LOGIN API CALL
   Future<void> _login() async {
@@ -102,7 +102,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         // Set flag để Home hiển thị banner 1 lần ngay sau khi đăng nhập
         await prefs.setBool("showEventBanner", true);
 
-
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -138,7 +137,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -166,7 +164,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           // 2. NỘI DUNG (Center)
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 50, left: 32, right: 32, bottom: 24),
+              padding: const EdgeInsets.only(
+                top: 50,
+                left: 32,
+                right: 32,
+                bottom: 24,
+              ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -187,17 +190,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   //WIDGET CON
 
-// Logo và Tên ứng dụng
+  // Logo và Tên ứng dụng
   Widget _buildLogoSection(ThemeData theme) {
     return Column(
       children: [
         // ---------- LOGO ----------
         ScaleTransition(
           scale: Tween<double>(begin: 1.0, end: 1.05).animate(
-            CurvedAnimation(
-              parent: _logoController,
-              curve: Curves.easeInOut,
-            ),
+            CurvedAnimation(parent: _logoController, curve: Curves.easeInOut),
           ),
           child: Container(
             width: 120, // Kích thước nhỏ hơn 1 chút
@@ -217,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             child: ClipRRect(
               borderRadius: BorderRadius.circular(20),
               child: Image.asset(
-                'lib/assets/icons/new_launcher_icon.png',
+                'lib/assets/icons/dong_duong_logo.png',
                 fit: BoxFit.contain,
               ),
             ),
@@ -225,13 +225,11 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         ),
 
         const SizedBox(height: 16),
-
-
       ],
     );
   }
 
-// Form Login trong Card
+  // Form Login trong Card
   Widget _buildLoginFormCard(ThemeData theme) {
     return Card(
       elevation: 8,
@@ -243,10 +241,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         child: Column(
           children: [
             // ✅ TIÊU ĐỀ CHÍNH - Dùng headlineLarge từ theme (đã sửa trong app_theme.dart)
-            Text(
-              "Đăng nhập BeluCar",
-              style: theme.textTheme.headlineLarge,
-            ),
+            Text("Đăng nhập Đông Dương", style: theme.textTheme.headlineLarge),
             const SizedBox(height: 10),
 
             // ✅ TIÊU ĐỀ PHỤ - Màu trắng rõ ràng
@@ -267,12 +262,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               false,
             ),
             const SizedBox(height: 16),
-            _buildTextField(
-              passwordController,
-              "Mật khẩu",
-              Icons.lock,
-              true,
-            ),
+            _buildTextField(passwordController, "Mật khẩu", Icons.lock, true),
             const SizedBox(height: 24),
 
             // ---------- LOGIN BUTTON ----------
@@ -285,23 +275,25 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   borderRadius: BorderRadius.circular(10),
                 ),
                 foregroundColor: Colors.white,
-                textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               onPressed: _isLoading ? null : _login,
               child: _isLoading
                   ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Text("ĐĂNG NHẬP"),
             ),
 
             const SizedBox(height: 16),
-
 
             Row(
               // Sử dụng spaceBetween để tối đa hóa khoảng cách giữa hai nút
@@ -344,13 +336,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-// Cập nhật lại TextField để có nền trắng, bo góc
+  // Cập nhật lại TextField để có nền trắng, bo góc
   Widget _buildTextField(
-      TextEditingController controller,
-      String hint,
-      IconData icon,
-      bool isPassword,
-      ) {
+    TextEditingController controller,
+    String hint,
+    IconData icon,
+    bool isPassword,
+  ) {
     final theme = Theme.of(context);
 
     return TextField(
@@ -382,14 +374,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         prefixIcon: Icon(icon, color: theme.colorScheme.primary),
         suffixIcon: isPassword
             ? IconButton(
-          icon: Icon(
-            _obscurePassword ? Icons.visibility_off : Icons.visibility,
-            color: theme.colorScheme.secondary,
-          ),
-          onPressed: () {
-            setState(() => _obscurePassword = !_obscurePassword);
-          },
-        )
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  color: theme.colorScheme.secondary,
+                ),
+                onPressed: () {
+                  setState(() => _obscurePassword = !_obscurePassword);
+                },
+              )
             : null,
       ),
     );

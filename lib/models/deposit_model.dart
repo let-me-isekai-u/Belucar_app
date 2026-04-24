@@ -1,18 +1,20 @@
 ///Tạm chưa dùng đến 2 api này
 class DepositContentData {
   final String content;
+  final int? depositId;
 
-  DepositContentData({required this.content});
+  DepositContentData({required this.content, this.depositId});
 
   factory DepositContentData.fromJson(Map<String, dynamic> json) {
     return DepositContentData(
       content: json['content'] ?? "",
+      depositId: json['depositId'] is int
+          ? json['depositId'] as int
+          : int.tryParse('${json['depositId'] ?? ''}'),
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'content': content,
-  };
+  Map<String, dynamic> toJson() => {'content': content, 'depositId': depositId};
 }
 
 /// Model tổng thể response tạo nạp tiền
@@ -21,11 +23,7 @@ class DepositContentResponse {
   final DepositContentData? data;
   final String? message;
 
-  DepositContentResponse({
-    required this.success,
-    this.data,
-    this.message,
-  });
+  DepositContentResponse({required this.success, this.data, this.message});
 
   factory DepositContentResponse.fromJson(Map<String, dynamic> json) {
     return DepositContentResponse(
@@ -49,10 +47,7 @@ class CancelDepositResponse {
   final bool success;
   final String? message;
 
-  CancelDepositResponse({
-    required this.success,
-    this.message,
-  });
+  CancelDepositResponse({required this.success, this.message});
 
   factory CancelDepositResponse.fromJson(Map<String, dynamic> json) {
     return CancelDepositResponse(
@@ -61,8 +56,5 @@ class CancelDepositResponse {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-    'success': success,
-    'message': message,
-  };
+  Map<String, dynamic> toJson() => {'success': success, 'message': message};
 }

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../models/booking_model.dart';
-import 'order_detail_screen.dart'; //
 
 class Booking3Screen extends StatefulWidget {
   final Function(int) onRideBooked;

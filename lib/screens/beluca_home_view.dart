@@ -1,73 +1,52 @@
 import 'dart:async';
-import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'package:belucar_app/app_theme.dart';
 
-import '../models/booking_model.dart';
-import '../services/api_service.dart';
-// import 'activity_screen.dart';
-// import 'booking1_screen.dart';
-import 'profile_screen.dart';
+import '../models/deposit_model.dart';
+import '../providers/home_provider.dart';
+import 'activity_screen.dart';
+import 'booking/booking1_screen.dart';
 import 'chat_to_order/chat_screen.dart';
+import 'profile_screen.dart';
 
 class HomeView extends StatefulWidget {
-  const HomeView({Key? key}) : super(key: key);
+  const HomeView({super.key});
 
   @override
-  State<HomeView> createState() => HomeViewState();
+  State<HomeView> createState() => _HomeViewState();
 }
 
-class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
-  int _selectedIndex = 0;
-  String _fullName = '';
-  int _userId = 0;
+class _HomeViewState extends State<HomeView> {
+  late final HomeProvider _homeProvider;
+  late final PageController _bannerController;
+  final GlobalKey<ActivityScreenState> _activityScreenKey =
+      GlobalKey<ActivityScreenState>();
 
-  // ✅ Weather
-  String _weatherIcon = '🌤️';
-  String _temperature = '--';
-  bool _isLoadingWeather = true;
   Timer? _weatherTimer;
-
-  // ✅ Carousel timer
   Timer? _carouselTimer;
-
-  // ✅ Avatar
-  String? _avatarUrl;
-
-  // Carousel
-  late PageController _bannerController;
-  int _currentBanner = 0;
-
-  final List<String> _carouselImages = [
-    'lib/assets/carousel_01.jpg',
-    'lib/assets/carousel_02.png',
-    'lib/assets/carousel_03.jpg',
-  ];
 
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
-    _fetchWeather();
-
-    _weatherTimer = Timer.periodic(const Duration(minutes: 10), (timer) {
-      _fetchWeather();
-    });
-
+    _homeProvider = context.read<HomeProvider>();
     _bannerController = PageController(viewportFraction: 0.92);
 
-    _carouselTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _homeProvider.initialize();
+
+    _weatherTimer = Timer.periodic(
+      const Duration(minutes: 10),
+      (_) => _homeProvider.fetchWeather(),
+    );
+
+    _carouselTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!_bannerController.hasClients) return;
 
-      final totalPages = _carouselImages.length + 1;
-      _currentBanner = (_currentBanner + 1) % totalPages;
-
+      _homeProvider.advanceBanner();
       _bannerController.animateToPage(
-        _currentBanner,
+        _homeProvider.currentBanner,
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
       );
@@ -76,262 +55,148 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _bannerController.dispose();
     _weatherTimer?.cancel();
-    super.dispose();
     _carouselTimer?.cancel();
+    _bannerController.dispose();
+    super.dispose();
   }
 
-  Future<void> _loadUserInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    final name = prefs.getString("fullName") ?? '';
-    final token = prefs.getString('accessToken') ?? '';
-
-    if (token.isNotEmpty) {
-      try {
-        final res = await ApiService.getCustomerProfile(accessToken: token);
-        if (res.statusCode == 200) {
-          final data = jsonDecode(res.body);
-          if (mounted) {
-            await prefs.setInt("id", data['id'] ?? 0);
-            setState(() {
-              _userId = data['id'] ?? 0;
-              _avatarUrl = data['avatarUrl'];
-            });
-          }
-        }
-      } catch (e) {
-        // Handle error silently
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _fullName = name;
-    });
-  }
-
-  Future<void> _fetchWeather() async {
-    try {
-      const lat = 21.0285;
-      const lon = 105.8542;
-
-      final url = Uri.parse('https://api.open-meteo.com/v1/forecast?'
-          'latitude=$lat&'
-          'longitude=$lon&'
-          'current_weather=true&'
-          'timezone=Asia/Bangkok');
-
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final current = data['current_weather'];
-
-        if (mounted) {
-          setState(() {
-            _temperature = '${current['temperature'].round()}°';
-            _weatherIcon = _getWeatherEmoji(current['weathercode']);
-            _isLoadingWeather = false;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingWeather = false);
+  void _handleRideBooked(int index) {
+    _homeProvider.selectTab(index);
+    if (index == 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _activityScreenKey.currentState?.refreshOngoing();
+      });
     }
   }
 
-  String _getWeatherEmoji(int code) {
-    if (code == 0) return '☀️';
-    if (code <= 3) return '⛅';
-    if (code <= 67) return '🌧️';
-    if (code <= 77) return '❄️';
-    if (code <= 82) return '🌦️';
-    if (code <= 99) return '⛈️';
-    return '🌤️';
-  }
-
-  // ================= LOGIC NẠP TIỀN =================
-
-  void _showDepositAmountDialog() {
+  Future<void> _showDepositAmountDialog() async {
     final controller = TextEditingController();
-    showDialog(
+    var isSubmitting = false;
+
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Nạp tiền vào ví"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                hintText: "Nhập số tiền (tối thiểu 50.000đ)",
-                suffixText: "đ",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Gợi ý:",
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              children: [50000, 100000, 200000, 500000].map((amount) {
-                return ActionChip(
-                  label: Text(NumberFormat.currency(
-                    locale: "vi_VN",
-                    symbol: "đ",
-                    decimalDigits: 0,
-                  ).format(amount)),
-                  onPressed: () {
-                    controller.text = amount.toString();
-                  },
-                );
-              }).toList(),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              "Hủy",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(controller.text);
-              if (amount == null || amount < 50000) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Số tiền nạp tối thiểu là 50.000đ"),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(ctx);
-              final content =
-                  "$_userId${DateFormat('HHmmss').format(DateTime.now())}";
-              _showQRDialog(amount, content);
-            },
-            child: const Text("Xác nhận nạp tiền"),
-          )
-        ],
-      ),
-    );
-  }
-
-  void _showQRDialog(double amount, String content) {
-    final qrUrl = "https://img.vietqr.io/image/MB-246878888-compact2.png"
-        "?amount=${amount.toStringAsFixed(0)}&addInfo=$content&accountName=CTY%20CP%20CN%20VA%20DV%20TT%20THE%20BELUGAS";
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogCtx) {
-        int countdown = 300;
-        Timer? countdownTimer;
-        Timer? pollTimer;
-        bool isChecking = false;
-
+      builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (ctx, setDialogState) {
-            countdownTimer ??= Timer.periodic(const Duration(seconds: 1), (t) {
-              if (countdown <= 0) {
-                t.cancel();
-                pollTimer?.cancel();
-                Navigator.pop(dialogCtx);
-              } else if (dialogCtx.mounted) {
-                setDialogState(() => countdown--);
-              }
-            });
-
-            pollTimer ??= Timer.periodic(const Duration(seconds: 7), (t) async {
-              if (isChecking) return;
-              isChecking = true;
-
-              final prefs = await SharedPreferences.getInstance();
-              final token = prefs.getString('accessToken') ?? '';
-              final success = await ApiService.depositWallet(
-                  accessToken: token, amount: amount, content: content);
-
-              if (success) {
-                t.cancel();
-                countdownTimer?.cancel();
-                if (dialogCtx.mounted) {
-                  Navigator.pop(dialogCtx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text("Nạp tiền thành công!"),
-                      backgroundColor: Colors.green));
-                }
-              }
-              isChecking = false;
-            });
-
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Nạp tiền vào ví'),
+              content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Quét mã thanh toán",
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 12),
-                    Image.network(qrUrl),
-                    const SizedBox(height: 12),
-                    Text("Nội dung: $content",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.red)),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(8)),
-                      child: const Text(
-                        "⚠️ Vui lòng KHÔNG tắt ứng dụng hoặc đóng mã QR cho đến khi hệ thống xác nhận chuyển khoản thành công.",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.orange,
-                            fontWeight: FontWeight.bold),
+                    TextField(
+                      controller: controller,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        hintText: 'Nhập số tiền (tối thiểu 50.000đ)',
+                        suffixText: 'đ',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                        "vui lòng chuyển khoản trong: ${countdown ~/ 60}:${(countdown % 60).toString().padLeft(2, '0')}"),
-                    TextButton(
-                      onPressed: () {
-                        countdownTimer?.cancel();
-                        pollTimer?.cancel();
-                        Navigator.pop(dialogCtx);
-                      },
-                      child: Text(
-                        "Huỷ giao dịch",
-                        style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .secondary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    )
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Gợi ý:',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      children: [50000, 100000, 200000, 500000].map((amount) {
+                        return ActionChip(
+                          label: Text(
+                            NumberFormat.currency(
+                              locale: 'vi_VN',
+                              symbol: 'đ',
+                              decimalDigits: 0,
+                            ).format(amount),
+                          ),
+                          onPressed: isSubmitting
+                              ? null
+                              : () {
+                                  controller.text = amount.toString();
+                                },
+                        );
+                      }).toList(),
+                    ),
                   ],
                 ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    'Huỷ',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final amount = double.tryParse(
+                            controller.text.trim(),
+                          );
+                          if (amount == null || amount < 50000) {
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Số tiền nạp tối thiểu là 50.000đ',
+                                ),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSubmitting = true);
+                          final result = await _homeProvider
+                              .createDepositRequest(amount: amount);
+                          if (dialogContext.mounted) {
+                            setDialogState(() => isSubmitting = false);
+                          }
+
+                          if (!mounted) return;
+
+                          if (!result.success || result.data == null) {
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  result.message ??
+                                      'Không thể tạo yêu cầu nạp tiền.',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+
+                          await _showDepositQrDialog(
+                            amount: amount,
+                            depositData: result.data!,
+                          );
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Tạo yêu cầu nạp tiền'),
+                ),
+              ],
             );
           },
         );
@@ -339,48 +204,233 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
-  // ================= UI COMPONENTS  =================
+  Future<void> _showDepositQrDialog({
+    required double amount,
+    required DepositContentData depositData,
+  }) async {
+    var isCancelling = false;
+    final qrUrl =
+        'https://img.vietqr.io/image/MB-246878888-compact2.png'
+        '?amount=${amount.toStringAsFixed(0)}'
+        '&addInfo=${depositData.content}'
+        '&accountName=CTY%20CP%20CN%20VA%20DV%20TT%20THE%20BELUGAS';
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: _buildAppBar(),
-      body: _buildBody(),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Theme.of(context)
-            .colorScheme
-            .secondary,
-        unselectedItemColor: Colors.grey.shade400,
-        selectedLabelStyle:
-        const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-        unselectedLabelStyle:
-        const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
-        elevation: 10,
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded), label: 'Trang chủ'
-          ),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.person_rounded), label: 'Tài khoản'
-          ),
-        ],
-      ),
-      backgroundColor: Colors.grey.shade50,
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Quét mã thanh toán',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Image.network(qrUrl),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Nội dung chuyển khoản',
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  depositData.content,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  await Clipboard.setData(
+                                    ClipboardData(text: depositData.content),
+                                  );
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Đã sao chép nội dung'),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Icons.copy_rounded),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Sau khi bạn chuyển khoản đúng nội dung, worker sẽ tự đối soát và cộng ví.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (depositData.depositId == null) ...[
+                      const SizedBox(height: 12),
+                      const Text(
+                        'API hiện chỉ trả content, chưa trả depositId nên app chưa thể gọi API huỷ đúng chuẩn.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isCancelling
+                      ? null
+                      : () => Navigator.pop(dialogContext),
+                  child: Text(
+                    depositData.depositId == null ? 'Đóng' : 'Giữ yêu cầu',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.secondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (depositData.depositId != null)
+                  ElevatedButton(
+                    onPressed: isCancelling
+                        ? null
+                        : () async {
+                            final messenger = ScaffoldMessenger.of(context);
+                            setDialogState(() => isCancelling = true);
+                            final result = await _homeProvider
+                                .cancelDepositRequest(
+                                  depositId: depositData.depositId,
+                                );
+                            if (dialogContext.mounted) {
+                              setDialogState(() => isCancelling = false);
+                            }
+
+                            if (!mounted) return;
+
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  result.success
+                                      ? 'Huỷ yêu cầu nạp tiền thành công'
+                                      : (result.message ??
+                                            'Không thể huỷ yêu cầu nạp tiền'),
+                                ),
+                                backgroundColor: result.success
+                                    ? Colors.green
+                                    : Colors.orange,
+                              ),
+                            );
+
+                            if (result.success && dialogContext.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
+                          },
+                    child: isCancelling
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Huỷ yêu cầu'),
+                  ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
-  PreferredSizeWidget? _buildAppBar() {
-    if (_selectedIndex != 0) return null;
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<HomeProvider>(
+      builder: (context, homeProvider, child) {
+        return Scaffold(
+          appBar: _buildAppBar(homeProvider),
+          body: _buildBody(homeProvider),
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: homeProvider.selectedIndex,
+            onTap: homeProvider.selectTab,
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: Theme.of(context).colorScheme.secondary,
+            unselectedItemColor: Colors.grey.shade400,
+            selectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
+            elevation: 10,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_rounded),
+                label: 'Trang chủ',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.directions_car_rounded),
+                label: 'Đặt chuyến',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.access_time_rounded),
+                label: 'Hoạt động',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_rounded),
+                label: 'Tài khoản',
+              ),
+            ],
+          ),
+          backgroundColor: Colors.grey.shade50,
+        );
+      },
+    );
+  }
 
-    String _getGreeting() {
-      var hour = DateTime.now().hour;
+  PreferredSizeWidget? _buildAppBar(HomeProvider homeProvider) {
+    if (homeProvider.selectedIndex != 0) return null;
+
+    String greeting() {
+      final hour = DateTime.now().hour;
       if (hour < 12) return 'Chào buổi sáng';
       if (hour < 18) return 'Chào buổi chiều';
       return 'Chào buổi tối';
@@ -395,7 +445,8 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
         decoration: BoxDecoration(
           image: DecorationImage(
             image: const AssetImage(
-                'lib/assets/icons/new_background_appbar.png'),
+              'lib/assets/icons/new_background_appbar.png',
+            ),
             fit: BoxFit.cover,
             colorFilter: ColorFilter.mode(
               Colors.white.withOpacity(0.3),
@@ -414,15 +465,17 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
       ),
       title: Row(
         children: [
-          // Avatar
           CircleAvatar(
             radius: 22,
             backgroundColor: Colors.white.withOpacity(0.3),
-            backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
-                ? NetworkImage(_avatarUrl!)
+            backgroundImage:
+                (homeProvider.avatarUrl != null &&
+                    homeProvider.avatarUrl!.isNotEmpty)
+                ? NetworkImage(homeProvider.avatarUrl!)
                 : const AssetImage(
-                'lib/assets/icons/user_avatar_placeholder.png')
-            as ImageProvider,
+                        'lib/assets/icons/user_avatar_placeholder.png',
+                      )
+                      as ImageProvider,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -431,7 +484,7 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '${_getGreeting()} 👋',
+                  '${greeting()} 👋',
                   style: TextStyle(
                     fontSize: 15,
                     color: Colors.white.withOpacity(0.85),
@@ -440,7 +493,9 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  _fullName.isEmpty ? 'Khách' : _fullName,
+                  homeProvider.fullName.isEmpty
+                      ? 'Khách'
+                      : homeProvider.fullName,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -452,133 +507,138 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
               ],
             ),
           ),
-          // Weather widget
-          _isLoadingWeather
+          homeProvider.isLoadingWeather
               ? Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            ),
-          )
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                )
               : InkWell(
-            onTap: () {
-              setState(() => _isLoadingWeather = true);
-              _fetchWeather();
-            },
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
+                  onTap: _homeProvider.refreshWeather,
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          homeProvider.weatherIcon,
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                        const SizedBox(width: 6),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              homeProvider.temperature,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              'Hà Nội',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.white.withOpacity(0.8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _weatherIcon,
-                    style: const TextStyle(fontSize: 22),
-                  ),
-                  const SizedBox(width: 6),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _temperature,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Text(
-                        'Hà Nội',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  void _selectTab(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  Widget _buildBody() {
+  Widget _buildBody(HomeProvider homeProvider) {
     return IndexedStack(
-      index: _selectedIndex,
+      index: homeProvider.selectedIndex,
       children: [
-        _buildHomeScreen(),
+        _buildHomeScreen(homeProvider),
+        Booking1Screen(onRideBooked: _handleRideBooked),
+        ActivityScreen(key: _activityScreenKey),
         const ProfileScreen(),
       ],
     );
   }
 
-  Widget _buildHomeScreen() {
+  Widget _buildHomeScreen(HomeProvider homeProvider) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 18.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildActionButtons(),
+          _buildActionButtons(homeProvider),
           const SizedBox(height: 20),
-          _buildHomeCarousel(context),
+          _buildHomeCarousel(homeProvider),
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildActionButtons() {
-    return Row(
+  Widget _buildActionButtons(HomeProvider homeProvider) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      mainAxisSpacing: 16,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.3,
       children: [
-        // Nạp tiền
-        Expanded(
-          child: _buildActionCard(
-            assetPath: 'lib/assets/icons/wallet.png',
-            label: 'Nạp tiền',
-            onTap: _showDepositAmountDialog,
-          ),
+        _buildActionCard(
+          assetPath: 'lib/assets/icons/booking_car.png',
+          label: 'Đặt chuyến',
+          onTap: () => homeProvider.selectTab(1),
         ),
-        const SizedBox(width: 12),
-        // Chat
-        Expanded(
-          child: _buildActionCard(
-            assetPath: 'lib/assets/icons/chat_icon.png',
-            label: 'Chat đặt đơn',
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const ChatScreen()),
-              );
-            },
-          ),
+        _buildActionCard(
+          assetPath: 'lib/assets/icons/wallet.png',
+          label: 'Nạp tiền',
+          onTap: _showDepositAmountDialog,
+        ),
+        _buildActionCard(
+          assetPath: 'lib/assets/icons/activity_history.png',
+          label: 'Hoạt động',
+          onTap: () => homeProvider.selectTab(2),
+        ),
+        _buildActionCard(
+          assetPath: 'lib/assets/icons/chat_icon.png',
+          label: 'Chat đặt đơn',
+          onTap: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (context) => const ChatScreen()));
+          },
         ),
       ],
     );
@@ -612,7 +672,7 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
                   assetPath,
-                  width: 72, // chỉnh tuỳ layout
+                  width: 72,
                   height: 72,
                   fit: BoxFit.cover,
                   filterQuality: FilterQuality.high,
@@ -636,21 +696,18 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
-  /// --- Carousel --- ///
-  Widget _buildHomeCarousel(BuildContext context) {
+  Widget _buildHomeCarousel(HomeProvider homeProvider) {
     return Column(
       children: [
         SizedBox(
           height: 250,
           child: PageView.builder(
             controller: _bannerController,
-            itemCount: _carouselImages.length + 1,
-            onPageChanged: (index) {
-              setState(() => _currentBanner = index);
-            },
+            itemCount: homeProvider.carouselImages.length + 1,
+            onPageChanged: homeProvider.setCurrentBanner,
             itemBuilder: (context, index) {
               if (index == 0) {
-                return _buildWelcomeBanner(context);
+                return _buildWelcomeBanner();
               }
 
               return Container(
@@ -668,7 +725,7 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
                   child: Image.asset(
-                    _carouselImages[index - 1],
+                    homeProvider.carouselImages[index - 1],
                     fit: BoxFit.cover,
                     width: double.infinity,
                   ),
@@ -678,12 +735,12 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
           ),
         ),
         const SizedBox(height: 12),
-        _buildCarouselIndicator(),
+        _buildCarouselIndicator(homeProvider),
       ],
     );
   }
 
-  Widget _buildWelcomeBanner(BuildContext context) {
+  Widget _buildWelcomeBanner() {
     return Container(
       height: 270,
       width: 450,
@@ -739,8 +796,10 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -758,13 +817,13 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildCarouselIndicator() {
-    final total = _carouselImages.length + 1;
+  Widget _buildCarouselIndicator(HomeProvider homeProvider) {
+    final total = homeProvider.carouselImages.length + 1;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(total, (index) {
-        final isActive = index == _currentBanner;
+        final isActive = index == homeProvider.currentBanner;
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 500),
@@ -778,12 +837,12 @@ class HomeViewState extends State<HomeView> with TickerProviderStateMixin {
             borderRadius: BorderRadius.circular(4),
             boxShadow: isActive
                 ? [
-              BoxShadow(
-                color: Theme.of(context).primaryColor.withOpacity(0.4),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ]
+                    BoxShadow(
+                      color: Theme.of(context).primaryColor.withOpacity(0.4),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
                 : [],
           ),
         );

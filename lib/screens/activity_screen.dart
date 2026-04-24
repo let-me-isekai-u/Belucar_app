@@ -12,10 +12,10 @@ class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
 
   @override
-  State<ActivityScreen> createState() => _ActivityScreenState();
+  State<ActivityScreen> createState() => ActivityScreenState();
 }
 
-class _ActivityScreenState extends State<ActivityScreen>
+class ActivityScreenState extends State<ActivityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -157,7 +157,9 @@ class _ActivityScreenState extends State<ActivityScreen>
   }
 
   void _onActionSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
     setState(() {
       _ongoingFuture = _fetchOngoingTrips();
       if (_isHistoryLoaded) {
@@ -167,10 +169,15 @@ class _ActivityScreenState extends State<ActivityScreen>
   }
 
   void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _showCancelTripDialog({required int rideId, required bool isConfirmCancel}) {
+  void _showCancelTripDialog({
+    required int rideId,
+    required bool isConfirmCancel,
+  }) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -200,10 +207,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             },
             child: const Text(
               "Huỷ chuyến",
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -228,8 +232,13 @@ class _ActivityScreenState extends State<ActivityScreen>
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Theme.of(context).colorScheme.secondary, // ✅ Tab được chọn màu vàng gold
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+          labelColor: Theme.of(
+            context,
+          ).colorScheme.secondary, // ✅ Tab được chọn màu vàng gold
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
           unselectedLabelColor: Colors.white70,
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
           indicatorColor: Theme.of(context).colorScheme.secondary,
@@ -242,10 +251,7 @@ class _ActivityScreenState extends State<ActivityScreen>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildOngoingTrips(),
-          _buildHistoryTrips(),
-        ],
+        children: [_buildOngoingTrips(), _buildHistoryTrips()],
       ),
     );
   }
@@ -270,7 +276,10 @@ class _ActivityScreenState extends State<ActivityScreen>
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.7,
-                child: _buildEmptyState("Hiện tại bạn không có chuyến xe nào.", showButton: true),
+                child: _buildEmptyState(
+                  "Hiện tại bạn không có chuyến xe nào.",
+                  showButton: true,
+                ),
               ),
             );
           }
@@ -300,7 +309,9 @@ class _ActivityScreenState extends State<ActivityScreen>
               physics: const AlwaysScrollableScrollPhysics(),
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.7,
-                child: _buildEmptyState("Hiện tại bạn không có lịch sử chuyến xe nào."),
+                child: _buildEmptyState(
+                  "Hiện tại bạn không có lịch sử chuyến xe nào.",
+                ),
               ),
             );
           }
@@ -319,7 +330,10 @@ class _ActivityScreenState extends State<ActivityScreen>
         Positioned.fill(
           child: Opacity(
             opacity: 0.18,
-            child: Image.asset('lib/assets/icons/ActivityLogo.png', fit: BoxFit.cover),
+            child: Image.asset(
+              'lib/assets/icons/ActivityLogo.png',
+              fit: BoxFit.cover,
+            ),
           ),
         ),
         ListView.builder(
@@ -349,7 +363,9 @@ class _ActivityScreenState extends State<ActivityScreen>
       child: InkWell(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => OrderDetailScreen(rideId: trip.rideId)),
+          MaterialPageRoute(
+            builder: (_) => OrderDetailScreen(rideId: trip.rideId),
+          ),
         ),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -359,7 +375,11 @@ class _ActivityScreenState extends State<ActivityScreen>
             children: [
               Row(
                 children: [
-                  Icon(Icons.history, color: theme.colorScheme.secondary, size: 22),
+                  Icon(
+                    Icons.history,
+                    color: theme.colorScheme.secondary,
+                    size: 22,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -387,10 +407,7 @@ class _ActivityScreenState extends State<ActivityScreen>
               Text(
                 "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
                 maxLines: 2,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Colors.black87, fontSize: 14),
               ),
               const SizedBox(height: 8),
               Row(
@@ -398,15 +415,17 @@ class _ActivityScreenState extends State<ActivityScreen>
                 children: [
                   Text(
                     "Ngày đặt: ${trip.createdAt.day}/${trip.createdAt.month}/${trip.createdAt.year}",
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontSize: 13,
-                    ),
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: trip.status == 4 ? Colors.green.shade50 : Colors.red.shade50,
+                      color: trip.status == 4
+                          ? Colors.green.shade50
+                          : Colors.red.shade50,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: trip.status == 4 ? Colors.green : Colors.red,
@@ -416,7 +435,9 @@ class _ActivityScreenState extends State<ActivityScreen>
                     child: Text(
                       _getStatusText(trip.status),
                       style: TextStyle(
-                        color: trip.status == 4 ? Colors.green.shade800 : Colors.red.shade800,
+                        color: trip.status == 4
+                            ? Colors.green.shade800
+                            : Colors.red.shade800,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -438,7 +459,9 @@ class _ActivityScreenState extends State<ActivityScreen>
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => OrderDetailScreen(rideId: trip.rideId)),
+        MaterialPageRoute(
+          builder: (_) => OrderDetailScreen(rideId: trip.rideId),
+        ),
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -480,10 +503,7 @@ class _ActivityScreenState extends State<ActivityScreen>
             Text(
               "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
               maxLines: 2,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.black87, fontSize: 14),
             ),
             const SizedBox(height: 8),
             Text(
@@ -500,7 +520,10 @@ class _ActivityScreenState extends State<ActivityScreen>
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: _getStatusBgColor(trip.status),
                       borderRadius: BorderRadius.circular(12),
@@ -569,14 +592,20 @@ class _ActivityScreenState extends State<ActivityScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('lib/assets/icons/ActivityLogo.png', width: 140, height: 140),
+            Image.asset(
+              'lib/assets/icons/ActivityLogo.png',
+              width: 140,
+              height: 140,
+            ),
             const SizedBox(height: 28),
             Text(
               message,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 16,
-                color: Theme.of(context).colorScheme.secondary, // ✅ Màu vàng gold
+                color: Theme.of(
+                  context,
+                ).colorScheme.secondary, // ✅ Màu vàng gold
                 fontWeight: FontWeight.w600, // ✅ Đậm hơn để dễ đọc
               ),
             ),
