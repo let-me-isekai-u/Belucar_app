@@ -12,7 +12,7 @@
 .swiftpm/
 migrate_working_dir/
 *.jar
-*.apk
+*.apks
 
 # IntelliJ related
 *.iml
