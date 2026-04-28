@@ -769,7 +769,7 @@ class _HomeViewState extends State<HomeView> {
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: Image.asset(
-              'lib/assets/icons/BeluCar_logo.jpg',
+              'lib/assets/icons/dong_duong_logo.png',
               height: 60,
               width: 60,
               fit: BoxFit.cover,
@@ -787,7 +787,7 @@ class _HomeViewState extends State<HomeView> {
                   style: TextStyle(fontSize: 13, color: Colors.white70),
                 ),
                 const Text(
-                  'Vi vu cùng BeluCar!',
+                  'Vi vu cùng xe ghép Đông Dương!',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
