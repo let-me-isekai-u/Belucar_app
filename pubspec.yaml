@@ -67,7 +67,7 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "lib/assets/icons/new_launcher_icon.png"
+  image_path: "lib/assets/icons/dong_duong_logo.png"
   adaptive_icon_background: "#ffffff"
   adaptive_icon_foreground: "lib/assets/icons/dong_duong_logo.png"
   remove_alpha_ios: true
