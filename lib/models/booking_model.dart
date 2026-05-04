@@ -76,7 +76,7 @@ class BookingModel extends ChangeNotifier {
     fetchTripPrice();
   }
 
-  bool get isChoNguoi => true;
+  bool get isChoNguoi => _selectedRideType == BookingRideType.passenger;
   bool get isBaoXe => BookingRideType.isCharter(_selectedRideType);
   bool get isHoaToc => false;
 
@@ -93,7 +93,7 @@ class BookingModel extends ChangeNotifier {
 
   // ================== PHƯƠNG THỨC THANH TOÁN ==================
   // 1: Chuyển khoản | 2: Thanh toán bằng ví | 3: Tiền mặt (Thanh toán sau)
-  int _paymentMethod = 2;
+  int _paymentMethod = 1;
   int get paymentMethod => _paymentMethod;
 
   set paymentMethod(int value) {
@@ -165,7 +165,7 @@ class BookingModel extends ChangeNotifier {
   String? note;
 
   // ================== GIÁ ==================
-  double? tripPrice; // thành  tiền
+  double? tripPrice; // thành tiền
   int? currentTripId;
   double? basePrice;
   double discount = 0;
@@ -377,19 +377,19 @@ class BookingModel extends ChangeNotifier {
       } else {
         _resetPrice();
         priceErrorMessage =
-            json["message"] ?? "Tuyến đường này hi���n chưa có đơn giá";
+            json["message"] ?? "Tuyến đường này hiện chưa có đơn giá";
       }
     } catch (e) {
       _resetPrice();
       priceErrorMessage =
-          "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
+      "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
     } finally {
       isLoadingPrice = false;
       notifyListeners();
     }
   }
 
-  //RESET GIÁ
+  // RESET GIÁ
   void _resetPrice() {
     currentTripId = null;
     basePrice = null;
@@ -403,14 +403,13 @@ class BookingModel extends ChangeNotifier {
   // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
   // =====================================================
   Future<Map<String, dynamic>> createRide(
-    String accessToken, {
-    String content = "",
-  }) async {
+      String accessToken, {
+        String content = "",
+      }) async {
     if (currentTripId == null) {
       throw Exception("Chưa có giá chuyến đi");
     }
 
-    // Kết hợp ngày và giờ thành chuỗi ISO
     final String pickupDateTime = DateTime(
       goDate!.year,
       goDate!.month,
@@ -434,7 +433,6 @@ class BookingModel extends ChangeNotifier {
 
     final data = ApiService.safeDecode(res.body);
 
-    // Kiểm tra lỗi từ backend (ví dụ: "Chưa chuyển khoản thành công!")
     if (res.statusCode != 200 || data['success'] == false) {
       throw data['message'] ?? "Lỗi không xác định khi tạo chuyến";
     }
@@ -450,7 +448,7 @@ class BookingModel extends ChangeNotifier {
     _selectedRideType = BookingRideType.passenger;
     _paymentMethod = 3;
 
-    // 1.1️⃣ Reset quantity (NEW)
+    // 1.1️⃣ Reset quantity
     _quantity = 1;
 
     // 2️⃣ Reset địa điểm
@@ -470,7 +468,7 @@ class BookingModel extends ChangeNotifier {
     customerPhone = null;
     note = null;
 
-    // 4️⃣ Reset giá (1 nơi duy nhất)
+    // 4️⃣ Reset giá
     _resetPrice();
 
     // 5️⃣ Reset loading

@@ -18,9 +18,16 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   @override
   void initState() {
     super.initState();
-    // ✅ Gọi lại API tính giá khi vào màn hình 3
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final model = context.read<BookingModel>();
+
+      // Mặc định chỉ cho phép: 2 = ví, 3 = tiền mặt
+      // Nếu đang là 1 (chuyển khoản) thì ép về 2 (ví)
+      if (model.paymentMethod == 1) {
+        model.paymentMethod = 2;
+      }
+
       if (model.tripPrice == null && !model.isLoadingPrice) {
         model.fetchTripPrice();
       }
@@ -34,6 +41,28 @@ class _Booking3ScreenState extends State<Booking3Screen> {
       decimalDigits: 0,
     );
     return formatter.format(value);
+  }
+
+  String _getPaymentMethodLabel(int paymentMethod) {
+    switch (paymentMethod) {
+      case 2:
+        return 'Thanh toán bằng ví';
+      case 3:
+        return 'Tiền mặt';
+      default:
+        return 'Thanh toán bằng ví';
+    }
+  }
+
+  IconData _getPaymentMethodIcon(int paymentMethod) {
+    switch (paymentMethod) {
+      case 2:
+        return Icons.wallet;
+      case 3:
+        return Icons.payments_outlined;
+      default:
+        return Icons.wallet;
+    }
   }
 
   Widget _buildInfoRow(String label, String value, {bool isBold = false}) {
@@ -71,11 +100,11 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   }
 
   Widget _buildTextPriceRow(
-    String label,
-    String value, {
-    bool isBold = false,
-    Color? color,
-  }) {
+      String label,
+      String value, {
+        bool isBold = false,
+        Color? color,
+      }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -103,11 +132,11 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   }
 
   Widget _buildPriceRow(
-    String label,
-    double amount, {
-    bool isBold = false,
-    Color? color,
-  }) {
+      String label,
+      double amount, {
+        bool isBold = false,
+        Color? color,
+      }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -173,10 +202,90 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     );
   }
 
+  Widget _buildPaymentOption({
+    required BookingModel model,
+    required int value,
+    required String title,
+    required IconData icon,
+    required String subtitle,
+  }) {
+    final theme = Theme.of(context);
+    final isSelected = model.paymentMethod == value;
+
+    return InkWell(
+      onTap: () {
+        model.paymentMethod = value;
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected
+                ? theme.colorScheme.secondary
+                : Colors.white.withOpacity(0.2),
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          color: isSelected
+              ? theme.colorScheme.secondary.withOpacity(0.12)
+              : Colors.transparent,
+        ),
+        child: Row(
+          children: [
+            Radio<int>(
+              value: value,
+              groupValue: model.paymentMethod,
+              onChanged: (val) {
+                if (val != null) {
+                  model.paymentMethod = val;
+                }
+              },
+              activeColor: theme.colorScheme.secondary,
+            ),
+            Icon(
+              icon,
+              color: isSelected
+                  ? theme.colorScheme.secondary
+                  : Colors.white70,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? theme.colorScheme.secondary
+                          : Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   String _getProvinceName(BookingModel model, int? id) {
     if (id == null) return '';
     final province = model.provinces.cast<dynamic?>().firstWhere(
-      (p) => p != null && p['id'].toString() == id.toString(),
+          (p) => p != null && p['id'].toString() == id.toString(),
       orElse: () => null,
     );
     return province?['name']?.toString() ?? '';
@@ -185,7 +294,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   String _getDistrictName(List<dynamic> districts, int? id) {
     if (id == null) return '';
     final district = districts.cast<dynamic?>().firstWhere(
-      (d) => d != null && d['id'].toString() == id.toString(),
+          (d) => d != null && d['id'].toString() == id.toString(),
       orElse: () => null,
     );
     return district?['name']?.toString() ?? '';
@@ -216,21 +325,23 @@ class _Booking3ScreenState extends State<Booking3Screen> {
           widget.onRideBooked(2);
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Row(
                 children: [
-                  Icon(Icons.check_circle, color: Colors.white),
-                  SizedBox(width: 12),
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Đặt chuyến thành công! Vui lòng chờ hệ thống tìm tài xế.',
-                      style: TextStyle(fontSize: 15),
+                      model.paymentMethod == 2
+                          ? 'Đặt chuyến thành công! Thanh toán bằng ví đã được chọn.'
+                          : 'Đặt chuyến thành công! Bạn sẽ thanh toán bằng tiền mặt.',
+                      style: const TextStyle(fontSize: 15),
                     ),
                   ),
                 ],
               ),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 4),
+              duration: const Duration(seconds: 4),
             ),
           );
 
@@ -341,6 +452,36 @@ class _Booking3ScreenState extends State<Booking3Screen> {
             const SizedBox(height: 16),
 
             _buildSectionCard(
+              title: "Phương thức thanh toán",
+              icon: _getPaymentMethodIcon(model.paymentMethod),
+              children: [
+                _buildPaymentOption(
+                  model: model,
+                  value: 2,
+                  title: "Thanh toán bằng ví",
+                  icon: Icons.wallet,
+                  subtitle: "Thanh toán bằng số dư ví trong ứng dụng",
+                ),
+                _buildPaymentOption(
+                  model: model,
+                  value: 3,
+                  title: "Tiền mặt",
+                  icon: Icons.payments_outlined,
+                  subtitle: "Thanh toán sau khi hoàn thành chuyến đi",
+                ),
+                const SizedBox(height: 8),
+                _buildInfoRow(
+                  "Đã chọn:",
+                  _getPaymentMethodLabel(model.paymentMethod),
+                  isBold: true,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+
+            _buildSectionCard(
               title: "Chi tiết giá",
               icon: Icons.payments_outlined,
               children: [
@@ -395,31 +536,6 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               ],
             ),
 
-            const SizedBox(height: 16),
-
-            _buildSectionCard(
-              title: "Phương thức thanh toán",
-              icon: Icons.wallet,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.wallet_giftcard,
-                      color: theme.colorScheme.secondary,
-                    ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      "Thanh toán bằng ví",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
 
             const SizedBox(height: 100),
           ],
@@ -480,20 +596,22 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                 ),
                 child: _isCreatingRide
                     ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.black87,
-                        ),
-                      )
-                    : const Text(
-                        "THANH TOÁN",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.black87,
+                  ),
+                )
+                    : Text(
+                  model.paymentMethod == 3
+                      ? "XÁC NHẬN ĐẶT XE"
+                      : "THANH TOÁN",
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
