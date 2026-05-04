@@ -44,7 +44,10 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -67,11 +70,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     final model = context.watch<BookingModel>();
     final theme = Theme.of(context);
 
-    const compactDensity = VisualDensity(vertical: -4);
-    const radioTextStyle = TextStyle(fontSize: 16, fontWeight: FontWeight.w500);
-
-    // Chỉ hiện số lượng khi: Chở người && không bao xe
-    final bool showQuantityField = model.isChoNguoi && !model.isBaoXe;
+    final bool showQuantityField = model.showQuantityField;
 
     // Sync text field với model khi field đang hiển thị
     if (showQuantityField) {
@@ -102,51 +101,42 @@ class _Booking1ScreenState extends State<Booking1Screen> {
               title: "Chọn Loại Chuyến",
               icon: Icons.directions_car,
               children: [
-                RadioListTile<TripCategory>(
-                  dense: true,
-                  visualDensity: compactDensity,
-                  contentPadding: EdgeInsets.zero,
-                  value: TripCategory.choNguoi,
-                  groupValue: model.tripCategory,
-                  activeColor: theme.colorScheme.secondary,
-                  title: const Text("Chở người", style: radioTextStyle),
-                  onChanged: (v) {
-                    if (v != null) model.setTripCategory(v);
+                DropdownButtonFormField<int>(
+                  initialValue: model.selectedRideType,
+                  dropdownColor: theme.colorScheme.primary,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: "Loại chuyến",
+                    labelStyle: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(
+                      Icons.category_outlined,
+                      color: theme.colorScheme.secondary,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.secondary,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  items: BookingRideType.options
+                      .map(
+                        (option) => DropdownMenuItem<int>(
+                          value: option.value,
+                          child: Text(option.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      model.setSelectedRideType(value);
+                    }
                   },
                 ),
-                RadioListTile<TripCategory>(
-                  dense: true,
-                  visualDensity: compactDensity,
-                  contentPadding: EdgeInsets.zero,
-                  value: TripCategory.choHang,
-                  groupValue: model.tripCategory,
-                  activeColor: theme.colorScheme.secondary,
-                  title: const Text("Giao hàng", style: radioTextStyle),
-                  onChanged: (v) {
-                    if (v != null) model.setTripCategory(v);
-                  },
-                ),
-                if (model.isChoNguoi)
-                  CheckboxListTile(
-                    dense: true,
-                    visualDensity: compactDensity,
-                    contentPadding: EdgeInsets.zero,
-                    value: model.isBaoXe,
-                    activeColor: theme.colorScheme.secondary,
-                    title: const Text("Bao trọn chuyến xe", style: radioTextStyle),
-                    onChanged: (v) => model.setIsBaoXe(v ?? false),
-                  ),
-                if (!model.isChoNguoi)
-                  CheckboxListTile(
-                    dense: true,
-                    visualDensity: compactDensity,
-                    contentPadding: EdgeInsets.zero,
-                    value: model.isHoaToc,
-                    activeColor: theme.colorScheme.secondary,
-                    title: const Text("Giao Hỏa tốc (Thêm phí)", style: radioTextStyle),
-                    onChanged: (v) => model.setIsHoaToc(v ?? false),
-                  ),
-
                 if (showQuantityField) ...[
                   const SizedBox(height: 8),
                   TextField(
@@ -160,9 +150,15 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                         fontWeight: FontWeight.w500,
                       ),
                       border: const OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.people, color: theme.colorScheme.secondary),
+                      prefixIcon: Icon(
+                        Icons.people,
+                        color: theme.colorScheme.secondary,
+                      ),
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.secondary,
+                          width: 2,
+                        ),
                       ),
                       helperText: "Nhập số nguyên ≥ 1",
                       helperStyle: const TextStyle(color: Colors.white70),
@@ -195,9 +191,15 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                       fontWeight: FontWeight.w500,
                     ),
                     border: const OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.phone, color: theme.colorScheme.secondary),
+                    prefixIcon: Icon(
+                      Icons.phone,
+                      color: theme.colorScheme.secondary,
+                    ),
                     focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.secondary,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -215,7 +217,10 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                     border: const OutlineInputBorder(),
                     alignLabelWithHint: true,
                     focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.secondary,
+                        width: 2,
+                      ),
                     ),
                   ),
                 ),
@@ -276,9 +281,6 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                   return;
                 }
                 model.quantity = q;
-              } else {
-                // Khi không dùng số lượng (bao xe hoặc chở hàng), set mặc định 1 để tránh rác dữ liệu
-                model.quantity = 1;
               }
 
               model.customerPhone = _phoneController.text.trim();

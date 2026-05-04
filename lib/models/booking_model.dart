@@ -1,13 +1,51 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
-/// ================== ENUM DÙNG CHO RADIO ==================
-enum TripCategory {
-  choNguoi,
-  choHang,
+class BookingRideTypeOption {
+  final int value;
+  final String label;
+
+  const BookingRideTypeOption({required this.value, required this.label});
+}
+
+class BookingRideType {
+  static const int passenger = 1;
+  static const int charter5Seats = 2;
+  static const int charter7Seats = 3;
+
+  static const List<BookingRideTypeOption> options = [
+    BookingRideTypeOption(value: passenger, label: 'Chở người'),
+    BookingRideTypeOption(value: charter5Seats, label: 'Bao xe 5 chỗ'),
+    BookingRideTypeOption(value: charter7Seats, label: 'Bao xe 7 chỗ'),
+  ];
+
+  static bool isValid(int type) {
+    return type == passenger || type == charter5Seats || type == charter7Seats;
+  }
+
+  static bool requiresPassengerQuantity(int type) => type == passenger;
+
+  static bool isCharter(int type) =>
+      type == charter5Seats || type == charter7Seats;
+
+  static int normalizeQuantity({required int type, required int quantity}) {
+    if (isCharter(type)) return 1;
+    return quantity < 1 ? 1 : quantity;
+  }
+
+  static String labelOf(int type) {
+    for (final option in options) {
+      if (option.value == type) return option.label;
+    }
+    return 'Không xác định';
+  }
 }
 
 class BookingModel extends ChangeNotifier {
+  static const int hanoiProvinceId = 1;
+  static const int noiBaiDistrictId = 974;
+  static const String noiBaiAirportAddress = "Cảng hàng không quốc tế Nội Bài";
+
   int _userId = 0;
   int get userId => _userId;
 
@@ -17,21 +55,37 @@ class BookingModel extends ChangeNotifier {
   }
 
   // ================== LOẠI CHUYẾN ==================
-  bool isChoNguoi = true; // true = chở người, false = chở hàng
-  bool isBaoXe = false; // chỉ dùng khi chở người
-  bool isHoaToc = false; // chỉ dùng khi chở hàng
+  int _selectedRideType = BookingRideType.passenger;
+  int get selectedRideType => _selectedRideType;
 
-  void setIsBaoXe(bool value) {
-    if (isBaoXe != value) {
-      isBaoXe = value;
-      notifyListeners();
-      fetchTripPrice();
-    }
+  bool get showQuantityField =>
+      BookingRideType.requiresPassengerQuantity(_selectedRideType);
+
+  int get normalizedQuantity => BookingRideType.normalizeQuantity(
+    type: _selectedRideType,
+    quantity: _quantity,
+  );
+
+  String get rideTypeLabel => BookingRideType.labelOf(_selectedRideType);
+
+  void setSelectedRideType(int value) {
+    if (!BookingRideType.isValid(value) || _selectedRideType == value) return;
+
+    _selectedRideType = value;
+    notifyListeners();
+    fetchTripPrice();
   }
 
-  void setIsHoaToc(bool value) {
-    if (isHoaToc != value) {
-      isHoaToc = value;
+  bool get isChoNguoi => true;
+  bool get isBaoXe => BookingRideType.isCharter(_selectedRideType);
+  bool get isHoaToc => false;
+
+  void setIsBaoXe(bool value) {
+    final nextType = value
+        ? BookingRideType.charter5Seats
+        : BookingRideType.passenger;
+    if (_selectedRideType != nextType) {
+      _selectedRideType = nextType;
       notifyListeners();
       fetchTripPrice();
     }
@@ -49,9 +103,6 @@ class BookingModel extends ChangeNotifier {
       fetchTripPrice();
     }
   }
-
-  // ================== RADIO STATE ==================
-  TripCategory tripCategory = TripCategory.choNguoi;
 
   // ================== NGÀY GIỜ ==================
   DateTime? goDate;
@@ -75,6 +126,20 @@ class BookingModel extends ChangeNotifier {
 
   List<dynamic> pickupDistricts = [];
   List<dynamic> dropDistricts = [];
+
+  List<dynamic> get availablePickupDistricts => _filterDistrictsForSelection(
+    districts: pickupDistricts,
+    currentProvinceId: _selectedProvincePickup,
+    otherProvinceId: _selectedProvinceDrop,
+    otherDistrictId: _selectedDistrictDrop,
+  );
+
+  List<dynamic> get availableDropDistricts => _filterDistrictsForSelection(
+    districts: dropDistricts,
+    currentProvinceId: _selectedProvinceDrop,
+    otherProvinceId: _selectedProvincePickup,
+    otherDistrictId: _selectedDistrictPickup,
+  );
 
   // ================== ĐIỂM ĐÓN ==================
   // lưu id thay vì string để dễ dùng với API
@@ -116,24 +181,6 @@ class BookingModel extends ChangeNotifier {
   }
 
   // =====================================================
-  // RADIO HANDLER
-  // =====================================================
-  void setTripCategory(TripCategory value) {
-    tripCategory = value;
-
-    if (value == TripCategory.choNguoi) {
-      isChoNguoi = true;
-      isHoaToc = false;
-    } else {
-      isChoNguoi = false;
-      isBaoXe = false;
-    }
-
-    notifyListeners();
-    fetchTripPrice();
-  }
-
-  // =====================================================
   // LẤY TỈNH / HUYỆN
   // =====================================================
   Future<void> fetchProvinces() async {
@@ -142,17 +189,68 @@ class BookingModel extends ChangeNotifier {
   }
 
   Future<void> fetchPickupDistricts(int provinceId) async {
-    pickupDistricts = await ApiService.getDistricts(
-      provinceId: provinceId,
-    );
+    pickupDistricts = await ApiService.getDistricts(provinceId: provinceId);
     notifyListeners();
   }
 
   Future<void> fetchDropDistricts(int provinceId) async {
-    dropDistricts = await ApiService.getDistricts(
-      provinceId: provinceId,
-    );
+    dropDistricts = await ApiService.getDistricts(provinceId: provinceId);
     notifyListeners();
+  }
+
+  bool canSelectSameProvince(int? provinceId) {
+    return provinceId == hanoiProvinceId;
+  }
+
+  List<dynamic> _filterDistrictsForSelection({
+    required List<dynamic> districts,
+    required int? currentProvinceId,
+    required int? otherProvinceId,
+    required int? otherDistrictId,
+  }) {
+    if (currentProvinceId != hanoiProvinceId ||
+        otherProvinceId != hanoiProvinceId) {
+      return districts;
+    }
+
+    if (otherDistrictId == null || otherDistrictId == noiBaiDistrictId) {
+      return districts;
+    }
+
+    return districts.where((district) {
+      final id = _parseLocationId(district['id']);
+      return id == noiBaiDistrictId;
+    }).toList();
+  }
+
+  int? _parseLocationId(dynamic rawId) {
+    if (rawId is int) return rawId;
+    return int.tryParse(rawId.toString());
+  }
+
+  void _syncAddressWithDistrict({
+    required bool isPickup,
+    required int? districtId,
+  }) {
+    final shouldAutofill = districtId == noiBaiDistrictId;
+    final currentAddress = isPickup ? addressPickup : addressDrop;
+
+    if (shouldAutofill) {
+      if (isPickup) {
+        addressPickup = noiBaiAirportAddress;
+      } else {
+        addressDrop = noiBaiAirportAddress;
+      }
+      return;
+    }
+
+    if (currentAddress == noiBaiAirportAddress) {
+      if (isPickup) {
+        addressPickup = null;
+      } else {
+        addressDrop = null;
+      }
+    }
   }
 
   // Setter cho province pickup: khi đổi tỉnh sẽ load danh sách huyện cho điểm đón
@@ -162,6 +260,7 @@ class BookingModel extends ChangeNotifier {
     _selectedProvincePickup = provinceId;
     // reset district selection khi đổi tỉnh
     _selectedDistrictPickup = null;
+    _syncAddressWithDistrict(isPickup: true, districtId: null);
     pickupDistricts = [];
 
     notifyListeners();
@@ -178,6 +277,7 @@ class BookingModel extends ChangeNotifier {
   void setSelectedDistrictPickup(int? districtId) {
     if (_selectedDistrictPickup == districtId) return;
     _selectedDistrictPickup = districtId;
+    _syncAddressWithDistrict(isPickup: true, districtId: districtId);
     fetchTripPrice();
     notifyListeners();
   }
@@ -185,6 +285,7 @@ class BookingModel extends ChangeNotifier {
   void setSelectedDistrictDrop(int? districtId) {
     if (_selectedDistrictDrop == districtId) return;
     _selectedDistrictDrop = districtId;
+    _syncAddressWithDistrict(isPickup: false, districtId: districtId);
     fetchTripPrice();
     notifyListeners();
   }
@@ -196,6 +297,7 @@ class BookingModel extends ChangeNotifier {
     _selectedProvinceDrop = provinceId;
     // reset district selection khi đổi tỉnh
     _selectedDistrictDrop = null;
+    _syncAddressWithDistrict(isPickup: false, districtId: null);
     dropDistricts = [];
 
     notifyListeners();
@@ -211,13 +313,7 @@ class BookingModel extends ChangeNotifier {
   // =====================================================
   // MAP UI → TYPE API
   // =====================================================
-  int get tripType {
-    if (isChoNguoi) {
-      return isBaoXe ? 2 : 1;
-    } else {
-      return isHoaToc ? 4 : 3;
-    }
-  }
+  int get tripType => _selectedRideType;
 
   // =====================================================
   // 12. LẤY GIÁ
@@ -260,7 +356,7 @@ class BookingModel extends ChangeNotifier {
         type: tripType,
         paymentMethod: _paymentMethod,
         pickupTime: pickupDateTime,
-        quantity: _quantity, // NEW
+        quantity: normalizedQuantity,
       );
 
       final json = ApiService.safeDecode(res.body);
@@ -286,7 +382,7 @@ class BookingModel extends ChangeNotifier {
     } catch (e) {
       _resetPrice();
       priceErrorMessage =
-      "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
+          "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
     } finally {
       isLoadingPrice = false;
       notifyListeners();
@@ -307,9 +403,9 @@ class BookingModel extends ChangeNotifier {
   // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
   // =====================================================
   Future<Map<String, dynamic>> createRide(
-      String accessToken, {
-        String content = "",
-      }) async {
+    String accessToken, {
+    String content = "",
+  }) async {
     if (currentTripId == null) {
       throw Exception("Chưa có giá chuyến đi");
     }
@@ -332,7 +428,7 @@ class BookingModel extends ChangeNotifier {
       pickupTime: pickupDateTime,
       note: note ?? "",
       paymentMethod: _paymentMethod,
-      quantity: _quantity, // NEW
+      quantity: normalizedQuantity,
       content: content,
     );
 
@@ -351,10 +447,7 @@ class BookingModel extends ChangeNotifier {
   // =====================================================
   void resetForm() {
     // 1️⃣ Reset loại chuyến & payment
-    tripCategory = TripCategory.choNguoi;
-    isChoNguoi = true;
-    isBaoXe = false;
-    isHoaToc = false;
+    _selectedRideType = BookingRideType.passenger;
     _paymentMethod = 3;
 
     // 1.1️⃣ Reset quantity (NEW)

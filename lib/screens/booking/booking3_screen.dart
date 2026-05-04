@@ -71,11 +71,11 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   }
 
   Widget _buildTextPriceRow(
-      String label,
-      String value, {
-        bool isBold = false,
-        Color? color,
-      }) {
+    String label,
+    String value, {
+    bool isBold = false,
+    Color? color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -102,7 +102,12 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     );
   }
 
-  Widget _buildPriceRow(String label, double amount, {bool isBold = false, Color? color}) {
+  Widget _buildPriceRow(
+    String label,
+    double amount, {
+    bool isBold = false,
+    Color? color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -171,7 +176,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   String _getProvinceName(BookingModel model, int? id) {
     if (id == null) return '';
     final province = model.provinces.cast<dynamic?>().firstWhere(
-          (p) => p != null && p['id'].toString() == id.toString(),
+      (p) => p != null && p['id'].toString() == id.toString(),
       orElse: () => null,
     );
     return province?['name']?.toString() ?? '';
@@ -180,7 +185,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   String _getDistrictName(List<dynamic> districts, int? id) {
     if (id == null) return '';
     final district = districts.cast<dynamic?>().firstWhere(
-          (d) => d != null && d['id'].toString() == id.toString(),
+      (d) => d != null && d['id'].toString() == id.toString(),
       orElse: () => null,
     );
     return district?['name']?.toString() ?? '';
@@ -193,9 +198,9 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     final accessToken = prefs.getString("accessToken");
 
     if (accessToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Bạn chưa đăng nhập')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Bạn chưa đăng nhập')));
       setState(() => _isCreatingRide = false);
       return;
     }
@@ -235,10 +240,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
         final errorMsg = result['message'] ?? 'Đặt chuyến thất bại';
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
           );
           setState(() => _isCreatingRide = false);
         }
@@ -247,10 +249,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
       print("❌ Error creating ride: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
         );
         setState(() => _isCreatingRide = false);
       }
@@ -261,6 +260,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
     final theme = Theme.of(context);
+    final showQuantityField = model.showQuantityField;
 
     return Scaffold(
       appBar: AppBar(
@@ -283,15 +283,9 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               title: "Thông tin chuyến đi",
               icon: Icons.info_outline,
               children: [
-                _buildInfoRow(
-                  "Loại chuyến:",
-                  model.isChoNguoi ? "Chở người" : "Giao hàng",
-                ),
-                if (model.isChoNguoi && model.isBaoXe)
-                  _buildInfoRow("Dịch vụ:", "Bao trọn chuyến xe"),
-                if (!model.isChoNguoi && model.isHoaToc)
-                  _buildInfoRow("Dịch vụ:", "Giao hỏa tốc"),
-                _buildInfoRow("Số lượng:", "${model.quantity}"),
+                _buildInfoRow("Loại chuyến:", model.rideTypeLabel),
+                if (showQuantityField)
+                  _buildInfoRow("Số lượng:", "${model.quantity}"),
                 _buildInfoRow("SĐT liên hệ:", model.customerPhone ?? ''),
                 if (model.note?.isNotEmpty ?? false)
                   _buildInfoRow("Ghi chú:", model.note ?? ''),
@@ -310,7 +304,10 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                 ),
                 _buildInfoRow(
                   "Quận/Huyện:",
-                  _getDistrictName(model.pickupDistricts, model.selectedDistrictPickup),
+                  _getDistrictName(
+                    model.pickupDistricts,
+                    model.selectedDistrictPickup,
+                  ),
                 ),
                 _buildInfoRow("Địa chỉ:", model.addressPickup ?? ''),
                 _buildInfoRow(
@@ -332,15 +329,16 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                 ),
                 _buildInfoRow(
                   "Quận/Huyện:",
-                  _getDistrictName(model.dropDistricts, model.selectedDistrictDrop),
+                  _getDistrictName(
+                    model.dropDistricts,
+                    model.selectedDistrictDrop,
+                  ),
                 ),
                 _buildInfoRow("Địa chỉ:", model.addressDrop ?? ''),
               ],
             ),
 
             const SizedBox(height: 16),
-
-
 
             _buildSectionCard(
               title: "Chi tiết giá",
@@ -355,9 +353,22 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                   )
                 else if (model.tripPrice != null) ...[
                   _buildPriceRow("Giá cước gốc:", model.basePrice ?? 0),
-                  _buildPriceRow("Ưu đãi giảm giá:", -(model.discount), color: Colors.greenAccent),
-                  _buildPriceRow("Phụ phí ngày lễ:", model.surcharge, color: Colors.orangeAccent),
-                  _buildTextPriceRow("Số lượng:", "x${model.quantity}", isBold: true),
+                  _buildPriceRow(
+                    "Ưu đãi giảm giá:",
+                    -(model.discount),
+                    color: Colors.greenAccent,
+                  ),
+                  _buildPriceRow(
+                    "Phụ phí ngày lễ:",
+                    model.surcharge,
+                    color: Colors.orangeAccent,
+                  ),
+                  if (showQuantityField)
+                    _buildTextPriceRow(
+                      "Số lượng:",
+                      "x${model.quantity}",
+                      isBold: true,
+                    ),
                   Divider(
                     height: 20,
                     color: theme.colorScheme.secondary.withOpacity(0.5),
@@ -374,7 +385,11 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                     padding: EdgeInsets.all(8.0),
                     child: Text(
                       "Không thể tính giá. Vui lòng kiểm tra lại thông tin.",
-                      style: TextStyle(color: Colors.red, fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
               ],
@@ -388,7 +403,10 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.wallet_giftcard, color: theme.colorScheme.secondary),
+                    Icon(
+                      Icons.wallet_giftcard,
+                      color: theme.colorScheme.secondary,
+                    ),
                     const SizedBox(width: 12),
                     const Text(
                       "Thanh toán bằng ví",
@@ -427,7 +445,10 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                 onPressed: () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  side: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                  side: BorderSide(
+                    color: theme.colorScheme.secondary,
+                    width: 2,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
@@ -459,17 +480,20 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                 ),
                 child: _isCreatingRide
                     ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.black87,
-                  ),
-                )
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.black87,
+                        ),
+                      )
                     : const Text(
-                  "THANH TOÁN",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                        "THANH TOÁN",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],

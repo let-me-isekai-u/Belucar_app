@@ -93,16 +93,17 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     required BookingModel model,
     required bool isPickup,
   }) {
-    final int? selectedId =
-    isPickup ? model.selectedProvincePickup : model.selectedProvinceDrop;
+    final int? selectedId = isPickup
+        ? model.selectedProvincePickup
+        : model.selectedProvinceDrop;
     final String label = "Tỉnh / Thành phố";
     final displayName = () {
       final sel = selectedId == null
           ? null
-          : model.provinces.cast<dynamic?>().firstWhere(
-            (p) => p != null && (p['id'].toString() == selectedId.toString()),
-        orElse: () => null,
-      );
+          : model.provinces.cast<dynamic>().firstWhere(
+              (p) => p != null && (p['id'].toString() == selectedId.toString()),
+              orElse: () => null,
+            );
       return sel == null ? null : (sel['name']?.toString() ?? '');
     }();
 
@@ -111,8 +112,11 @@ class _Booking2ScreenState extends State<Booking2Screen> {
 
     return GestureDetector(
       onTap: () async {
-        final chosen =
-        await _showProvincePickerForBooking(context, model, isPickup: isPickup);
+        final chosen = await _showProvincePickerForBooking(
+          context,
+          model,
+          isPickup: isPickup,
+        );
         if (!mounted) return;
         if (chosen == null) return;
         if (isPickup) {
@@ -141,11 +145,20 @@ class _Booking2ScreenState extends State<Booking2Screen> {
               borderSide: BorderSide(color: Colors.white54),
             ),
             isDense: true,
-            prefixIcon: Icon(Icons.location_city,
-                size: 20, color: theme.colorScheme.secondary),
-            suffixIcon: const Icon(Icons.unfold_more_rounded, color: Colors.white70),
+            prefixIcon: Icon(
+              Icons.location_city,
+              size: 20,
+              color: theme.colorScheme.secondary,
+            ),
+            suffixIcon: const Icon(
+              Icons.unfold_more_rounded,
+              color: Colors.white70,
+            ),
             focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.secondary,
+                width: 2,
+              ),
             ),
           ),
         ),
@@ -154,12 +167,13 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Future<int?> _showProvincePickerForBooking(
-      BuildContext context,
-      BookingModel model, {
-        required bool isPickup,
-      }) {
-    final otherSelected =
-    isPickup ? model.selectedProvinceDrop : model.selectedProvincePickup;
+    BuildContext context,
+    BookingModel model, {
+    required bool isPickup,
+  }) {
+    final otherSelected = isPickup
+        ? model.selectedProvinceDrop
+        : model.selectedProvincePickup;
 
     return showModalBottomSheet<int?>(
       context: context,
@@ -190,16 +204,21 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     Expanded(
                       child: Text(
                         isPickup ? "Chọn tỉnh đón khách" : "Chọn tỉnh điểm đến",
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, null),
                       child: Text(
                         "Đóng",
-                        style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -208,40 +227,49 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 child: (model.provinces.isEmpty)
                     ? const Center(child: CircularProgressIndicator())
                     : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  itemCount: model.provinces.length,
-                  separatorBuilder: (context, index) =>
-                  const Divider(height: 1, indent: 20, endIndent: 20),
-                  itemBuilder: (context, index) {
-                    final p = model.provinces[index];
-                    final id = p['id'] is int
-                        ? p['id'] as int
-                        : int.tryParse(p['id'].toString());
-                    final name = p['name']?.toString() ?? '';
-                    final bool isDisabled =
-                    (id != null && otherSelected != null && id == otherSelected);
-                    return ListTile(
-                      contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                      leading: Icon(
-                        Icons.location_on_outlined,
-                        color: isDisabled
-                            ? Colors.grey[300]
-                            : Theme.of(context).colorScheme.secondary,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        itemCount: model.provinces.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1, indent: 20, endIndent: 20),
+                        itemBuilder: (context, index) {
+                          final p = model.provinces[index];
+                          final id = p['id'] is int
+                              ? p['id'] as int
+                              : int.tryParse(p['id'].toString());
+                          final name = p['name']?.toString() ?? '';
+                          final bool isDisabled =
+                              (id != null &&
+                              otherSelected != null &&
+                              id == otherSelected &&
+                              !model.canSelectSameProvince(id));
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 4,
+                            ),
+                            leading: Icon(
+                              Icons.location_on_outlined,
+                              color: isDisabled
+                                  ? Colors.grey[300]
+                                  : Theme.of(context).colorScheme.secondary,
+                            ),
+                            title: Text(
+                              name,
+                              style: TextStyle(
+                                color: isDisabled ? Colors.grey : Colors.black,
+                                fontWeight: isDisabled
+                                    ? FontWeight.w400
+                                    : FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                            onTap: isDisabled || id == null
+                                ? null
+                                : () => Navigator.pop(ctx, id),
+                          );
+                        },
                       ),
-                      title: Text(
-                        name,
-                        style: TextStyle(
-                          color: isDisabled ? Colors.grey : Colors.black,
-                          fontWeight: isDisabled ? FontWeight.w400 : FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                      onTap: isDisabled || id == null ? null : () => Navigator.pop(ctx, id),
-                    );
-                  },
-                ),
-              )
+              ),
             ],
           ),
         );
@@ -256,11 +284,13 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }) {
     final selected = value == null
         ? null
-        : districts.cast<dynamic?>().firstWhere(
-          (d) => d != null && (d['id'].toString() == value.toString()),
-      orElse: () => null,
-    );
-    final displayName = selected == null ? null : (selected['name']?.toString() ?? '');
+        : districts.cast<dynamic>().firstWhere(
+            (d) => d != null && (d['id'].toString() == value.toString()),
+            orElse: () => null,
+          );
+    final displayName = selected == null
+        ? null
+        : (selected['name']?.toString() ?? '');
     final controller = TextEditingController(text: displayName ?? '');
     final theme = Theme.of(context);
 
@@ -268,101 +298,113 @@ class _Booking2ScreenState extends State<Booking2Screen> {
       onTap: districts.isEmpty
           ? null
           : () async {
-        final chosen = await showModalBottomSheet<int?>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (ctx) {
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.65,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 12),
-                    height: 4,
-                    width: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
+              final chosen = await showModalBottomSheet<int?>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (ctx) {
+                  return Container(
+                    height: MediaQuery.of(context).size.height * 0.65,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(25),
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: Text(
-                            "Chọn Quận / Huyện",
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.secondary,
-                            ),
+                        Container(
+                          margin: const EdgeInsets.only(top: 12),
+                          height: 4,
+                          width: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx, null),
-                          child: Text(
-                            "Đóng",
-                            style: TextStyle(
-                              color: theme.colorScheme.secondary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "Chọn Quận / Huyện",
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.secondary,
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, null),
+                                child: Text(
+                                  "Đóng",
+                                  style: TextStyle(
+                                    color: theme.colorScheme.secondary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        )
+                        ),
+                        const Divider(height: 1),
+                        Expanded(
+                          child: ListView.separated(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            itemCount: districts.length,
+                            separatorBuilder: (context, index) => const Divider(
+                              height: 1,
+                              indent: 20,
+                              endIndent: 20,
+                            ),
+                            itemBuilder: (context, index) {
+                              final d = districts[index];
+                              final id = d["id"] is int
+                                  ? d["id"] as int
+                                  : int.tryParse(d["id"].toString());
+                              final name = d["name"]?.toString() ?? '';
+                              final isSelected = id == value;
+
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                  vertical: 4,
+                                ),
+                                leading: Icon(
+                                  Icons.location_city_outlined,
+                                  color: isSelected
+                                      ? theme.colorScheme.secondary
+                                      : Colors.black54,
+                                ),
+                                title: Text(
+                                  name,
+                                  style: TextStyle(
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: Colors.black87,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                onTap: id == null
+                                    ? null
+                                    : () => Navigator.pop(ctx, id),
+                              );
+                            },
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      itemCount: districts.length,
-                      separatorBuilder: (context, index) =>
-                      const Divider(height: 1, indent: 20, endIndent: 20),
-                      itemBuilder: (context, index) {
-                        final d = districts[index];
-                        final id = d["id"] is int
-                            ? d["id"] as int
-                            : int.tryParse(d["id"].toString());
-                        final name = d["name"]?.toString() ?? '';
-                        final isSelected = id == value;
-
-                        return ListTile(
-                          contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                          leading: Icon(
-                            Icons.location_city_outlined,
-                            color: isSelected ? theme.colorScheme.secondary : Colors.black54,
-                          ),
-                          title: Text(
-                            name,
-                            style: TextStyle(
-                              fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                              color: Colors.black87,
-                              fontSize: 16,
-                            ),
-                          ),
-                          onTap: id == null ? null : () => Navigator.pop(ctx, id),
-                        );
-                      },
-                    ),
-                  )
-                ],
-              ),
-            );
-          },
-        );
-        if (!mounted) return;
-        if (chosen == null) return;
-        onChanged(chosen);
-      },
+                  );
+                },
+              );
+              if (!mounted) return;
+              if (chosen == null) return;
+              onChanged(chosen);
+            },
       child: AbsorbPointer(
         child: TextFormField(
           controller: controller,
@@ -383,10 +425,20 @@ class _Booking2ScreenState extends State<Booking2Screen> {
               borderSide: BorderSide(color: Colors.white54),
             ),
             isDense: true,
-            prefixIcon: Icon(Icons.map, size: 20, color: theme.colorScheme.secondary),
-            suffixIcon: const Icon(Icons.unfold_more_rounded, color: Colors.white70),
+            prefixIcon: Icon(
+              Icons.map,
+              size: 20,
+              color: theme.colorScheme.secondary,
+            ),
+            suffixIcon: const Icon(
+              Icons.unfold_more_rounded,
+              color: Colors.white70,
+            ),
             focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.secondary,
+                width: 2,
+              ),
             ),
           ),
         ),
@@ -420,9 +472,16 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             enabledBorder: const OutlineInputBorder(
               borderSide: BorderSide(color: Colors.white54),
             ),
-            prefixIcon: Icon(Icons.event, size: 20, color: theme.colorScheme.secondary),
+            prefixIcon: Icon(
+              Icons.event,
+              size: 20,
+              color: theme.colorScheme.secondary,
+            ),
             focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.secondary,
+                width: 2,
+              ),
             ),
           ),
         ),
@@ -430,9 +489,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
-  Widget _timeInputFields({
-    required BookingModel model,
-  }) {
+  Widget _timeInputFields({required BookingModel model}) {
     final theme = Theme.of(context);
 
     return GestureDetector(
@@ -446,7 +503,10 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           builder: (dialogCtx) {
             return Dialog(
               backgroundColor: Colors.transparent,
-              insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
               child: StatefulBuilder(
                 builder: (context, setDialogState) {
                   return Container(
@@ -632,10 +692,20 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             enabledBorder: const OutlineInputBorder(
               borderSide: BorderSide(color: Colors.white54),
             ),
-            prefixIcon: Icon(Icons.access_time, size: 20, color: theme.colorScheme.secondary),
-            suffixIcon: const Icon(Icons.unfold_more_rounded, color: Colors.white70),
+            prefixIcon: Icon(
+              Icons.access_time,
+              size: 20,
+              color: theme.colorScheme.secondary,
+            ),
+            suffixIcon: const Icon(
+              Icons.unfold_more_rounded,
+              color: Colors.white70,
+            ),
             focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+              borderSide: BorderSide(
+                color: theme.colorScheme.secondary,
+                width: 2,
+              ),
             ),
           ),
         ),
@@ -708,9 +778,12 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   label: "Điểm đón",
                   icon: Icons.my_location,
                   color: Colors.green,
-                  provinceDropdown: _provincePickerWidget(model: model, isPickup: true),
+                  provinceDropdown: _provincePickerWidget(
+                    model: model,
+                    isPickup: true,
+                  ),
                   districtDropdown: _districtDropdown(
-                    districts: model.pickupDistricts,
+                    districts: model.availablePickupDistricts,
                     value: model.selectedDistrictPickup,
                     onChanged: (v) {
                       model.setSelectedDistrictPickup(v);
@@ -718,6 +791,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     },
                   ),
                   addressField: TextField(
+                    controller: TextEditingController(
+                      text: model.addressPickup ?? "",
+                    ),
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: "Số nhà, xã/phường",
@@ -733,7 +809,10 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       ),
                       isDense: true,
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.secondary,
+                          width: 2,
+                        ),
                       ),
                     ),
                     onChanged: (v) => model.addressPickup = v,
@@ -751,7 +830,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                         final picked = await showDatePicker(
                           context: context,
                           firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 365),
+                          ),
                           initialDate: model.goDate ?? DateTime.now(),
                           builder: (context, child) {
                             return Theme(
@@ -763,7 +844,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                 ),
                                 textButtonTheme: TextButtonThemeData(
                                   style: TextButton.styleFrom(
-                                    foregroundColor: theme.colorScheme.secondary,
+                                    foregroundColor:
+                                        theme.colorScheme.secondary,
                                     textStyle: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -794,9 +876,12 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   label: "Điểm đến",
                   icon: Icons.location_on,
                   color: Colors.red,
-                  provinceDropdown: _provincePickerWidget(model: model, isPickup: false),
+                  provinceDropdown: _provincePickerWidget(
+                    model: model,
+                    isPickup: false,
+                  ),
                   districtDropdown: _districtDropdown(
-                    districts: model.dropDistricts,
+                    districts: model.availableDropDistricts,
                     value: model.selectedDistrictDrop,
                     onChanged: (v) {
                       model.setSelectedDistrictDrop(v);
@@ -804,6 +889,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     },
                   ),
                   addressField: TextField(
+                    controller: TextEditingController(
+                      text: model.addressDrop ?? "",
+                    ),
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       labelText: "Số nhà, xã/phường",
@@ -819,7 +907,10 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       ),
                       isDense: true,
                       focusedBorder: OutlineInputBorder(
-                        borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.secondary,
+                          width: 2,
+                        ),
                       ),
                     ),
                     onChanged: (v) => model.addressDrop = v,
@@ -848,10 +939,15 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _isCalculatingPrice ? null : () => Navigator.pop(context),
+                onPressed: _isCalculatingPrice
+                    ? null
+                    : () => Navigator.pop(context),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
-                  side: BorderSide(color: theme.colorScheme.secondary, width: 2),
+                  side: BorderSide(
+                    color: theme.colorScheme.secondary,
+                    width: 2,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
@@ -872,41 +968,44 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 onPressed: _isCalculatingPrice
                     ? null
                     : () async {
-                  if (!_validate(model)) return;
+                        if (!_validate(model)) return;
 
-                  setState(() => _isCalculatingPrice = true);
+                        setState(() => _isCalculatingPrice = true);
 
-                  try {
-                    await model.fetchTripPrice();
+                        try {
+                          await model.fetchTripPrice();
 
-                    if (!mounted) return;
+                          if (!mounted) return;
 
-                    if (model.tripPrice == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            model.priceErrorMessage ??
-                                'Không thể tính giá. Vui lòng kiểm tra lại thông tin.',
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
+                          if (model.tripPrice == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  model.priceErrorMessage ??
+                                      'Không thể tính giá. Vui lòng kiểm tra lại thông tin.',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
 
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChangeNotifierProvider.value(
-                          value: model,
-                          child: Booking3Screen(onRideBooked: widget.onRideBooked),
-                        ),
-                      ),
-                    );
-                  } finally {
-                    if (mounted) setState(() => _isCalculatingPrice = false);
-                  }
-                },
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ChangeNotifierProvider.value(
+                                value: model,
+                                child: Booking3Screen(
+                                  onRideBooked: widget.onRideBooked,
+                                ),
+                              ),
+                            ),
+                          );
+                        } finally {
+                          if (mounted)
+                            setState(() => _isCalculatingPrice = false);
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 50),
                   shape: RoundedRectangleBorder(
@@ -917,17 +1016,20 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 ),
                 child: _isCalculatingPrice
                     ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.black87,
-                  ),
-                )
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.black87,
+                        ),
+                      )
                     : const Text(
-                  "TIẾP THEO",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                        "TIẾP THEO",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
           ],
