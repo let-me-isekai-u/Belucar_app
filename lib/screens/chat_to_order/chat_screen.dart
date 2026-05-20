@@ -150,7 +150,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
 
   String _buildTitle(ChatProvider provider) {
     if (provider.isInitializing) return 'Đang tải...';
-    return 'Chat đặt đơn';
+    return 'Chat';
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────

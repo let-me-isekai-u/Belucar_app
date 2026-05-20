@@ -14,7 +14,7 @@ class OrderDetailScreen extends StatelessWidget {
     required this.rideId,
   });
 
-  static const String _baseUrl = "https://belucar.com";
+  static const String _baseUrl = "https://xeghepdongduong.com";
 
   Future<String?> _getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();

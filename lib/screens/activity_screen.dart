@@ -17,6 +17,8 @@ class ActivityScreen extends StatefulWidget {
 
 class ActivityScreenState extends State<ActivityScreen>
     with SingleTickerProviderStateMixin {
+  static const double _bottomBarReservedSpace = 118;
+
   late TabController _tabController;
 
   late Future<List<TripItemModel>> _ongoingFuture;
@@ -215,6 +217,10 @@ class ActivityScreenState extends State<ActivityScreen>
     );
   }
 
+  double _listBottomPadding(BuildContext context) {
+    return MediaQuery.of(context).viewPadding.bottom + _bottomBarReservedSpace;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -338,7 +344,7 @@ class ActivityScreenState extends State<ActivityScreen>
         ),
         ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.fromLTRB(16, 16, 16, _listBottomPadding(context)),
           itemCount: trips.length,
           itemBuilder: (context, index) {
             final trip = trips[index];

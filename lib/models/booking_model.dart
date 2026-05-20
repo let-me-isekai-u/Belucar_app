@@ -108,6 +108,16 @@ class BookingModel extends ChangeNotifier {
   DateTime? goDate;
   TimeOfDay? goTime;
 
+  void setGoDate(DateTime? value) {
+    goDate = value;
+    notifyListeners();
+  }
+
+  void setGoTime(TimeOfDay? value) {
+    goTime = value;
+    notifyListeners();
+  }
+
   // ================== SỐ LƯỢNG (NEW) ==================
   int _quantity = 1;
   int get quantity => _quantity;
@@ -127,18 +137,13 @@ class BookingModel extends ChangeNotifier {
   List<dynamic> pickupDistricts = [];
   List<dynamic> dropDistricts = [];
 
-  List<dynamic> get availablePickupDistricts => _filterDistrictsForSelection(
-    districts: pickupDistricts,
-    currentProvinceId: _selectedProvincePickup,
-    otherProvinceId: _selectedProvinceDrop,
-    otherDistrictId: _selectedDistrictDrop,
-  );
+  List<dynamic> get availablePickupDistricts => pickupDistricts;
 
-  List<dynamic> get availableDropDistricts => _filterDistrictsForSelection(
+  List<dynamic> get availableDropDistricts => _filterDropDistrictsForSelection(
     districts: dropDistricts,
-    currentProvinceId: _selectedProvinceDrop,
-    otherProvinceId: _selectedProvincePickup,
-    otherDistrictId: _selectedDistrictPickup,
+    pickupProvinceId: _selectedProvincePickup,
+    dropProvinceId: _selectedProvinceDrop,
+    pickupDistrictId: _selectedDistrictPickup,
   );
 
   // ================== ĐIỂM ĐÓN ==================
@@ -190,11 +195,13 @@ class BookingModel extends ChangeNotifier {
 
   Future<void> fetchPickupDistricts(int provinceId) async {
     pickupDistricts = await ApiService.getDistricts(provinceId: provinceId);
+    _sanitizeDropDistrictSelection();
     notifyListeners();
   }
 
   Future<void> fetchDropDistricts(int provinceId) async {
     dropDistricts = await ApiService.getDistricts(provinceId: provinceId);
+    _sanitizeDropDistrictSelection();
     notifyListeners();
   }
 
@@ -202,19 +209,26 @@ class BookingModel extends ChangeNotifier {
     return provinceId == hanoiProvinceId;
   }
 
-  List<dynamic> _filterDistrictsForSelection({
+  List<dynamic> _filterDropDistrictsForSelection({
     required List<dynamic> districts,
-    required int? currentProvinceId,
-    required int? otherProvinceId,
-    required int? otherDistrictId,
+    required int? pickupProvinceId,
+    required int? dropProvinceId,
+    required int? pickupDistrictId,
   }) {
-    if (currentProvinceId != hanoiProvinceId ||
-        otherProvinceId != hanoiProvinceId) {
+    if (pickupProvinceId != hanoiProvinceId ||
+        dropProvinceId != hanoiProvinceId) {
       return districts;
     }
 
-    if (otherDistrictId == null || otherDistrictId == noiBaiDistrictId) {
+    if (pickupDistrictId == null) {
       return districts;
+    }
+
+    if (pickupDistrictId == noiBaiDistrictId) {
+      return districts.where((district) {
+        final id = _parseLocationId(district['id']);
+        return id != noiBaiDistrictId;
+      }).toList();
     }
 
     return districts.where((district) {
@@ -223,9 +237,49 @@ class BookingModel extends ChangeNotifier {
     }).toList();
   }
 
+  bool get isHanoiInnerRoute =>
+      _selectedProvincePickup == hanoiProvinceId &&
+      _selectedProvinceDrop == hanoiProvinceId;
+
+  bool get pickupIsNoiBai => _selectedDistrictPickup == noiBaiDistrictId;
+
+  bool get shouldRestrictDropToNoiBai =>
+      isHanoiInnerRoute &&
+      _selectedDistrictPickup != null &&
+      _selectedDistrictPickup != noiBaiDistrictId;
+
+  bool get shouldExcludeNoiBaiFromDrop => isHanoiInnerRoute && pickupIsNoiBai;
+
+  String? get dropDistrictRuleMessage {
+    if (shouldRestrictDropToNoiBai) {
+      return 'Điểm đón đang ở Hà Nội ngoài sân bay Nội Bài nên điểm đến tại Hà Nội chỉ được chọn sân bay Nội Bài.';
+    }
+    if (shouldExcludeNoiBaiFromDrop) {
+      return 'Điểm đón đã là sân bay Nội Bài nên điểm đến không thể tiếp tục chọn sân bay Nội Bài.';
+    }
+    return null;
+  }
+
   int? _parseLocationId(dynamic rawId) {
     if (rawId is int) return rawId;
     return int.tryParse(rawId.toString());
+  }
+
+  bool _containsDistrict(List<dynamic> districts, int? districtId) {
+    if (districtId == null) return false;
+    return districts.any((district) {
+      final id = _parseLocationId(district['id']);
+      return id == districtId;
+    });
+  }
+
+  void _sanitizeDropDistrictSelection() {
+    if (_selectedDistrictDrop == null) return;
+    if (_containsDistrict(availableDropDistricts, _selectedDistrictDrop)) {
+      return;
+    }
+    _selectedDistrictDrop = null;
+    _syncAddressWithDistrict(isPickup: false, districtId: null);
   }
 
   void _syncAddressWithDistrict({
@@ -278,6 +332,7 @@ class BookingModel extends ChangeNotifier {
     if (_selectedDistrictPickup == districtId) return;
     _selectedDistrictPickup = districtId;
     _syncAddressWithDistrict(isPickup: true, districtId: districtId);
+    _sanitizeDropDistrictSelection();
     fetchTripPrice();
     notifyListeners();
   }
@@ -326,6 +381,14 @@ class BookingModel extends ChangeNotifier {
         goDate == null ||
         goTime == null) {
       _resetPrice();
+      notifyListeners();
+      return;
+    }
+
+    final routeValidationMessage = validateRouteSelection();
+    if (routeValidationMessage != null) {
+      _resetPrice();
+      priceErrorMessage = routeValidationMessage;
       notifyListeners();
       return;
     }
@@ -382,7 +445,7 @@ class BookingModel extends ChangeNotifier {
     } catch (e) {
       _resetPrice();
       priceErrorMessage =
-      "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
+          "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
     } finally {
       isLoadingPrice = false;
       notifyListeners();
@@ -397,15 +460,34 @@ class BookingModel extends ChangeNotifier {
     discount = 0;
     surcharge = 0;
     isHoliday = false;
+    priceErrorMessage = null;
+  }
+
+  String? validateRouteSelection() {
+    if (!isHanoiInnerRoute) return null;
+
+    if (_selectedDistrictPickup == noiBaiDistrictId &&
+        _selectedDistrictDrop == noiBaiDistrictId) {
+      return 'Điểm đến không thể là sân bay Nội Bài khi điểm đón đã là sân bay Nội Bài.';
+    }
+
+    if (_selectedDistrictPickup != null &&
+        _selectedDistrictPickup != noiBaiDistrictId &&
+        _selectedDistrictDrop != null &&
+        _selectedDistrictDrop != noiBaiDistrictId) {
+      return 'Khi điểm đón tại Hà Nội không phải sân bay Nội Bài, điểm đến tại Hà Nội chỉ được chọn sân bay Nội Bài.';
+    }
+
+    return null;
   }
 
   // =====================================================
   // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
   // =====================================================
   Future<Map<String, dynamic>> createRide(
-      String accessToken, {
-        String content = "",
-      }) async {
+    String accessToken, {
+    String content = "",
+  }) async {
     if (currentTripId == null) {
       throw Exception("Chưa có giá chuyến đi");
     }

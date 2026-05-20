@@ -1,10 +1,12 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
+import 'account_ui.dart';
 
 class UpdateProfileScreen extends StatefulWidget {
   final String name;
@@ -27,6 +29,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   final TextEditingController emailController = TextEditingController();
 
   XFile? _avatar;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -35,33 +38,38 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     emailController.text = widget.email;
   }
 
+  @override
+  void dispose() {
+    nameController.dispose();
+    emailController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickAvatar() async {
     try {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: ImageSource.gallery);
-
       if (picked != null) {
         setState(() => _avatar = picked);
       }
-    } catch (e) {
-      _showSnack("Không thể chọn ảnh");
+    } catch (_) {
+      _showSnack('Không thể chọn ảnh');
     }
   }
 
   Future<void> _saveProfile() async {
+    setState(() => _isSaving = true);
+
     final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString("accessToken");
+    final accessToken = prefs.getString('accessToken');
 
     if (accessToken == null) {
-      _showSnack("Phiên đăng nhập hết hạn.");
-      Navigator.pop(context);
+      if (mounted) {
+        _showSnack('Phiên đăng nhập hết hạn.');
+        Navigator.pop(context);
+      }
       return;
     }
-
-    print("🔵 --- UPDATE PROFILE ---");
-    print("📌 Name: ${nameController.text.trim()}");
-    print("📌 Email: ${emailController.text.trim()}");
-    print("📌 Avatar file: ${_avatar?.path}");
 
     final res = await ApiService.updateProfile(
       accessToken: accessToken,
@@ -70,20 +78,18 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       avatarFilePath: _avatar?.path,
     );
 
-    print("📥 API status: ${res.statusCode}");
-    print("📥 API body: ${res.body}");
-
     if (!mounted) return;
+    setState(() => _isSaving = false);
 
     if (res.statusCode == 200) {
-      _showSnack("Cập nhật thành công!");
+      _showSnack('Cập nhật thành công!');
       Navigator.pop(context, true);
     } else {
       try {
         final data = jsonDecode(res.body);
-        _showSnack(data["message"] ?? "Lỗi cập nhật.");
+        _showSnack(data['message'] ?? 'Lỗi cập nhật.');
       } catch (_) {
-        _showSnack("Cập nhật thất bại.");
+        _showSnack('Cập nhật thất bại.');
       }
     }
   }
@@ -96,157 +102,160 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return AccountScaffold(
       appBar: AppBar(
         title: Text(
-          "Cập nhật thông tin",
-          style: TextStyle(
-            color: theme.colorScheme.secondary, // ✅ Vàng gold
-            fontWeight: FontWeight.bold,
-          ),
+          'Cập nhật thông tin',
+          style: TextStyle(color: theme.colorScheme.secondary),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary), // ✅ Icon back vàng
+        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-
-              // ---------- AVATAR ----------
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 55,
-                      backgroundColor: theme.colorScheme.secondary.withOpacity(0.15), // ✅ Vàng nhạt
-                      backgroundImage: _avatar != null
-                          ? FileImage(File(_avatar!.path))
-                          : (widget.avatarUrl != null
-                          ? NetworkImage(widget.avatarUrl!)
-                          : null),
-                      child: (_avatar == null && widget.avatarUrl == null)
-                          ? Icon(Icons.person,
-                          size: 55, color: theme.colorScheme.secondary) // ✅ Icon vàng
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 4,
-                      child: InkWell(
-                        onTap: _pickAvatar,
-                        child: CircleAvatar(
-                          radius: 18,
-                          backgroundColor: theme.colorScheme.secondary, // ✅ Nền vàng
-                          child: const Icon(Icons.camera_alt,
-                              size: 18, color: Colors.black87), // ✅ Icon đen
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Hồ sơ cá nhân',
+              style: theme.textTheme.displayMedium?.copyWith(fontSize: 30),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Chỉnh lại tên, email và ảnh đại diện để thông tin hiển thị trong app nhất quán hơn.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.74),
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 18),
+            AccountSectionCard(
+              title: 'Ảnh đại diện',
+              subtitle: 'Chạm vào ảnh để thay đổi.',
+              icon: Icons.photo_camera_back_outlined,
+              child: Center(
+                child: GestureDetector(
+                  onTap: _pickAvatar,
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 118,
+                        height: 118,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.secondary,
+                            width: 2,
+                          ),
+                          image: _avatar != null
+                              ? DecorationImage(
+                                  image: FileImage(File(_avatar!.path)),
+                                  fit: BoxFit.cover,
+                                )
+                              : widget.avatarUrl != null &&
+                                    widget.avatarUrl!.isNotEmpty
+                              ? DecorationImage(
+                                  image: NetworkImage(widget.avatarUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                        child:
+                            (_avatar == null &&
+                                (widget.avatarUrl == null ||
+                                    widget.avatarUrl!.isEmpty))
+                            ? Icon(
+                                Icons.person_outline_rounded,
+                                size: 48,
+                                color: theme.colorScheme.secondary,
+                              )
+                            : null,
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_outlined,
+                            color: Colors.black87,
+                            size: 18,
+                          ),
                         ),
                       ),
-                    )
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // ---------- FULL NAME ----------
-              _buildField(
-                controller: nameController,
-                hint: "Họ và tên",
-                icon: Icons.person_outline,
-                theme: theme,
-              ),
-              const SizedBox(height: 20),
-
-              // ---------- EMAIL ----------
-              _buildField(
-                controller: emailController,
-                hint: "Email",
-                icon: Icons.email_outlined,
-                theme: theme,
-              ),
-
-              const SizedBox(height: 40),
-
-              // ---------- SAVE BUTTON ----------
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.colorScheme.secondary, // ✅ Nền vàng
-                    foregroundColor: Colors.black87, // ✅ Chữ đen
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const Text(
-                    "Lưu",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    ],
                   ),
                 ),
               ),
-
-              const SizedBox(height: 12),
-
-              // ---------- CANCEL ----------
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.secondary, // ✅ Chữ vàng
-                    side: BorderSide(color: theme.colorScheme.secondary, width: 2), // ✅ Border vàng
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            ),
+            const SizedBox(height: 16),
+            AccountSectionCard(
+              title: 'Thông tin cơ bản',
+              subtitle: 'Các trường sẽ được cập nhật trực tiếp lên hồ sơ.',
+              icon: Icons.badge_outlined,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: nameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: accountInputDecoration(
+                      context,
+                      label: 'Họ và tên',
+                      icon: Icons.person_outline_rounded,
                     ),
                   ),
-                  child: const Text(
-                    "Huỷ",
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: accountInputDecoration(
+                      context,
+                      label: 'Email',
+                      icon: Icons.email_outlined,
                     ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _isSaving ? null : () => Navigator.pop(context),
+                    child: const Text('HUỶ'),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---------- TEXT FIELD UI ----------
-  Widget _buildField({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    required ThemeData theme,
-  }) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(color: Colors.white), // ✅ Chữ trắng
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.transparent, // ✅ Nền trong suốt
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white54), // ✅ Hint trắng nhạt
-        prefixIcon: Icon(icon, color: theme.colorScheme.secondary), // ✅ Icon vàng
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white54), // ✅ Border trắng nhạt
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: theme.colorScheme.secondary, width: 2), // ✅ Border vàng khi focus
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 56),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black87,
+                            ),
+                          )
+                        : const Text('LƯU THAY ĐỔI'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

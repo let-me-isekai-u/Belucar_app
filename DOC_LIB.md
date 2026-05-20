@@ -26,7 +26,7 @@ Tài liệu này chỉ mô tả các file do team đã viết trong `lib/` và f
 ## Services
 
 - `lib/services/api_service.dart`: Service API tổng của app khách; chứa các hàm đăng nhập, đăng ký, hồ sơ, ví, đặt chuyến, hoạt động, chi tiết đơn, nạp tiền và các API khác.
-- `lib/services/chat_to_order_api_service.dart`: Service API riêng cho luồng chat đặt đơn, gồm mở `conversation`, lấy danh sách tin nhắn, gửi tin và đánh dấu đã đọc.
+- `lib/services/chat_to_order_api_service.dart`: Service API riêng cho luồng Chat, gồm mở `conversation`, lấy danh sách tin nhắn, gửi tin và đánh dấu đã đọc.
 - `lib/services/signalr_service.dart`: Đóng gói kết nối `SignalR`, xử lý `connect`, `disconnect`, `invoke` và đăng ký lắng nghe sự kiện realtime.
 - `lib/services/belucar_signalr_http_client.dart`: `HTTP client` tùy biến cho `signalr_netcore`, phục vụ kết nối realtime ổn định hơn trên mobile.
 - `lib/services/firebase_notification_service.dart`: Khởi tạo `Firebase Messaging`, xin quyền thông báo, lấy `device token`, tạo `notification channel` và hiển thị thông báo cục bộ.

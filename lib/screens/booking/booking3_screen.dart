@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
+
 import '../../models/booking_model.dart';
+import 'booking_ui.dart';
 
 class Booking3Screen extends StatefulWidget {
   final Function(int) onRideBooked;
+
   const Booking3Screen({super.key, required this.onRideBooked});
 
   @override
@@ -22,8 +25,6 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final model = context.read<BookingModel>();
 
-      // Mặc định chỉ cho phép: 2 = ví, 3 = tiền mặt
-      // Nếu đang là 1 (chuyển khoản) thì ép về 2 (ví)
       if (model.paymentMethod == 1) {
         model.paymentMethod = 2;
       }
@@ -57,18 +58,18 @@ class _Booking3ScreenState extends State<Booking3Screen> {
   IconData _getPaymentMethodIcon(int paymentMethod) {
     switch (paymentMethod) {
       case 2:
-        return Icons.wallet;
+        return Icons.wallet_outlined;
       case 3:
         return Icons.payments_outlined;
       default:
-        return Icons.wallet;
+        return Icons.wallet_outlined;
     }
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isBold = false}) {
+  Widget _buildInfoRow(String label, String value, {bool highlight = false}) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -77,20 +78,21 @@ class _Booking3ScreenState extends State<Booking3Screen> {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 15,
+                color: Colors.white.withValues(alpha: 0.68),
                 fontWeight: FontWeight.w600,
-                color: theme.colorScheme.secondary,
               ),
             ),
           ),
+          const SizedBox(width: 12),
           Expanded(
             flex: 3,
             child: Text(
               value,
+              textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 15,
-                fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-                color: Colors.white,
+                color: highlight ? theme.colorScheme.secondary : Colors.white,
+                fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
+                height: 1.35,
               ),
             ),
           ),
@@ -99,105 +101,52 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     );
   }
 
-  Widget _buildTextPriceRow(
-      String label,
-      String value, {
-        bool isBold = false,
-        Color? color,
-      }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: color ?? Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriceRow(
-      String label,
-      double amount, {
-        bool isBold = false,
-        Color? color,
-      }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: Colors.white,
-            ),
-          ),
-          Text(
-            formatCurrency(amount),
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: color ?? Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionCard({
+  Widget _buildAddressBlock({
     required String title,
     required IconData icon,
-    required List<Widget> children,
+    required String province,
+    required String district,
+    required String address,
+    Color? iconColor,
   }) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Theme.of(context).colorScheme.secondary),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
+    final color = iconColor ?? Theme.of(context).colorScheme.secondary;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              ],
-            ),
-            Divider(
-              height: 20,
-              color: Theme.of(context).colorScheme.secondary.withOpacity(0.3),
-            ),
-            ...children,
-          ],
-        ),
+                child: Icon(icon, color: color),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _buildInfoRow('Tỉnh / Thành', province),
+          _buildInfoRow('Quận / Huyện', district),
+          _buildInfoRow('Địa chỉ', address),
+        ],
       ),
     );
   }
@@ -212,80 +161,144 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     final theme = Theme.of(context);
     final isSelected = model.paymentMethod == value;
 
-    return InkWell(
-      onTap: () {
-        model.paymentMethod = value;
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: Border.all(
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => model.paymentMethod = value,
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
             color: isSelected
-                ? theme.colorScheme.secondary
-                : Colors.white.withOpacity(0.2),
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(12),
-          color: isSelected
-              ? theme.colorScheme.secondary.withOpacity(0.12)
-              : Colors.transparent,
-        ),
-        child: Row(
-          children: [
-            Radio<int>(
-              value: value,
-              groupValue: model.paymentMethod,
-              onChanged: (val) {
-                if (val != null) {
-                  model.paymentMethod = val;
-                }
-              },
-              activeColor: theme.colorScheme.secondary,
-            ),
-            Icon(
-              icon,
+                ? theme.colorScheme.secondary.withValues(alpha: 0.14)
+                : Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
               color: isSelected
                   ? theme.colorScheme.secondary
-                  : Colors.white70,
+                  : Colors.white.withValues(alpha: 0.10),
+              width: isSelected ? 1.5 : 1,
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSelected
+                        ? theme.colorScheme.secondary
+                        : Colors.white54,
+                    width: 2,
+                  ),
+                ),
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
                       color: isSelected
                           ? theme.colorScheme.secondary
-                          : Colors.white,
+                          : Colors.transparent,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withOpacity(0.7),
+                ),
+              ),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? theme.colorScheme.secondary.withValues(alpha: 0.18)
+                      : Colors.white.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected
+                      ? theme.colorScheme.secondary
+                      : Colors.white70,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: isSelected
+                            ? theme.colorScheme.secondary
+                            : Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.68),
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(
+    String label,
+    String value, {
+    bool isTotal = false,
+    Color? valueColor,
+  }) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.74),
+                fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
               ),
             ),
-          ],
-        ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color:
+                  valueColor ??
+                  (isTotal ? theme.colorScheme.secondary : Colors.white),
+              fontWeight: isTotal ? FontWeight.w800 : FontWeight.w700,
+              fontSize: isTotal ? 18 : 15,
+            ),
+          ),
+        ],
       ),
     );
   }
 
   String _getProvinceName(BookingModel model, int? id) {
     if (id == null) return '';
-    final province = model.provinces.cast<dynamic?>().firstWhere(
-          (p) => p != null && p['id'].toString() == id.toString(),
+    final province = model.provinces.cast<dynamic>().firstWhere(
+      (p) => p != null && p['id'].toString() == id.toString(),
       orElse: () => null,
     );
     return province?['name']?.toString() ?? '';
@@ -293,8 +306,8 @@ class _Booking3ScreenState extends State<Booking3Screen> {
 
   String _getDistrictName(List<dynamic> districts, int? id) {
     if (id == null) return '';
-    final district = districts.cast<dynamic?>().firstWhere(
-          (d) => d != null && d['id'].toString() == id.toString(),
+    final district = districts.cast<dynamic>().firstWhere(
+      (d) => d != null && d['id'].toString() == id.toString(),
       orElse: () => null,
     );
     return district?['name']?.toString() ?? '';
@@ -304,7 +317,8 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     setState(() => _isCreatingRide = true);
 
     final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString("accessToken");
+    if (!mounted) return;
+    final accessToken = prefs.getString('accessToken');
 
     if (accessToken == null) {
       ScaffoldMessenger.of(
@@ -317,51 +331,44 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     try {
       final result = await model.createRide(accessToken);
 
-      print("🔥 createRide result: $result");
-
       if (result['success'] == true) {
-        if (mounted) {
-          Navigator.of(context).popUntil((route) => route.isFirst);
-          widget.onRideBooked(2);
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
+        widget.onRideBooked(2);
 
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      model.paymentMethod == 2
-                          ? 'Đặt chuyến thành công! Thanh toán bằng ví đã được chọn.'
-                          : 'Đặt chuyến thành công! Bạn sẽ thanh toán bằng tiền mặt.',
-                      style: const TextStyle(fontSize: 15),
-                    ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    model.paymentMethod == 2
+                        ? 'Đặt chuyến thành công. Thanh toán bằng ví đã được chọn.'
+                        : 'Đặt chuyến thành công. Bạn sẽ thanh toán bằng tiền mặt.',
                   ),
-                ],
-              ),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 4),
+                ),
+              ],
             ),
-          );
-
-          setState(() => _isCreatingRide = false);
-        }
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       } else {
         final errorMsg = result['message'] ?? 'Đặt chuyến thất bại';
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
-          );
-          setState(() => _isCreatingRide = false);
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+        );
       }
     } catch (e) {
-      print("❌ Error creating ride: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
-        );
         setState(() => _isCreatingRide = false);
       }
     }
@@ -373,248 +380,250 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     final theme = Theme.of(context);
     final showQuantityField = model.showQuantityField;
 
+    final pickupDateTime = model.goDate == null || model.goTime == null
+        ? 'Chưa chọn'
+        : '${DateFormat('dd/MM/yyyy').format(model.goDate!)} - ${model.goTime!.format(context)}';
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Xác nhận đặt chuyến',
-          style: TextStyle(
-            color: theme.colorScheme.secondary,
-            fontWeight: FontWeight.bold,
-          ),
+          'Tạo đơn - Bước 3/3',
+          style: TextStyle(color: theme.colorScheme.secondary),
         ),
         centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.secondary),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionCard(
-              title: "Thông tin chuyến đi",
-              icon: Icons.info_outline,
-              children: [
-                _buildInfoRow("Loại chuyến:", model.rideTypeLabel),
-                if (showQuantityField)
-                  _buildInfoRow("Số lượng:", "${model.quantity}"),
-                _buildInfoRow("SĐT liên hệ:", model.customerPhone ?? ''),
-                if (model.note?.isNotEmpty ?? false)
-                  _buildInfoRow("Ghi chú:", model.note ?? ''),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildSectionCard(
-              title: "Điểm đón",
-              icon: Icons.my_location,
-              children: [
-                _buildInfoRow(
-                  "Tỉnh/Thành:",
-                  _getProvinceName(model, model.selectedProvincePickup),
-                ),
-                _buildInfoRow(
-                  "Quận/Huyện:",
-                  _getDistrictName(
-                    model.pickupDistricts,
-                    model.selectedDistrictPickup,
-                  ),
-                ),
-                _buildInfoRow("Địa chỉ:", model.addressPickup ?? ''),
-                _buildInfoRow(
-                  "Ngày giờ đón:",
-                  "${model.goDate != null ? DateFormat('dd/MM/yyyy').format(model.goDate!) : ''} - ${model.goTime != null ? model.goTime!.format(context) : ''}",
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildSectionCard(
-              title: "Điểm đến",
-              icon: Icons.location_on,
-              children: [
-                _buildInfoRow(
-                  "Tỉnh/Thành:",
-                  _getProvinceName(model, model.selectedProvinceDrop),
-                ),
-                _buildInfoRow(
-                  "Quận/Huyện:",
-                  _getDistrictName(
-                    model.dropDistricts,
-                    model.selectedDistrictDrop,
-                  ),
-                ),
-                _buildInfoRow("Địa chỉ:", model.addressDrop ?? ''),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildSectionCard(
-              title: "Phương thức thanh toán",
-              icon: _getPaymentMethodIcon(model.paymentMethod),
-              children: [
-                _buildPaymentOption(
-                  model: model,
-                  value: 2,
-                  title: "Thanh toán bằng ví",
-                  icon: Icons.wallet,
-                  subtitle: "Thanh toán bằng số dư ví trong ứng dụng",
-                ),
-                _buildPaymentOption(
-                  model: model,
-                  value: 3,
-                  title: "Tiền mặt",
-                  icon: Icons.payments_outlined,
-                  subtitle: "Thanh toán sau khi hoàn thành chuyến đi",
-                ),
-                const SizedBox(height: 8),
-                _buildInfoRow(
-                  "Đã chọn:",
-                  _getPaymentMethodLabel(model.paymentMethod),
-                  isBold: true,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-
-            _buildSectionCard(
-              title: "Chi tiết giá",
-              icon: Icons.payments_outlined,
-              children: [
-                if (model.isLoadingPrice)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
+      body: BookingFlowBackground(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              BookingStepHero(
+                step: 3,
+                title: 'Rà soát trước khi tạo đơn',
+                subtitle:
+                    'Kiểm tra lại tuyến đường, hình thức thanh toán và giá cuối cùng trước khi gửi đơn đi.',
+                assetPath: 'lib/assets/icons/booking_car.png',
+                footer: Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    BookingSummaryChip(
+                      icon: Icons.local_taxi_outlined,
+                      label: model.rideTypeLabel,
                     ),
-                  )
-                else if (model.tripPrice != null) ...[
-                  _buildPriceRow("Giá cước gốc:", model.basePrice ?? 0),
-                  _buildPriceRow(
-                    "Ưu đãi giảm giá:",
-                    -(model.discount),
-                    color: Colors.greenAccent,
-                  ),
-                  _buildPriceRow(
-                    "Phụ phí ngày lễ:",
-                    model.surcharge,
-                    color: Colors.orangeAccent,
-                  ),
-                  if (showQuantityField)
-                    _buildTextPriceRow(
-                      "Số lượng:",
-                      "x${model.quantity}",
-                      isBold: true,
+                    BookingSummaryChip(
+                      icon: Icons.schedule_outlined,
+                      label: pickupDateTime,
                     ),
-                  Divider(
-                    height: 20,
-                    color: theme.colorScheme.secondary.withOpacity(0.5),
-                    thickness: 1.5,
-                  ),
-                  _buildPriceRow(
-                    "THÀNH TIỀN:",
-                    model.tripPrice!,
-                    isBold: true,
-                    color: theme.colorScheme.secondary,
-                  ),
-                ] else
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: Text(
-                      "Không thể tính giá. Vui lòng kiểm tra lại thông tin.",
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                    if (model.tripPrice != null)
+                      BookingSummaryChip(
+                        icon: Icons.payments_outlined,
+                        label: formatCurrency(model.tripPrice!),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              BookingSectionCard(
+                title: 'Thông tin chuyến đi',
+                subtitle: 'Phần này lấy trực tiếp từ các bước trước.',
+                icon: Icons.fact_check_outlined,
+                child: Column(
+                  children: [
+                    _buildInfoRow('Loại chuyến', model.rideTypeLabel),
+                    if (showQuantityField)
+                      _buildInfoRow('Số lượng', '${model.quantity}'),
+                    _buildInfoRow('SĐT liên hệ', model.customerPhone ?? ''),
+                    if (model.note?.isNotEmpty ?? false)
+                      _buildInfoRow('Ghi chú', model.note ?? ''),
+                    _buildInfoRow(
+                      'Ngày giờ đón',
+                      pickupDateTime,
+                      highlight: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              BookingSectionCard(
+                title: 'Hành trình',
+                subtitle: 'Kiểm tra nhanh điểm đón và điểm đến trước khi chốt.',
+                icon: Icons.route_outlined,
+                child: Column(
+                  children: [
+                    _buildAddressBlock(
+                      title: 'Điểm đón',
+                      icon: Icons.my_location_rounded,
+                      province: _getProvinceName(
+                        model,
+                        model.selectedProvincePickup,
+                      ),
+                      district: _getDistrictName(
+                        model.pickupDistricts,
+                        model.selectedDistrictPickup,
+                      ),
+                      address: model.addressPickup ?? '',
+                      iconColor: Colors.lightGreenAccent.shade100,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Icon(
+                        Icons.south_rounded,
+                        color: theme.colorScheme.secondary,
                       ),
                     ),
-                  ),
-              ],
-            ),
-
-
-            const SizedBox(height: 100),
-          ],
+                    _buildAddressBlock(
+                      title: 'Điểm đến',
+                      icon: Icons.location_on_outlined,
+                      province: _getProvinceName(
+                        model,
+                        model.selectedProvinceDrop,
+                      ),
+                      district: _getDistrictName(
+                        model.dropDistricts,
+                        model.selectedDistrictDrop,
+                      ),
+                      address: model.addressDrop ?? '',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              BookingSectionCard(
+                title: 'Phương thức thanh toán',
+                subtitle: 'Giữ nguyên các lựa chọn thanh toán hiện tại.',
+                icon: _getPaymentMethodIcon(model.paymentMethod),
+                child: Column(
+                  children: [
+                    _buildPaymentOption(
+                      model: model,
+                      value: 2,
+                      title: 'Thanh toán bằng ví',
+                      icon: Icons.wallet_outlined,
+                      subtitle: 'Thanh toán bằng số dư ví trong ứng dụng',
+                    ),
+                    _buildPaymentOption(
+                      model: model,
+                      value: 3,
+                      title: 'Tiền mặt',
+                      icon: Icons.payments_outlined,
+                      subtitle: 'Thanh toán sau khi hoàn thành chuyến đi',
+                    ),
+                    const SizedBox(height: 4),
+                    _buildInfoRow(
+                      'Đã chọn',
+                      _getPaymentMethodLabel(model.paymentMethod),
+                      highlight: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              BookingSectionCard(
+                title: 'Chi tiết giá',
+                subtitle:
+                    'Giá được tính từ cấu hình tuyến và hình thức thanh toán đã chọn.',
+                icon: Icons.receipt_long_outlined,
+                child: model.isLoadingPrice
+                    ? const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    : model.tripPrice != null
+                    ? Column(
+                        children: [
+                          _buildPriceRow(
+                            'Giá cước gốc',
+                            formatCurrency(model.basePrice ?? 0),
+                          ),
+                          _buildPriceRow(
+                            'Ưu đãi giảm giá',
+                            formatCurrency(-(model.discount)),
+                            valueColor: Colors.greenAccent.shade100,
+                          ),
+                          _buildPriceRow(
+                            'Phụ phí ngày lễ',
+                            formatCurrency(model.surcharge),
+                            valueColor: Colors.orangeAccent.shade100,
+                          ),
+                          if (showQuantityField)
+                            _buildPriceRow(
+                              'Số lượng tính giá',
+                              'x${model.quantity}',
+                            ),
+                          Divider(
+                            height: 28,
+                            color: theme.colorScheme.secondary.withValues(
+                              alpha: 0.28,
+                            ),
+                          ),
+                          _buildPriceRow(
+                            'THÀNH TIỀN',
+                            formatCurrency(model.tripPrice!),
+                            isTotal: true,
+                          ),
+                        ],
+                      )
+                    : BookingInfoBanner(
+                        text:
+                            model.priceErrorMessage ??
+                            'Không thể tính giá. Vui lòng quay lại kiểm tra thông tin.',
+                        icon: Icons.warning_amber_rounded,
+                        color: Colors.orangeAccent,
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.primary,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.3),
-              spreadRadius: 1,
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primary.withValues(alpha: 0.94),
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  side: BorderSide(
-                    color: theme.colorScheme.secondary,
-                    width: 2,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: Text(
-                  "QUAY LẠI",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.secondary,
-                  ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('QUAY LẠI'),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: ElevatedButton(
-                onPressed: _isCreatingRide || model.tripPrice == null
-                    ? null
-                    : () => _handlePayment(model),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: _isCreatingRide || model.tripPrice == null
+                      ? null
+                      : () => _handlePayment(model),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 56),
                   ),
-                  backgroundColor: theme.colorScheme.secondary,
-                  foregroundColor: Colors.black87,
-                ),
-                child: _isCreatingRide
-                    ? const SizedBox(
-                  height: 22,
-                  width: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.black87,
-                  ),
-                )
-                    : Text(
-                  model.paymentMethod == 3
-                      ? "XÁC NHẬN ĐẶT XE"
-                      : "THANH TOÁN",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  child: _isCreatingRide
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black87,
+                          ),
+                        )
+                      : Text(
+                          model.paymentMethod == 3
+                              ? 'XÁC NHẬN ĐẶT XE'
+                              : 'THANH TOÁN',
+                        ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
