@@ -47,6 +47,39 @@ class BookingFlowBackground extends StatelessWidget {
   }
 }
 
+class BookingKeyboardDismissArea extends StatelessWidget {
+  final Widget child;
+
+  const BookingKeyboardDismissArea({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: child,
+    );
+  }
+}
+
+class BookingBottomActionBar extends StatelessWidget {
+  final Widget child;
+
+  const BookingBottomActionBar({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SafeArea(top: false, child: child),
+    );
+  }
+}
+
 class BookingStepHero extends StatelessWidget {
   final int step;
   final int totalSteps;
@@ -333,6 +366,10 @@ InputDecoration bookingInputDecoration(
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
   );
+}
+
+void dismissBookingKeyboard() {
+  FocusManager.instance.primaryFocus?.unfocus();
 }
 
 class _GlowOrb extends StatelessWidget {

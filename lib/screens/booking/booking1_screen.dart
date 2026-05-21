@@ -221,110 +221,120 @@ class _Booking1ScreenState extends State<Booking1Screen> {
         centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.secondary),
       ),
-      body: BookingFlowBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              BookingStepHero(
-                step: 1,
-                title: 'Thiết lập nhu cầu chuyến đi',
-                subtitle:
-                    'Chọn loại chuyến phù hợp và để lại thông tin để hệ thống giữ nguyên logic tạo đơn hiện tại nhưng dễ thao tác hơn.',
-                assetPath: 'lib/assets/icons/booking_car.png',
-                footer: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    BookingSummaryChip(
-                      icon: Icons.local_taxi_outlined,
-                      label: model.rideTypeLabel,
-                    ),
-                    BookingSummaryChip(
-                      icon: Icons.payment_outlined,
-                      label: 'Giữ nguyên bước thanh toán cuối',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              BookingSectionCard(
-                title: 'Loại chuyến',
-                subtitle: 'Chạm để chọn nhanh thay vì mở dropdown.',
-                icon: Icons.directions_car_filled_outlined,
-                child: Column(
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children:
-                          BookingRideType.options
-                              .map(
-                                (option) =>
-                                    _buildRideTypeCard(context, model, option),
-                              )
-                              .expand(
-                                (widget) => [widget, const SizedBox(width: 12)],
-                              )
-                              .toList()
-                            ..removeLast(),
-                    ),
-                    if (model.isBaoXe) ...[
-                      const SizedBox(height: 14),
-                      const BookingInfoBanner(
-                        text:
-                            'Các loại bao xe mặc định số lượng là 1, chỉ thay đổi loại xe chứ không thay đổi logic tính giá hiện tại.',
-                        icon: Icons.verified_outlined,
+      body: BookingKeyboardDismissArea(
+        child: BookingFlowBackground(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BookingStepHero(
+                  step: 1,
+                  title: 'Thiết lập nhu cầu chuyến đi',
+                  subtitle:
+                      'Chọn loại chuyến phù hợp và để lại thông tin để hệ thống giữ nguyên logic tạo đơn hiện tại nhưng dễ thao tác hơn.',
+                  assetPath: 'lib/assets/icons/booking_car.png',
+                  footer: Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      BookingSummaryChip(
+                        icon: Icons.local_taxi_outlined,
+                        label: model.rideTypeLabel,
+                      ),
+                      BookingSummaryChip(
+                        icon: Icons.payment_outlined,
+                        label: 'Giữ nguyên bước thanh toán cuối',
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              if (model.showQuantityField) ...[
                 const SizedBox(height: 18),
-                _buildQuantityInput(context, model),
-              ],
-              const SizedBox(height: 18),
-              BookingSectionCard(
-                title: 'Liên hệ & ghi chú',
-                subtitle: 'Thông tin này sẽ được mang sang các bước sau.',
-                icon: Icons.support_agent_outlined,
-                child: Column(
-                  children: [
-                    TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      style: const TextStyle(color: Colors.white),
-                      decoration: bookingInputDecoration(
-                        context,
-                        label: 'Số điện thoại liên hệ',
-                        hint: 'Ví dụ: 09xxxxxxxx',
-                        icon: Icons.phone_outlined,
+                BookingSectionCard(
+                  title: 'Loại chuyến',
+                  subtitle: 'Chạm để chọn nhanh thay vì mở dropdown.',
+                  icon: Icons.directions_car_filled_outlined,
+                  child: Column(
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children:
+                            BookingRideType.options
+                                .map(
+                                  (option) => _buildRideTypeCard(
+                                    context,
+                                    model,
+                                    option,
+                                  ),
+                                )
+                                .expand(
+                                  (widget) => [
+                                    widget,
+                                    const SizedBox(width: 12),
+                                  ],
+                                )
+                                .toList()
+                              ..removeLast(),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _noteController,
-                      maxLines: 4,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: bookingInputDecoration(
-                        context,
-                        label: 'Ghi chú cho tài xế',
-                        hint:
-                            'Mã bưu kiện, số người, điểm nhận dễ nhận biết...',
-                        icon: Icons.edit_note_outlined,
-                      ),
-                    ),
-                  ],
+                      if (model.isBaoXe) ...[
+                        const SizedBox(height: 14),
+                        const BookingInfoBanner(
+                          text:
+                              'Các loại bao xe mặc định số lượng là 1, chỉ thay đổi loại xe chứ không thay đổi logic tính giá hiện tại.',
+                          icon: Icons.verified_outlined,
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                if (model.showQuantityField) ...[
+                  const SizedBox(height: 18),
+                  _buildQuantityInput(context, model),
+                ],
+                const SizedBox(height: 18),
+                BookingSectionCard(
+                  title: 'Liên hệ & ghi chú',
+                  subtitle: 'Thông tin này sẽ được mang sang các bước sau.',
+                  icon: Icons.support_agent_outlined,
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        style: const TextStyle(color: Colors.white),
+                        decoration: bookingInputDecoration(
+                          context,
+                          label: 'Số điện thoại liên hệ',
+                          hint: 'Ví dụ: 09xxxxxxxx',
+                          icon: Icons.phone_outlined,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _noteController,
+                        maxLines: 4,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: bookingInputDecoration(
+                          context,
+                          label: 'Ghi chú cho tài xế',
+                          hint:
+                              'Mã bưu kiện, số người, điểm nhận dễ nhận biết...',
+                          icon: Icons.edit_note_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
+      bottomNavigationBar: BookingBottomActionBar(
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           decoration: BoxDecoration(
@@ -362,6 +372,8 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
+                    dismissBookingKeyboard();
+
                     if (_phoneController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(

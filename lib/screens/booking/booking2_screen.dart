@@ -697,195 +697,197 @@ class _Booking2ScreenState extends State<Booking2Screen> {
         centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.secondary),
       ),
-      body: BookingFlowBackground(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              BookingStepHero(
-                step: 2,
-                title: 'Chọn lộ trình và thời gian đón',
-                subtitle:
-                    'Phần này giữ nguyên logic tính giá cũ, nhưng bổ sung gợi ý chọn điểm đến để tránh chọn sai tuyến Hà Nội và Nội Bài.',
-                assetPath: 'lib/assets/icons/dong_duong_logo.png',
-                footer: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    BookingSummaryChip(
-                      icon: Icons.local_taxi_outlined,
-                      label: model.rideTypeLabel,
-                    ),
-                    if ((model.customerPhone ?? '').isNotEmpty)
+      body: BookingKeyboardDismissArea(
+        child: BookingFlowBackground(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 132),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BookingStepHero(
+                  step: 2,
+                  title: 'Chọn lộ trình và thời gian đón',
+                  subtitle:
+                      'Phần này giữ nguyên logic tính giá cũ, nhưng bổ sung gợi ý chọn điểm đến để tránh chọn sai tuyến Hà Nội và Nội Bài.',
+                  assetPath: 'lib/assets/icons/dong_duong_logo.png',
+                  footer: Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
                       BookingSummaryChip(
-                        icon: Icons.phone_outlined,
-                        label: model.customerPhone!,
+                        icon: Icons.local_taxi_outlined,
+                        label: model.rideTypeLabel,
                       ),
-                  ],
-                ),
-              ),
-              if (model.dropDistrictRuleMessage != null) ...[
-                const SizedBox(height: 16),
-                BookingInfoBanner(
-                  text: model.dropDistrictRuleMessage!,
-                  icon: Icons.rule_folder_outlined,
-                ),
-              ],
-              const SizedBox(height: 18),
-              BookingSectionCard(
-                title: 'Lộ trình chuyến đi',
-                subtitle:
-                    'Ưu tiên chọn theo thứ tự điểm đón trước, hệ thống sẽ tự lọc huyện điểm đến phù hợp.',
-                icon: Icons.route_rounded,
-                child: Column(
-                  children: [
-                    _buildLocationCard(
-                      title: 'Điểm đón',
-                      subtitle: 'Nơi tài xế bắt đầu đón khách hoặc nhận hàng',
-                      icon: Icons.my_location_rounded,
-                      accentColor: Colors.lightGreenAccent.shade100,
-                      provinceDropdown: _provincePickerWidget(
-                        model: model,
-                        isPickup: true,
-                      ),
-                      districtDropdown: _districtPickerWidget(
-                        districts: model.availablePickupDistricts,
-                        value: model.selectedDistrictPickup,
-                        title: 'Chọn quận / huyện điểm đón',
-                        onChanged: model.setSelectedDistrictPickup,
-                      ),
-                      addressField: TextField(
-                        controller: _pickupAddressController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: bookingInputDecoration(
-                          context,
-                          label: 'Số nhà, xã/phường',
-                          hint: 'Nhập địa chỉ chi tiết điểm đón',
-                          icon: Icons.home_work_outlined,
+                      if ((model.customerPhone ?? '').isNotEmpty)
+                        BookingSummaryChip(
+                          icon: Icons.phone_outlined,
+                          label: model.customerPhone!,
                         ),
-                        onChanged: (value) => model.addressPickup = value,
+                    ],
+                  ),
+                ),
+                if (model.dropDistrictRuleMessage != null) ...[
+                  const SizedBox(height: 16),
+                  BookingInfoBanner(
+                    text: model.dropDistrictRuleMessage!,
+                    icon: Icons.rule_folder_outlined,
+                  ),
+                ],
+                const SizedBox(height: 18),
+                BookingSectionCard(
+                  title: 'Lộ trình chuyến đi',
+                  subtitle:
+                      'Ưu tiên chọn theo thứ tự điểm đón trước, hệ thống sẽ tự lọc huyện điểm đến phù hợp.',
+                  icon: Icons.route_rounded,
+                  child: Column(
+                    children: [
+                      _buildLocationCard(
+                        title: 'Điểm đón',
+                        subtitle: 'Nơi tài xế bắt đầu đón khách hoặc nhận hàng',
+                        icon: Icons.my_location_rounded,
+                        accentColor: Colors.lightGreenAccent.shade100,
+                        provinceDropdown: _provincePickerWidget(
+                          model: model,
+                          isPickup: true,
+                        ),
+                        districtDropdown: _districtPickerWidget(
+                          districts: model.availablePickupDistricts,
+                          value: model.selectedDistrictPickup,
+                          title: 'Chọn quận / huyện điểm đón',
+                          onChanged: model.setSelectedDistrictPickup,
+                        ),
+                        addressField: TextField(
+                          controller: _pickupAddressController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: bookingInputDecoration(
+                            context,
+                            label: 'Số nhà, xã/phường',
+                            hint: 'Nhập địa chỉ chi tiết điểm đón',
+                            icon: Icons.home_work_outlined,
+                          ),
+                          onChanged: (value) => model.addressPickup = value,
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.92, end: 1),
-                        duration: const Duration(milliseconds: 1000),
-                        curve: Curves.easeInOut,
-                        builder: (context, value, child) {
-                          return Transform.scale(scale: value, child: child);
-                        },
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.secondary.withValues(
-                              alpha: 0.12,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.92, end: 1),
+                          duration: const Duration(milliseconds: 1000),
+                          curve: Curves.easeInOut,
+                          builder: (context, value, child) {
+                            return Transform.scale(scale: value, child: child);
+                          },
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondary.withValues(
+                                alpha: 0.12,
+                              ),
+                              shape: BoxShape.circle,
                             ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.south_rounded,
-                            color: theme.colorScheme.secondary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    _buildLocationCard(
-                      title: 'Điểm đến',
-                      subtitle: 'Nơi kết thúc chuyến đi hoặc giao hàng',
-                      icon: Icons.location_on_outlined,
-                      accentColor: theme.colorScheme.secondary,
-                      provinceDropdown: _provincePickerWidget(
-                        model: model,
-                        isPickup: false,
-                      ),
-                      districtDropdown: _districtPickerWidget(
-                        districts: model.availableDropDistricts,
-                        value: model.selectedDistrictDrop,
-                        title: 'Chọn quận / huyện điểm đến',
-                        onChanged: model.setSelectedDistrictDrop,
-                      ),
-                      helper: model.dropDistrictRuleMessage == null
-                          ? null
-                          : BookingInfoBanner(
-                              text: model.dropDistrictRuleMessage!,
-                              icon: Icons.local_airport_outlined,
+                            child: Icon(
+                              Icons.south_rounded,
                               color: theme.colorScheme.secondary,
                             ),
-                      addressField: TextField(
-                        controller: _dropAddressController,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: bookingInputDecoration(
-                          context,
-                          label: 'Số nhà, xã/phường',
-                          hint: 'Nhập địa chỉ chi tiết điểm đến',
-                          icon: Icons.pin_drop_outlined,
-                        ),
-                        onChanged: (value) => model.addressDrop = value,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              BookingSectionCard(
-                title: 'Ngày và giờ đón',
-                subtitle:
-                    'Giữ nguyên cách tính giá theo mốc thời gian, chỉ làm rõ thao tác chọn nhanh hơn.',
-                icon: Icons.schedule_rounded,
-                child: Column(
-                  children: [
-                    _dateField(
-                      label: 'Ngày đón',
-                      date: model.goDate,
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 365),
                           ),
-                          initialDate: model.goDate ?? DateTime.now(),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: ColorScheme.light(
-                                  primary: theme.colorScheme.secondary,
-                                  onPrimary: Colors.black87,
-                                  onSurface: const Color(0xFF123C2E),
-                                ),
+                        ),
+                      ),
+                      _buildLocationCard(
+                        title: 'Điểm đến',
+                        subtitle: 'Nơi kết thúc chuyến đi hoặc giao hàng',
+                        icon: Icons.location_on_outlined,
+                        accentColor: theme.colorScheme.secondary,
+                        provinceDropdown: _provincePickerWidget(
+                          model: model,
+                          isPickup: false,
+                        ),
+                        districtDropdown: _districtPickerWidget(
+                          districts: model.availableDropDistricts,
+                          value: model.selectedDistrictDrop,
+                          title: 'Chọn quận / huyện điểm đến',
+                          onChanged: model.setSelectedDistrictDrop,
+                        ),
+                        helper: model.dropDistrictRuleMessage == null
+                            ? null
+                            : BookingInfoBanner(
+                                text: model.dropDistrictRuleMessage!,
+                                icon: Icons.local_airport_outlined,
+                                color: theme.colorScheme.secondary,
                               ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (picked != null) {
-                          model.setGoDate(picked);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _timeField(model: model),
-                  ],
+                        addressField: TextField(
+                          controller: _dropAddressController,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: bookingInputDecoration(
+                            context,
+                            label: 'Số nhà, xã/phường',
+                            hint: 'Nhập địa chỉ chi tiết điểm đến',
+                            icon: Icons.pin_drop_outlined,
+                          ),
+                          onChanged: (value) => model.addressDrop = value,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              if (model.priceErrorMessage != null &&
-                  model.priceErrorMessage!.isNotEmpty) ...[
                 const SizedBox(height: 18),
-                BookingInfoBanner(
-                  text: model.priceErrorMessage!,
-                  icon: Icons.warning_amber_rounded,
-                  color: Colors.orangeAccent,
+                BookingSectionCard(
+                  title: 'Ngày và giờ đón',
+                  subtitle:
+                      'Giữ nguyên cách tính giá theo mốc thời gian, chỉ làm rõ thao tác chọn nhanh hơn.',
+                  icon: Icons.schedule_rounded,
+                  child: Column(
+                    children: [
+                      _dateField(
+                        label: 'Ngày đón',
+                        date: model.goDate,
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                            initialDate: model.goDate ?? DateTime.now(),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: theme.colorScheme.secondary,
+                                    onPrimary: Colors.black87,
+                                    onSurface: const Color(0xFF123C2E),
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            model.setGoDate(picked);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _timeField(model: model),
+                    ],
+                  ),
                 ),
+                if (model.priceErrorMessage != null &&
+                    model.priceErrorMessage!.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  BookingInfoBanner(
+                    text: model.priceErrorMessage!,
+                    icon: Icons.warning_amber_rounded,
+                    color: Colors.orangeAccent,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
+      bottomNavigationBar: BookingBottomActionBar(
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           decoration: BoxDecoration(
@@ -911,6 +913,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   onPressed: _isCalculatingPrice
                       ? null
                       : () async {
+                          dismissBookingKeyboard();
+
                           if (!_validate(model)) return;
 
                           final messenger = ScaffoldMessenger.of(context);
