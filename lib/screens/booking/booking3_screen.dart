@@ -24,11 +24,6 @@ class _Booking3ScreenState extends State<Booking3Screen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final model = context.read<BookingModel>();
-
-      if (model.paymentMethod == 1) {
-        model.paymentMethod = 2;
-      }
-
       if (model.tripPrice == null && !model.isLoadingPrice) {
         model.fetchTripPrice();
       }
@@ -49,9 +44,9 @@ class _Booking3ScreenState extends State<Booking3Screen> {
       case 2:
         return 'Thanh toán bằng ví';
       case 3:
-        return 'Tiền mặt';
+        return 'Thanh toán trả sau / COD';
       default:
-        return 'Thanh toán bằng ví';
+        return 'Chuyển khoản';
     }
   }
 
@@ -62,7 +57,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
       case 3:
         return Icons.payments_outlined;
       default:
-        return Icons.wallet_outlined;
+        return Icons.account_balance_wallet_outlined;
     }
   }
 
@@ -215,6 +210,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               Container(
                 width: 42,
                 height: 42,
+                margin: const EdgeInsets.only(left: 12, right: 12),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? theme.colorScheme.secondary.withValues(alpha: 0.18)
@@ -228,7 +224,6 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                       : Colors.white70,
                 ),
               ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,24 +290,6 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     );
   }
 
-  String _getProvinceName(BookingModel model, int? id) {
-    if (id == null) return '';
-    final province = model.provinces.cast<dynamic>().firstWhere(
-      (p) => p != null && p['id'].toString() == id.toString(),
-      orElse: () => null,
-    );
-    return province?['name']?.toString() ?? '';
-  }
-
-  String _getDistrictName(List<dynamic> districts, int? id) {
-    if (id == null) return '';
-    final district = districts.cast<dynamic>().firstWhere(
-      (d) => d != null && d['id'].toString() == id.toString(),
-      orElse: () => null,
-    );
-    return district?['name']?.toString() ?? '';
-  }
-
   Future<void> _handlePayment(BookingModel model) async {
     setState(() => _isCreatingRide = true);
 
@@ -346,7 +323,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                   child: Text(
                     model.paymentMethod == 2
                         ? 'Đặt chuyến thành công. Thanh toán bằng ví đã được chọn.'
-                        : 'Đặt chuyến thành công. Bạn sẽ thanh toán bằng tiền mặt.',
+                        : 'Đặt chuyến thành công. Bạn sẽ thanh toán khi hoàn thành chuyến đi.',
                   ),
                 ),
               ],
@@ -379,6 +356,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
     final model = context.watch<BookingModel>();
     final theme = Theme.of(context);
     final showQuantityField = model.showQuantityField;
+    final preview = model.routePreview;
 
     final pickupDateTime = model.goDate == null || model.goTime == null
         ? 'Chưa chọn'
@@ -403,7 +381,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                 step: 3,
                 title: 'Rà soát trước khi tạo đơn',
                 subtitle:
-                    'Kiểm tra lại tuyến đường, hình thức thanh toán và giá cuối cùng trước khi gửi đơn đi.',
+                    'Kiểm tra lại địa chỉ đã chuẩn hóa, hình thức thanh toán và giá cuối cùng trước khi gửi đơn.',
                 assetPath: 'lib/assets/icons/booking_car.png',
                 footer: Wrap(
                   spacing: 10,
@@ -449,22 +427,19 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               const SizedBox(height: 18),
               BookingSectionCard(
                 title: 'Hành trình',
-                subtitle: 'Kiểm tra nhanh điểm đón và điểm đến trước khi chốt.',
+                subtitle:
+                    'Địa chỉ dưới đây là địa chỉ đã được backend chuẩn hóa.',
                 icon: Icons.route_outlined,
                 child: Column(
                   children: [
                     _buildAddressBlock(
                       title: 'Điểm đón',
                       icon: Icons.my_location_rounded,
-                      province: _getProvinceName(
-                        model,
-                        model.selectedProvincePickup,
-                      ),
-                      district: _getDistrictName(
-                        model.pickupDistricts,
-                        model.selectedDistrictPickup,
-                      ),
-                      address: model.addressPickup ?? '',
+                      province: preview?.from.provinceName ?? '',
+                      district: preview?.from.districtName ?? '',
+                      address:
+                          preview?.from.formattedAddress ??
+                          model.pickupDisplayAddress,
                       iconColor: Colors.lightGreenAccent.shade100,
                     ),
                     Padding(
@@ -477,15 +452,11 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                     _buildAddressBlock(
                       title: 'Điểm đến',
                       icon: Icons.location_on_outlined,
-                      province: _getProvinceName(
-                        model,
-                        model.selectedProvinceDrop,
-                      ),
-                      district: _getDistrictName(
-                        model.dropDistricts,
-                        model.selectedDistrictDrop,
-                      ),
-                      address: model.addressDrop ?? '',
+                      province: preview?.to.provinceName ?? '',
+                      district: preview?.to.districtName ?? '',
+                      address:
+                          preview?.to.formattedAddress ??
+                          model.dropDisplayAddress,
                     ),
                   ],
                 ),
@@ -493,7 +464,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               const SizedBox(height: 18),
               BookingSectionCard(
                 title: 'Phương thức thanh toán',
-                subtitle: 'Giữ nguyên các lựa chọn thanh toán hiện tại.',
+                subtitle: 'Chọn hình thức thanh toán trước khi tạo đơn.',
                 icon: _getPaymentMethodIcon(model.paymentMethod),
                 child: Column(
                   children: [
@@ -507,9 +478,9 @@ class _Booking3ScreenState extends State<Booking3Screen> {
                     _buildPaymentOption(
                       model: model,
                       value: 3,
-                      title: 'Tiền mặt',
+                      title: 'Thanh toán trả sau / COD',
                       icon: Icons.payments_outlined,
-                      subtitle: 'Thanh toán sau khi hoàn thành chuyến đi',
+                      subtitle: 'Thanh toán khi hoàn thành chuyến đi',
                     ),
                     const SizedBox(height: 4),
                     _buildInfoRow(
@@ -524,7 +495,7 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               BookingSectionCard(
                 title: 'Chi tiết giá',
                 subtitle:
-                    'Giá được tính từ cấu hình tuyến và hình thức thanh toán đã chọn.',
+                    'Giá được tính từ tuyến đã resolve và hình thức thanh toán hiện tại.',
                 icon: Icons.receipt_long_outlined,
                 child: model.isLoadingPrice
                     ? const Padding(
@@ -600,7 +571,10 @@ class _Booking3ScreenState extends State<Booking3Screen> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton(
-                  onPressed: _isCreatingRide || model.tripPrice == null
+                  onPressed:
+                      _isCreatingRide ||
+                          model.tripPrice == null ||
+                          model.routePreview == null
                       ? null
                       : () => _handlePayment(model),
                   style: ElevatedButton.styleFrom(

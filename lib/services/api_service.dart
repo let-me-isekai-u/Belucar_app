@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/deposit_model.dart';
+import '../models/location_models.dart';
 
 class ApiService {
   static dynamic safeDecode(String? body) {
@@ -367,6 +368,96 @@ class ApiService {
     }
   }
 
+  static Future<http.Response> autocompleteTrackAsia({
+    required String input,
+    String? location,
+    int size = 10,
+  }) async {
+    final url =
+        Uri.parse(
+          "https://xeghepdongduong.com/api/track-asia/autocomplete",
+        ).replace(
+          queryParameters: {
+            "input": input,
+            "size": size.toString(),
+            if (location != null && location.trim().isNotEmpty)
+              "location": location.trim(),
+          },
+        );
+
+    try {
+      return await http
+          .get(url, headers: {"Accept": "application/json"})
+          .timeout(const Duration(seconds: 20));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
+
+  static Future<http.Response> getTrackAsiaPlaceDetail({
+    required String placeId,
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/track-asia/place-detail",
+    ).replace(queryParameters: {"placeId": placeId});
+
+    try {
+      return await http
+          .get(url, headers: {"Accept": "application/json"})
+          .timeout(const Duration(seconds: 20));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
+
+  static Future<http.Response> resolveAddressPoint({
+    required double lat,
+    required double lng,
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/v2/address/resolve-point",
+    );
+
+    try {
+      final body = jsonEncode({"lat": lat, "lng": lng});
+      return await http
+          .post(url, headers: _defaultHeaders(), body: body)
+          .timeout(const Duration(seconds: 30));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
+
+  static Future<http.Response> resolveRoutePreview({
+    required RidePointPayload from,
+    required RidePointPayload to,
+    required int type,
+    required String pickupTime,
+    required int paymentMethod,
+    required int quantity,
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/v2/address/resolve-route",
+    );
+
+    try {
+      final body = jsonEncode({
+        "from": from.toJson(),
+        "to": to.toJson(),
+        "type": type,
+        "pickupTime": pickupTime,
+        "paymentMethod": paymentMethod,
+        "quantity": quantity,
+      });
+
+      return await http
+          .post(url, headers: _defaultHeaders(), body: body)
+          .timeout(const Duration(seconds: 30));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
+
   //Lấy giá (12)
   static Future<http.Response> getTripPrice({
     required int fromDistrictId,
@@ -404,27 +495,28 @@ class ApiService {
   // 13. API TẠO CHUYẾN ĐI
   static Future<http.Response> createRide({
     required String accessToken,
-    required int tripId,
-    required String fromAddress,
-    required String toAddress,
+    required RidePointPayload from,
+    required RidePointPayload to,
+    required int type,
     required String customerPhone,
     required String pickupTime,
     required int paymentMethod,
     required int quantity,
     String note = "",
-    String content = "", // Để mặc định là rỗng nếu không truyền
+    String? content,
   }) async {
-    final url = Uri.parse("https://xeghepdongduong.com/api/rideapi/create");
+    final url = Uri.parse("https://xeghepdongduong.com/api/v2/ride/create");
 
     final body = jsonEncode({
-      "tripId": tripId,
-      "fromAddress": fromAddress,
-      "toAddress": toAddress,
+      "from": from.toJson(),
+      "to": to.toJson(),
+      "type": type,
       "customerPhone": customerPhone,
       "pickupTime": pickupTime,
       "note": note,
       "paymentMethod": paymentMethod,
       "content": content,
+      "voucherCode": null,
       "quantity": quantity,
     });
 
