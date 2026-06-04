@@ -21,6 +21,9 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  static const String _vietQrAccountName =
+      'CONG%20TY%20CP%20CONG%20NGHE%20VA%20QUAN%20LY%20VAN%20TAI%20DONG%20DUONG';
+
   late final HomeProvider _homeProvider;
   final GlobalKey<ActivityScreenState> _activityScreenKey =
       GlobalKey<ActivityScreenState>();
@@ -294,11 +297,12 @@ class _HomeViewState extends State<HomeView> {
     required DepositContentData depositData,
   }) async {
     var isCancelling = false;
+    final theme = Theme.of(context);
     final qrUrl =
         'https://img.vietqr.io/image/MB-08102002-compact2.png'
         '?amount=${amount.toStringAsFixed(0)}'
         '&addInfo=${depositData.content}'
-        '&accountName=CTY%20CP%20CN%20VA%20DV%20TT%20THE%20BELUGAS';
+        '&accountName=$_vietQrAccountName';
 
     await showDialog<void>(
       context: context,
@@ -313,98 +317,98 @@ class _HomeViewState extends State<HomeView> {
                 vertical: 24,
               ),
               child: Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(28),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const BrandLogoBadge(
-                      assetPath: 'lib/assets/icons/dong_duong_logo.png',
-                      size: 62,
-                      borderRadius: 20,
-                      padding: 4,
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      'Quét mã để thanh toán',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.primaryGreen,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Sau khi bấm huỷ, ứng dụng sẽ đóng QR và gửi yêu cầu huỷ giao dịch nạp tiền.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.black.withValues(alpha: 0.64),
-                        height: 1.45,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(22),
-                      child: Image.network(
-                        qrUrl,
-                        height: 240,
-                        width: 240,
-                        fit: BoxFit.cover,
-                      ),
+                    Row(
+                      children: [
+                        const BrandLogoBadge(
+                          assetPath: 'lib/assets/icons/dong_duong_logo.png',
+                          size: 54,
+                          borderRadius: 18,
+                          padding: 4,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'QR nạp ví',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primaryGreen,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Chuyển đúng số tiền và nội dung.',
+                                style: TextStyle(
+                                  color: Colors.black.withValues(alpha: 0.60),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F2E8),
+                        color: const Color(0xFFF6F2E7),
                         borderRadius: BorderRadius.circular(18),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Số tiền',
-                            style: TextStyle(
-                              color: Colors.black.withValues(alpha: 0.58),
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            NumberFormat.currency(
+                      child: const Text(
+                        'CONG TY CP CONG NGHE VA QUAN LY VAN TAI DONG DUONG',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: AppColors.primaryGreen,
+                          fontWeight: FontWeight.w800,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.network(
+                        qrUrl,
+                        height: 220,
+                        width: 220,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _DepositInfoTile(
+                            label: 'Số tiền',
+                            value: NumberFormat.currency(
                               locale: 'vi_VN',
                               symbol: 'đ',
                               decimalDigits: 0,
                             ).format(amount),
-                            style: const TextStyle(
-                              color: AppColors.primaryGreen,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                            ),
+                            valueColor: AppColors.primaryGreen,
                           ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Nội dung chuyển khoản',
-                            style: TextStyle(
-                              color: Colors.black.withValues(alpha: 0.58),
-                              fontSize: 12,
-                            ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _DepositInfoTile(
+                            label: 'Nội dung',
+                            value: depositData.content,
+                            valueColor: theme.colorScheme.secondary,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            depositData.content,
-                            style: const TextStyle(
-                              color: Colors.redAccent,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
                     SizedBox(
@@ -449,7 +453,7 @@ class _HomeViewState extends State<HomeView> {
                                 );
                               },
                         style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 54),
+                          minimumSize: const Size(double.infinity, 52),
                           backgroundColor: Colors.redAccent,
                           foregroundColor: Colors.white,
                         ),
@@ -462,7 +466,7 @@ class _HomeViewState extends State<HomeView> {
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text('Huỷ'),
+                            : const Text('Huỷ yêu cầu'),
                       ),
                     ),
                   ],
@@ -495,8 +499,8 @@ class _HomeViewState extends State<HomeView> {
       top: false,
       minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Container(
-        height: 78,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        height: 88,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
           gradient: const LinearGradient(
@@ -520,6 +524,7 @@ class _HomeViewState extends State<HomeView> {
               selectedIndex: homeProvider.selectedIndex,
               inactiveIcon: Icons.home_outlined,
               activeIcon: Icons.home_rounded,
+              label: 'Trang chủ',
               onTap: () => homeProvider.selectTab(0),
             ),
             _buildBottomBarItem(
@@ -527,6 +532,7 @@ class _HomeViewState extends State<HomeView> {
               selectedIndex: homeProvider.selectedIndex,
               inactiveIcon: Icons.directions_car_outlined,
               activeIcon: Icons.directions_car_rounded,
+              label: 'Chuyến đi',
               onTap: () => homeProvider.selectTab(1),
             ),
             _buildBottomBarItem(
@@ -534,6 +540,7 @@ class _HomeViewState extends State<HomeView> {
               selectedIndex: homeProvider.selectedIndex,
               inactiveIcon: Icons.history_toggle_off_rounded,
               activeIcon: Icons.access_time_filled_rounded,
+              label: 'Hoạt động',
               onTap: () => homeProvider.selectTab(2),
             ),
             _buildBottomBarItem(
@@ -541,6 +548,7 @@ class _HomeViewState extends State<HomeView> {
               selectedIndex: homeProvider.selectedIndex,
               inactiveIcon: Icons.person_outline_rounded,
               activeIcon: Icons.person_rounded,
+              label: 'Tài khoản',
               onTap: () => homeProvider.selectTab(3),
             ),
           ],
@@ -554,6 +562,7 @@ class _HomeViewState extends State<HomeView> {
     required int selectedIndex,
     required IconData inactiveIcon,
     required IconData activeIcon,
+    required String label,
     required VoidCallback onTap,
   }) {
     final isSelected = index == selectedIndex;
@@ -567,25 +576,44 @@ class _HomeViewState extends State<HomeView> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            width: isSelected ? 56 : 44,
-            height: isSelected ? 44 : 40,
+            width: double.infinity,
+            height: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
             decoration: BoxDecoration(
               color: isSelected
                   ? theme.colorScheme.secondary.withValues(alpha: 0.18)
-                  : Colors.white.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(18),
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
                 color: isSelected
                     ? theme.colorScheme.secondary.withValues(alpha: 0.45)
                     : Colors.transparent,
               ),
             ),
-            child: Icon(
-              isSelected ? activeIcon : inactiveIcon,
-              color: isSelected
-                  ? AppColors.accentGold
-                  : Colors.white.withValues(alpha: 0.84),
-              size: isSelected ? 24 : 22,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  isSelected ? activeIcon : inactiveIcon,
+                  color: isSelected
+                      ? AppColors.accentGold
+                      : Colors.white.withValues(alpha: 0.84),
+                  size: isSelected ? 24 : 22,
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isSelected
+                        ? AppColors.accentGold
+                        : Colors.white.withValues(alpha: 0.88),
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -789,48 +817,13 @@ class _HomeViewState extends State<HomeView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeroCard(homeProvider),
-                const SizedBox(height: 18),
-                _buildStatusStrip(homeProvider),
-                const SizedBox(height: 22),
-                _buildSectionTitle(
-                  title: 'Lối vào nhanh',
-                  subtitle: 'Các thao tác chính được gom lại để vào nhanh hơn.',
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 _buildPrimaryActionRow(homeProvider),
                 const SizedBox(height: 18),
                 _buildHomeSectionCard(
-                  title: 'Tiện ích nhanh',
-                  subtitle:
-                      'Các mục theo dõi và trao đổi để không trùng với lối vào chính.',
+                  title: 'Tiện ích',
                   icon: Icons.dashboard_customize_outlined,
                   child: _buildActionButtons(homeProvider),
-                ),
-                const SizedBox(height: 18),
-                _buildHomeSectionCard(
-                  title: 'Gợi ý hôm nay',
-                  subtitle:
-                      'Một vài lưu ý để thao tác trong app nhanh và chính xác hơn.',
-                  icon: Icons.lightbulb_outline_rounded,
-                  child: Column(
-                    children: [
-                      _buildInsightCard(
-                        title: 'Đặt chuyến nội thành Hà Nội',
-                        body:
-                            'Chọn điểm đón trước để hệ thống tự lọc điểm đến Nội Bài đúng theo rule hiện tại.',
-                        icon: Icons.local_airport_outlined,
-                        accent: Theme.of(context).colorScheme.secondary,
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInsightCard(
-                        title: 'Thanh toán bằng ví',
-                        body:
-                            'Nạp tiền trước khi đặt để bước xác nhận cuối gọn hơn và không phải xử lý tiền mặt.',
-                        icon: Icons.account_balance_wallet_outlined,
-                        accent: const Color(0xFF2AA876),
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),
@@ -842,7 +835,7 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildHeroCard(HomeProvider homeProvider) {
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(32),
         gradient: LinearGradient(
@@ -866,11 +859,12 @@ class _HomeViewState extends State<HomeView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const BrandLogoBadge(
                 assetPath: 'lib/assets/icons/dong_duong_logo.png',
-                size: 68,
-                borderRadius: 22,
+                size: 78,
+                borderRadius: 24,
                 padding: 4,
               ),
               const SizedBox(width: 14),
@@ -887,12 +881,22 @@ class _HomeViewState extends State<HomeView> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Sẵn sàng cho hành trình tiếp theo',
+                      'Đi nhanh, đặt gọn',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Đặt xe dễ dàng, di chuyển an toàn',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        height: 1.3,
                       ),
                     ),
                   ],
@@ -900,140 +904,41 @@ class _HomeViewState extends State<HomeView> {
               ),
             ],
           ),
-
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: const [
-              _HeroChip(icon: Icons.local_taxi_outlined, label: 'Đặt xe nhanh'),
-              _HeroChip(
-                icon: Icons.account_balance_wallet_outlined,
-                label: 'Nạp ví bằng QR',
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _HeroChip(
+                  icon: Icons.local_taxi_outlined,
+                  label: 'Đặt xe nhanh',
+                  onTap: () => homeProvider.selectTab(1),
+                ),
               ),
-              _HeroChip(icon: Icons.chat_bubble_outline_rounded, label: 'Chat'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _HeroChip(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: 'Nạp ví bằng QR',
+                  onTap: _showDepositAmountDialog,
+                ),
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusStrip(HomeProvider homeProvider) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatusTile(
-            icon: Icons.wb_sunny_outlined,
-            title: homeProvider.temperature,
-            subtitle: 'Thời tiết Hà Nội',
-            accent: Theme.of(context).colorScheme.secondary,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatusTile(
-            icon: Icons.route_outlined,
-            title: 'Điểm đón trước',
-            subtitle: 'Lọc tuyến chuẩn hơn',
-            accent: const Color(0xFF2AA876),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatusTile(
-            icon: Icons.flash_on_outlined,
-            title: 'QR nạp ví',
-            subtitle: 'Huỷ trực tiếp',
-            accent: const Color(0xFF56B6FF),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatusTile({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: accent, size: 20),
-          ),
           const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.primaryGreen,
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Colors.black.withValues(alpha: 0.62),
-              height: 1.35,
-              fontSize: 12,
+          SizedBox(
+            width: double.infinity,
+            child: _HeroChip(
+              icon: Icons.chat_bubble_outline_rounded,
+              label: 'Chat hỗ trợ',
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const ChatScreen()),
+                );
+              },
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSectionTitle({
-    required String title,
-    required String subtitle,
-    bool light = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: light ? Colors.white : AppColors.primaryGreen,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: TextStyle(
-            color: light
-                ? Colors.white.withValues(alpha: 0.74)
-                : Colors.black.withValues(alpha: 0.58),
-            height: 1.35,
-          ),
-        ),
-      ],
     );
   }
 
@@ -1041,27 +946,33 @@ class _HomeViewState extends State<HomeView> {
     return Row(
       children: [
         Expanded(
-          child: _buildPrimaryActionCard(
-            title: 'Đặt chuyến',
-            subtitle: 'Tạo đơn mới với flow 3 bước đã được làm gọn.',
-            icon: Icons.directions_car_rounded,
-            accent: Theme.of(context).colorScheme.secondary,
-            backgroundColor: _softTint(
-              Theme.of(context).colorScheme.secondary,
-              0.16,
+          child: SizedBox(
+            height: 172,
+            child: _buildPrimaryActionCard(
+              title: 'Đặt chuyến',
+              subtitle: 'Đặt xe theo nhu cầu',
+              icon: Icons.directions_car_rounded,
+              accent: Theme.of(context).colorScheme.secondary,
+              backgroundColor: _softTint(
+                Theme.of(context).colorScheme.secondary,
+                0.14,
+              ),
+              onTap: () => homeProvider.selectTab(1),
             ),
-            onTap: () => homeProvider.selectTab(1),
           ),
         ),
         const SizedBox(width: 14),
         Expanded(
-          child: _buildPrimaryActionCard(
-            title: 'Nạp tiền',
-            subtitle: 'Tạo QR nạp ví và huỷ giao dịch trực tiếp từ QR.',
-            icon: Icons.account_balance_wallet_rounded,
-            accent: const Color(0xFF2AA876),
-            backgroundColor: _softTint(const Color(0xFF2AA876), 0.14),
-            onTap: _showDepositAmountDialog,
+          child: SizedBox(
+            height: 172,
+            child: _buildPrimaryActionCard(
+              title: 'Nạp tiền',
+              subtitle: 'Nạp tiền vào ví',
+              icon: Icons.account_balance_wallet_rounded,
+              accent: const Color(0xFF2AA876),
+              backgroundColor: _softTint(const Color(0xFF2AA876), 0.12),
+              onTap: _showDepositAmountDialog,
+            ),
           ),
         ),
       ],
@@ -1080,46 +991,71 @@ class _HomeViewState extends State<HomeView> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(26),
       child: Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: backgroundColor,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: accent.withValues(alpha: 0.12)),
           boxShadow: [
             BoxShadow(
-              color: accent.withValues(alpha: 0.10),
-              blurRadius: 12,
-              offset: const Offset(0, 8),
+              color: accent.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: accent),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: accent, size: 22),
+                ),
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.56),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.arrow_outward_rounded,
+                    size: 18,
+                    color: accent,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 18),
             Text(
               title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: AppColors.primaryGreen,
                 fontWeight: FontWeight.w800,
-                fontSize: 17,
+                fontSize: 18,
+                height: 1.1,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Colors.black.withValues(alpha: 0.62),
-                height: 1.45,
+                color: Colors.black.withValues(alpha: 0.58),
+                fontSize: 14,
+                height: 1.35,
               ),
             ),
           ],
@@ -1130,21 +1066,20 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildHomeSectionCard({
     required String title,
-    required String subtitle,
     required IconData icon,
     required Widget child,
   }) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.92),
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
           ),
         ],
       ),
@@ -1153,42 +1088,20 @@ class _HomeViewState extends State<HomeView> {
         children: [
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: AppColors.primaryGreen),
-              ),
-              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.primaryGreen,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.black.withValues(alpha: 0.58),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.primaryGreen,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
                 ),
               ),
+              Icon(icon, color: AppColors.primaryGreen, size: 20),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           child,
         ],
       ),
@@ -1200,22 +1113,24 @@ class _HomeViewState extends State<HomeView> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      mainAxisSpacing: 14,
-      crossAxisSpacing: 14,
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
       childAspectRatio: 0.92,
       children: [
         _buildActionCard(
-          assetPath: 'lib/assets/icons/activity_history.png',
+          icon: Icons.history_rounded,
           label: 'Hoạt động',
-          subtitle: 'Theo dõi các chuyến đang diễn ra',
+          subtitle: 'Xem lịch sử và hoạt động gần đây',
+          accent: AppColors.primaryGreen,
           backgroundColor: _softTint(AppColors.primaryGreen, 0.08),
           iconBackgroundColor: _softTint(AppColors.primaryGreen, 0.10),
           onTap: () => homeProvider.selectTab(2),
         ),
         _buildActionCard(
-          assetPath: 'lib/assets/icons/chat_icon.png',
+          icon: Icons.chat_bubble_outline_rounded,
           label: 'Chat',
-          subtitle: 'Trao đổi trực tiếp',
+          subtitle: 'Nhắn tin với tài xế hoặc hỗ trợ',
+          accent: const Color(0xFF2AA876),
           backgroundColor: _softTint(const Color(0xFF2AA876), 0.12),
           iconBackgroundColor: _softTint(const Color(0xFF2AA876), 0.16),
           onTap: () {
@@ -1229,61 +1144,67 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildActionCard({
-    required String assetPath,
+    required IconData icon,
     required String label,
     required String subtitle,
+    required Color accent,
     required Color backgroundColor,
     required Color iconBackgroundColor,
     required VoidCallback onTap,
   }) {
     return Material(
       color: backgroundColor,
-      borderRadius: BorderRadius.circular(26),
+      borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(22),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: AppColors.primaryGreen.withValues(alpha: 0.08),
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 58,
-                height: 58,
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: iconBackgroundColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Image.asset(assetPath, fit: BoxFit.contain),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: iconBackgroundColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: accent, size: 21),
+                  ),
+                  Icon(Icons.arrow_outward_rounded, size: 18, color: accent),
+                ],
               ),
-              const SizedBox(height: 14),
               Text(
                 label,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.primaryGreen,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
+                  height: 1.15,
                 ),
               ),
-              const SizedBox(height: 4),
-              Expanded(
-                child: Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.58),
-                    height: 1.35,
-                  ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.black.withValues(alpha: 0.58),
+                  fontSize: 13,
+                  height: 1.35,
                 ),
               ),
             ],
@@ -1292,55 +1213,46 @@ class _HomeViewState extends State<HomeView> {
       ),
     );
   }
+}
 
-  Widget _buildInsightCard({
-    required String title,
-    required String body,
-    required IconData icon,
-    required Color accent,
-  }) {
+class _DepositInfoTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color valueColor;
+
+  const _DepositInfoTile({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F8F2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+        color: const Color(0xFFF5F2E8),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(14),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.black.withValues(alpha: 0.58),
+              fontSize: 12,
             ),
-            child: Icon(icon, color: accent),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.primaryGreen,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  body,
-                  style: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.62),
-                    height: 1.45,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              height: 1.35,
             ),
           ),
         ],
@@ -1352,30 +1264,45 @@ class _HomeViewState extends State<HomeView> {
 class _HeroChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
-  const _HeroChip({required this.icon, required this.label});
+  const _HeroChip({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Theme.of(context).colorScheme.secondary),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
+    return Material(
+      color: Colors.white.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context).colorScheme.secondary,
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

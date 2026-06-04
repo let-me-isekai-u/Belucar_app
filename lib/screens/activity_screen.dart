@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'beluca_home_screen.dart';
+import '../app_theme.dart';
 import 'order_detail_screen.dart';
 import '../models/trip_item_model.dart';
+import '../providers/home_provider.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
 
@@ -88,11 +90,8 @@ class ActivityScreenState extends State<ActivityScreen>
     }
   }
 
-  void _goToHome() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-    );
+  void _openBookingTab() {
+    context.read<HomeProvider>().selectTab(1);
   }
 
   Future<String?> _getAccessToken() async {
@@ -283,8 +282,9 @@ class ActivityScreenState extends State<ActivityScreen>
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.7,
                 child: _buildEmptyState(
-                  "Hiện tại bạn không có chuyến xe nào.",
-                  showButton: true,
+                  title: 'Chưa có chuyến',
+                  subtitle: 'Tạo đơn mới để bắt đầu.',
+                  actionLabel: 'Đặt chuyến',
                 ),
               ),
             );
@@ -316,7 +316,10 @@ class ActivityScreenState extends State<ActivityScreen>
               child: SizedBox(
                 height: MediaQuery.of(context).size.height * 0.7,
                 child: _buildEmptyState(
-                  "Hiện tại bạn không có lịch sử chuyến xe nào.",
+                  title: 'Chưa có lịch sử',
+                  subtitle: 'Các chuyến hoàn tất sẽ hiện ở đây.',
+                  actionLabel: 'Đặt chuyến',
+                  isHistory: true,
                 ),
               ),
             );
@@ -591,32 +594,123 @@ class ActivityScreenState extends State<ActivityScreen>
     return Colors.grey.shade700;
   }
 
-  Widget _buildEmptyState(String message, {bool showButton = false}) {
+  Widget _buildEmptyState({
+    required String title,
+    required String subtitle,
+    required String actionLabel,
+    bool isHistory = false,
+  }) {
+    final theme = Theme.of(context);
+    final accent = isHistory
+        ? const Color(0xFF56B6FF)
+        : theme.colorScheme.secondary;
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'lib/assets/icons/ActivityLogo.png',
-              width: 140,
-              height: 140,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF133C30), Color(0xFF1D5A47), Color(0xFFF3F0E7)],
             ),
-            const SizedBox(height: 28),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(
-                  context,
-                ).colorScheme.secondary, // ✅ Màu vàng gold
-                fontWeight: FontWeight.w600, // ✅ Đậm hơn để dễ đọc
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.14),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+            ],
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: -28,
+                right: -10,
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accent.withValues(alpha: 0.18),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: -32,
+                left: -16,
+                child: Container(
+                  width: 92,
+                  height: 92,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.10),
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 78,
+                    height: 78,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.14),
+                      ),
+                    ),
+                    child: Icon(
+                      isHistory
+                          ? Icons.history_toggle_off_rounded
+                          : Icons.local_taxi_outlined,
+                      color: Colors.white,
+                      size: 34,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      height: 1.4,
+                      color: Colors.white.withValues(alpha: 0.76),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _openBookingTab,
+                      icon: const Icon(Icons.add_rounded),
+                      label: Text(actionLabel),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 54),
+                        backgroundColor: accent,
+                        foregroundColor: AppColors.primaryGreen,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

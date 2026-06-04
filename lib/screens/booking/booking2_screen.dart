@@ -1,12 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/booking_model.dart';
-import '../../models/location_models.dart';
 import 'booking3_screen.dart';
-import 'booking_address_map_picker_screen.dart';
 import 'booking_ui.dart';
 
 class Booking2Screen extends StatefulWidget {
@@ -19,268 +18,150 @@ class Booking2Screen extends StatefulWidget {
 }
 
 class _Booking2ScreenState extends State<Booking2Screen> {
+  final _phoneController = TextEditingController();
+  final _noteController = TextEditingController();
+  final _quantityController = TextEditingController(text: '1');
+  bool _didSeedControllers = false;
   bool _isCalculatingPrice = false;
 
-  InputDecoration _addressFieldDecoration(
-    BuildContext context, {
-    required String label,
-    required String hint,
-    required IconData icon,
-    Widget? suffixIcon,
-  }) {
-    final theme = Theme.of(context);
-    return bookingInputDecoration(
-      context,
-      label: label,
-      hint: hint,
-      icon: icon,
-      suffixIcon: suffixIcon,
-    ).copyWith(
-      filled: true,
-      fillColor: Colors.white,
-      labelStyle: const TextStyle(
-        color: Color(0xFF50635D),
-        fontWeight: FontWeight.w600,
-      ),
-      hintStyle: const TextStyle(color: Color(0xFF7D8D88)),
-      prefixIcon: Icon(icon, size: 20, color: const Color(0xFF123C2E)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
-      ),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: theme.colorScheme.secondary, width: 1.6),
-      ),
+  @override
+  void dispose() {
+    _phoneController.dispose();
+    _noteController.dispose();
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  void _seedControllers(BookingModel model) {
+    if (_didSeedControllers) return;
+    _didSeedControllers = true;
+    _phoneController.text = model.customerPhone ?? '';
+    _noteController.text = model.note ?? '';
+    _quantityController.text = model.quantity.toString();
+  }
+
+  int? _parseQuantity() {
+    final raw = _quantityController.text.trim();
+    if (raw.isEmpty) return null;
+    return int.tryParse(raw);
+  }
+
+  void _setQuantity(BookingModel model, int value) {
+    final next = value < 1 ? 1 : value;
+    model.quantity = next;
+    _quantityController.value = TextEditingValue(
+      text: next.toString(),
+      selection: TextSelection.collapsed(offset: next.toString().length),
     );
   }
 
-  Future<void> _pickPointOnMap(
+  Widget _buildRideTypeCard(
     BuildContext context,
-    BookingModel model, {
-    required bool isPickup,
-  }) async {
-    dismissBookingKeyboard();
-    model.closeAutocompleteSuggestions();
-
-    final initialPoint = isPickup
-        ? model.selectedPickupPoint
-        : model.selectedDropPoint;
-
-    final resolved = await Navigator.push<AddressResolvedLocation>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BookingAddressMapPickerScreen(
-          title: isPickup
-              ? 'Chọn điểm đón trên bản đồ'
-              : 'Chọn điểm đến trên bản đồ',
-          initialPoint: initialPoint,
-        ),
-      ),
-    );
-
-    if (resolved == null) return;
-
-    if (isPickup) {
-      model.selectPickupMapLocation(resolved);
-    } else {
-      model.selectDropMapLocation(resolved);
-    }
-  }
-
-  Widget _buildAutocompleteField({
-    required BuildContext context,
-    required BookingModel model,
-    required String label,
-    required String hint,
-    required IconData icon,
-    required bool isPickup,
-    required TextEditingController controller,
-    required bool isLoading,
-    required bool hasSelection,
-    required List<TrackAsiaAutocompleteSuggestion> suggestions,
-    required ValueChanged<TrackAsiaAutocompleteSuggestion> onSelected,
-    required VoidCallback onClearSelection,
-    required VoidCallback onPickOnMap,
-  }) {
+    BookingModel model,
+    BookingRideTypeOption option,
+  ) {
     final theme = Theme.of(context);
-    final showSuggestions = suggestions.isNotEmpty;
+    final isSelected = model.selectedRideType == option.value;
 
-    return TextFieldTapRegion(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: controller,
-            onChanged: (value) =>
-                model.onAddressTextChanged(isPickup: isPickup, query: value),
-            onTapOutside: (_) => model.closeAutocompleteSuggestions(),
-            style: const TextStyle(
-              color: Color(0xFF123C2E),
-              fontWeight: FontWeight.w600,
-            ),
-            cursorColor: theme.colorScheme.secondary,
-            decoration: _addressFieldDecoration(
-              context,
-              label: label,
-              hint: hint,
-              icon: icon,
-              suffixIcon: isLoading
-                  ? const Padding(
-                      padding: EdgeInsets.all(14),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : hasSelection
-                  ? IconButton(
-                      onPressed: onClearSelection,
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: Color(0xFF50635D),
-                      ),
-                    )
-                  : const Icon(Icons.search_rounded, color: Color(0xFF50635D)),
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => model.setSelectedRideType(option.value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            color: isSelected
+                ? theme.colorScheme.secondary.withValues(alpha: 0.14)
+                : Colors.white.withValues(alpha: 0.04),
+            border: Border.all(
+              color: isSelected
+                  ? theme.colorScheme.secondary
+                  : Colors.white.withValues(alpha: 0.10),
+              width: isSelected ? 1.6 : 1,
             ),
           ),
-          if (showSuggestions) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(maxHeight: 320),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: ListView.separated(
-                shrinkWrap: true,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.manual,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                itemCount: suggestions.length,
-                separatorBuilder: (_, _) => Divider(
-                  height: 1,
-                  color: Colors.black.withValues(alpha: 0.06),
-                ),
-                itemBuilder: (context, index) {
-                  final suggestion = suggestions[index];
-                  return ListTile(
-                    dense: true,
-                    onTap: () => onSelected(suggestion),
-                    leading: Icon(
-                      Icons.location_on_rounded,
-                      color: theme.colorScheme.secondary,
-                      size: 20,
-                    ),
-                    title: Text(
-                      suggestion.primaryText,
-                      style: const TextStyle(
-                        color: Color(0xFF123C2E),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    subtitle: suggestion.secondaryText.isEmpty
-                        ? null
-                        : Text(
-                            suggestion.secondaryText,
-                            style: const TextStyle(
-                              color: Color(0xFF50635D),
-                              fontSize: 12.5,
-                            ),
-                          ),
-                  );
-                },
-              ),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onPickOnMap,
-              icon: const Icon(Icons.map_outlined, size: 18),
-              label: const Text('Chọn trên bản đồ'),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.secondary,
-                padding: EdgeInsets.zero,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLocationCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color accentColor,
-    required Widget addressField,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.14),
+                  color: isSelected
+                      ? theme.colorScheme.secondary.withValues(alpha: 0.18)
+                      : Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(icon, color: accentColor),
+                child: Icon(
+                  option.value == BookingRideType.passenger
+                      ? Icons.person_2_outlined
+                      : Icons.airport_shuttle_outlined,
+                  color: isSelected
+                      ? theme.colorScheme.secondary
+                      : Colors.white70,
+                ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 17,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.62),
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 14),
+              Text(
+                option.label,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  fontSize: 16,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          addressField,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuantityInput(BuildContext context, BookingModel model) {
+    return BookingSectionCard(
+      title: 'Số lượng',
+      icon: Icons.groups_2_outlined,
+      accentColor: Colors.lightGreenAccent.shade100,
+      child: Row(
+        children: [
+          _QuantityButton(
+            icon: Icons.remove_rounded,
+            onTap: () => _setQuantity(model, model.quantity - 1),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              controller: _quantityController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+              decoration: bookingInputDecoration(
+                context,
+                label: 'Số người',
+                hint: 'Từ 1 trở lên',
+                icon: Icons.people_alt_outlined,
+              ),
+              onChanged: (value) {
+                final parsed = int.tryParse(value.trim());
+                if (parsed != null) {
+                  model.quantity = parsed;
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 12),
+          _QuantityButton(
+            icon: Icons.add_rounded,
+            onTap: () => _setQuantity(model, model.quantity + 1),
+          ),
         ],
       ),
     );
@@ -516,41 +397,34 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   bool _validate(BookingModel model) {
-    if (!model.hasPickupSelection) {
+    if (_phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng chọn điểm đón bằng gợi ý hoặc trên bản đồ'),
+          content: Text('Vui lòng nhập số điện thoại'),
           backgroundColor: Colors.red,
         ),
       );
       return false;
     }
 
-    if (!model.hasDropSelection) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng chọn điểm đến bằng gợi ý hoặc trên bản đồ'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
-    }
-
-    final routeValidationMessage = model.validateRouteSelection();
-    if (routeValidationMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(routeValidationMessage),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return false;
+    if (model.showQuantityField) {
+      final q = _parseQuantity();
+      if (q == null || q < 1) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Số lượng người phải từ 1 trở lên'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return false;
+      }
+      model.quantity = q;
     }
 
     if (model.goDate == null || model.goTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Vui lòng nhập ngày giờ đón'),
+          content: Text('Vui lòng chọn ngày giờ đón'),
           backgroundColor: Colors.red,
         ),
       );
@@ -564,180 +438,145 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
     final theme = Theme.of(context);
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    _seedControllers(model);
+
+    if (model.showQuantityField &&
+        _quantityController.text != model.quantity.toString()) {
+      _quantityController.value = TextEditingValue(
+        text: model.quantity.toString(),
+        selection: TextSelection.collapsed(
+          offset: model.quantity.toString().length,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Tạo đơn - Bước 2/3',
+          'Thông tin chuyến',
           style: TextStyle(color: theme.colorScheme.secondary),
         ),
         centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.secondary),
       ),
-      body: BookingFlowBackground(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 132 + bottomInset),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              BookingStepHero(
-                step: 2,
-                title: 'Chọn lộ trình và thời gian đón',
-                subtitle:
-                    'Tìm địa chỉ bằng TrackAsia hoặc tự ghim trên bản đồ. Hệ thống sẽ chuẩn hóa địa chỉ và tính giá theo tuyến thực tế.',
-                assetPath: 'lib/assets/icons/dong_duong_logo.png',
-                footer: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    BookingSummaryChip(
-                      icon: Icons.local_taxi_outlined,
-                      label: model.rideTypeLabel,
-                    ),
-                    if ((model.customerPhone ?? '').isNotEmpty)
-                      BookingSummaryChip(
-                        icon: Icons.phone_outlined,
-                        label: model.customerPhone!,
-                      ),
-                  ],
+      body: BookingKeyboardDismissArea(
+        child: BookingFlowBackground(
+          child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 132),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BookingSectionCard(
+                  title: 'Loại chuyến',
+                  icon: Icons.directions_car_filled_outlined,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children:
+                        BookingRideType.options
+                            .map(
+                              (option) =>
+                                  _buildRideTypeCard(context, model, option),
+                            )
+                            .expand(
+                              (widget) => [widget, const SizedBox(width: 12)],
+                            )
+                            .toList()
+                          ..removeLast(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              BookingSectionCard(
-                title: 'Lộ trình chuyến đi',
-                subtitle:
-                    'Có thể kết hợp search và bản đồ cho từng điểm đón, điểm đến.',
-                icon: Icons.route_rounded,
-                child: Column(
-                  children: [
-                    _buildLocationCard(
-                      title: 'Điểm đón',
-                      subtitle:
-                          'Tìm nơi tài xế bắt đầu đón khách hoặc nhận hàng',
-                      icon: Icons.my_location_rounded,
-                      accentColor: Colors.lightGreenAccent.shade100,
-                      addressField: _buildAutocompleteField(
-                        context: context,
-                        model: model,
-                        label: 'Địa chỉ đón',
-                        hint: 'Ví dụ: Nội Bài, Vincom Bà Triệu...',
-                        icon: Icons.location_searching_rounded,
-                        isPickup: true,
-                        controller: model.pickupAddressController,
-                        isLoading: model.loadingPickupSuggestions,
-                        hasSelection: model.hasPickupSelection,
-                        suggestions: model.pickupSuggestions,
-                        onSelected: model.selectPickupSuggestion,
-                        onClearSelection: model.clearPickupSelection,
-                        onPickOnMap: () =>
-                            _pickPointOnMap(context, model, isPickup: true),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.92, end: 1),
-                        duration: const Duration(milliseconds: 1000),
-                        curve: Curves.easeInOut,
-                        builder: (context, value, child) {
-                          return Transform.scale(scale: value, child: child);
-                        },
-                        child: Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.secondary.withValues(
-                              alpha: 0.12,
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.south_rounded,
-                            color: theme.colorScheme.secondary,
-                          ),
+                if (model.showQuantityField) ...[
+                  const SizedBox(height: 18),
+                  _buildQuantityInput(context, model),
+                ],
+                const SizedBox(height: 18),
+                BookingSectionCard(
+                  title: 'Liên hệ',
+                  icon: Icons.support_agent_outlined,
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: _phoneController,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        style: const TextStyle(color: Colors.white),
+                        decoration: bookingInputDecoration(
+                          context,
+                          label: 'Số điện thoại',
+                          hint: '09xxxxxxxx',
+                          icon: Icons.phone_outlined,
                         ),
                       ),
-                    ),
-                    _buildLocationCard(
-                      title: 'Điểm đến',
-                      subtitle: 'Tìm nơi kết thúc chuyến đi hoặc giao hàng',
-                      icon: Icons.location_on_outlined,
-                      accentColor: theme.colorScheme.secondary,
-                      addressField: _buildAutocompleteField(
-                        context: context,
-                        model: model,
-                        label: 'Địa chỉ đến',
-                        hint: 'Ví dụ: Mỹ Đình, Times City...',
-                        icon: Icons.pin_drop_outlined,
-                        isPickup: false,
-                        controller: model.dropAddressController,
-                        isLoading: model.loadingDropSuggestions,
-                        hasSelection: model.hasDropSelection,
-                        suggestions: model.dropSuggestions,
-                        onSelected: model.selectDropSuggestion,
-                        onClearSelection: model.clearDropSelection,
-                        onPickOnMap: () =>
-                            _pickPointOnMap(context, model, isPickup: false),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _noteController,
+                        maxLines: 4,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: bookingInputDecoration(
+                          context,
+                          label: 'Ghi chú',
+                          hint: 'Thêm ghi chú nếu cần',
+                          icon: Icons.edit_note_outlined,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              BookingSectionCard(
-                title: 'Ngày và giờ đón',
-                subtitle:
-                    'Thời gian này sẽ được dùng để resolve tuyến và tính giá.',
-                icon: Icons.schedule_rounded,
-                child: Column(
-                  children: [
-                    _dateField(
-                      context: context,
-                      label: 'Ngày đón',
-                      date: model.goDate,
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 365),
-                          ),
-                          initialDate: model.goDate ?? DateTime.now(),
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: ColorScheme.light(
-                                  primary: theme.colorScheme.secondary,
-                                  onPrimary: Colors.black87,
-                                  onSurface: const Color(0xFF123C2E),
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (picked != null) {
-                          model.setGoDate(picked);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _timeField(model: model),
-                  ],
-                ),
-              ),
-              if (model.priceErrorMessage != null &&
-                  model.priceErrorMessage!.isNotEmpty) ...[
                 const SizedBox(height: 18),
-                BookingInfoBanner(
-                  text: model.priceErrorMessage!,
-                  icon: Icons.warning_amber_rounded,
-                  color: Colors.orangeAccent,
+                BookingSectionCard(
+                  title: 'Ngày giờ đón',
+                  icon: Icons.schedule_rounded,
+                  child: Column(
+                    children: [
+                      _dateField(
+                        context: context,
+                        label: 'Ngày đón',
+                        date: model.goDate,
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                            initialDate: model.goDate ?? DateTime.now(),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: ColorScheme.light(
+                                    primary: theme.colorScheme.secondary,
+                                    onPrimary: Colors.black87,
+                                    onSurface: const Color(0xFF123C2E),
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (picked != null) {
+                            model.setGoDate(picked);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _timeField(model: model),
+                    ],
+                  ),
                 ),
+                if (model.priceErrorMessage != null &&
+                    model.priceErrorMessage!.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  BookingInfoBanner(
+                    text: model.priceErrorMessage!,
+                    icon: Icons.warning_amber_rounded,
+                    color: Colors.orangeAccent,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -768,9 +607,11 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       ? null
                       : () async {
                           dismissBookingKeyboard();
-                          model.closeAutocompleteSuggestions();
 
                           if (!_validate(model)) return;
+
+                          model.customerPhone = _phoneController.text.trim();
+                          model.note = _noteController.text.trim();
 
                           final messenger = ScaffoldMessenger.of(context);
                           final navigator = Navigator.of(context);
@@ -829,6 +670,30 @@ class _Booking2ScreenState extends State<Booking2Screen> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuantityButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _QuantityButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          width: 52,
+          height: 56,
+          child: Icon(icon, color: Theme.of(context).colorScheme.secondary),
         ),
       ),
     );

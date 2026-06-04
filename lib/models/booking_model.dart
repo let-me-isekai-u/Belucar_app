@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/location_models.dart';
 import '../services/api_service.dart';
@@ -46,7 +48,119 @@ class BookingRideType {
   }
 }
 
+class BookingSavedPlace {
+  const BookingSavedPlace({
+    required this.address,
+    required this.point,
+    required this.source,
+  });
+
+  final String address;
+  final RidePointPayload point;
+  final AddressSelectionSource source;
+
+  String get identityKey => point.identityKey;
+
+  String get title {
+    final parts = address
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    return parts.isEmpty ? address.trim() : parts.first;
+  }
+
+  String get subtitle {
+    final parts = address
+        .split(',')
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    if (parts.length <= 1) return '';
+    return parts.sublist(1).join(', ');
+  }
+
+  Map<String, dynamic> toJson() {
+    return {'address': address, 'point': point.toJson(), 'source': source.name};
+  }
+
+  factory BookingSavedPlace.fromJson(Map<String, dynamic> json) {
+    final pointJson = (json['point'] as Map?)?.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+
+    final placeId = pointJson?['placeId']?.toString().trim() ?? '';
+    final lat = pointJson?['lat'];
+    final lng = pointJson?['lng'];
+
+    RidePointPayload? point;
+    if (placeId.isNotEmpty) {
+      point = RidePointPayload.placeId(placeId);
+    } else if (lat is num && lng is num) {
+      point = RidePointPayload.coordinates(
+        lat: lat.toDouble(),
+        lng: lng.toDouble(),
+      );
+    }
+
+    if (point == null || !point.isValid) {
+      throw const FormatException('Invalid saved point');
+    }
+
+    final sourceName = json['source']?.toString();
+    final source =
+        AddressSelectionSource.values
+            .where((item) => item.name == sourceName)
+            .firstOrNull ??
+        AddressSelectionSource.search;
+
+    return BookingSavedPlace(
+      address: json['address']?.toString().trim() ?? '',
+      point: point,
+      source: source,
+    );
+  }
+}
+
+class BookingSavedRoute {
+  const BookingSavedRoute({required this.pickup, required this.drop});
+
+  final BookingSavedPlace pickup;
+  final BookingSavedPlace drop;
+
+  String get identityKey => '${pickup.identityKey}=>${drop.identityKey}';
+
+  Map<String, dynamic> toJson() {
+    return {'pickup': pickup.toJson(), 'drop': drop.toJson()};
+  }
+
+  factory BookingSavedRoute.fromJson(Map<String, dynamic> json) {
+    final pickupJson = (json['pickup'] as Map?)?.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+    final dropJson = (json['drop'] as Map?)?.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+
+    if (pickupJson == null || dropJson == null) {
+      throw const FormatException('Invalid saved route');
+    }
+
+    return BookingSavedRoute(
+      pickup: BookingSavedPlace.fromJson(pickupJson),
+      drop: BookingSavedPlace.fromJson(dropJson),
+    );
+  }
+}
+
 class BookingModel extends ChangeNotifier {
+  static const String _recentPlacesKey = 'booking_recent_places_v1';
+  static const String _favoritePlacesKey = 'booking_favorite_places_v1';
+  static const String _recentRoutesKey = 'booking_recent_routes_v1';
+  static const int _maxRecentPlaces = 6;
+  static const int _maxFavoritePlaces = 6;
+  static const int _maxRecentRoutes = 4;
+
   final pickupAddressController = TextEditingController();
   final dropAddressController = TextEditingController();
 
@@ -54,6 +168,8 @@ class BookingModel extends ChangeNotifier {
   Timer? _dropDebounce;
   String _latestPickupQuery = '';
   String _latestDropQuery = '';
+  Future<void>? _ongoingPriceRequest;
+  bool _pendingPriceRefresh = false;
 
   int _userId = 0;
   int get userId => _userId;
@@ -164,7 +280,13 @@ class BookingModel extends ChangeNotifier {
   String? priceErrorMessage;
   bool isLoadingPrice = false;
 
-  BookingModel();
+  List<BookingSavedPlace> recentPlaces = <BookingSavedPlace>[];
+  List<BookingSavedPlace> favoritePlaces = <BookingSavedPlace>[];
+  List<BookingSavedRoute> recentRoutes = <BookingSavedRoute>[];
+
+  BookingModel() {
+    unawaited(loadSavedPlaces());
+  }
 
   bool get hasPickupSelection => selectedPickupPoint?.isValid == true;
   bool get hasDropSelection => selectedDropPoint?.isValid == true;
@@ -178,6 +300,21 @@ class BookingModel extends ChangeNotifier {
 
   String get dropDisplayAddress {
     return (dropSelectedAddress ?? dropAddressController.text).trim();
+  }
+
+  Future<void> loadSavedPlaces() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      recentPlaces = _decodeSavedPlaces(prefs.getString(_recentPlacesKey));
+      favoritePlaces = _decodeSavedPlaces(prefs.getString(_favoritePlacesKey));
+      recentRoutes = _decodeSavedRoutes(prefs.getString(_recentRoutesKey));
+      notifyListeners();
+    } catch (_) {
+      recentPlaces = <BookingSavedPlace>[];
+      favoritePlaces = <BookingSavedPlace>[];
+      recentRoutes = <BookingSavedRoute>[];
+      notifyListeners();
+    }
   }
 
   void onAddressTextChanged({required bool isPickup, required String query}) {
@@ -305,6 +442,7 @@ class BookingModel extends ChangeNotifier {
     _latestPickupQuery = suggestion.displayText.trim();
     routePreview = null;
     _resetPrice();
+    _rememberCurrentSelections();
     notifyListeners();
   }
 
@@ -323,6 +461,7 @@ class BookingModel extends ChangeNotifier {
     _latestDropQuery = suggestion.displayText.trim();
     routePreview = null;
     _resetPrice();
+    _rememberCurrentSelections();
     notifyListeners();
   }
 
@@ -345,6 +484,7 @@ class BookingModel extends ChangeNotifier {
     _latestPickupQuery = address;
     routePreview = null;
     _resetPrice();
+    _rememberCurrentSelections();
     notifyListeners();
   }
 
@@ -367,6 +507,7 @@ class BookingModel extends ChangeNotifier {
     _latestDropQuery = address;
     routePreview = null;
     _resetPrice();
+    _rememberCurrentSelections();
     notifyListeners();
   }
 
@@ -398,6 +539,116 @@ class BookingModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void swapRoutePoints() {
+    final pickupText = pickupAddressController.text;
+    final dropText = dropAddressController.text;
+    final pickupPoint = selectedPickupPoint;
+    final dropPoint = selectedDropPoint;
+    final pickupSource = pickupSelectionSource;
+    final dropSource = dropSelectionSource;
+    final pickupAddress = pickupSelectedAddress;
+    final dropAddress = dropSelectedAddress;
+    final pickupSuggestion = selectedPickupSuggestion;
+    final dropSuggestion = selectedDropSuggestion;
+
+    pickupAddressController.value = TextEditingValue(
+      text: dropText,
+      selection: TextSelection.collapsed(offset: dropText.length),
+    );
+    dropAddressController.value = TextEditingValue(
+      text: pickupText,
+      selection: TextSelection.collapsed(offset: pickupText.length),
+    );
+
+    selectedPickupPoint = dropPoint;
+    selectedDropPoint = pickupPoint;
+    pickupSelectionSource = dropSource;
+    dropSelectionSource = pickupSource;
+    pickupSelectedAddress = dropAddress;
+    dropSelectedAddress = pickupAddress;
+    selectedPickupSuggestion = dropSuggestion;
+    selectedDropSuggestion = pickupSuggestion;
+    pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingPickupSuggestions = false;
+    loadingDropSuggestions = false;
+    _latestPickupQuery = dropText.trim();
+    _latestDropQuery = pickupText.trim();
+    routePreview = null;
+    _resetPrice();
+    _rememberCurrentSelections();
+    notifyListeners();
+    fetchTripPrice();
+  }
+
+  bool isCurrentSelectionFavorite({required bool isPickup}) {
+    final place = _buildSavedPlaceFromSelection(isPickup: isPickup);
+    if (place == null) return false;
+    return favoritePlaces.any((item) => item.identityKey == place.identityKey);
+  }
+
+  void toggleFavoriteForSelection({required bool isPickup}) {
+    final place = _buildSavedPlaceFromSelection(isPickup: isPickup);
+    if (place == null) return;
+    toggleFavoritePlace(place);
+  }
+
+  void toggleFavoritePlace(BookingSavedPlace place) {
+    final next = List<BookingSavedPlace>.from(favoritePlaces);
+    final index = next.indexWhere(
+      (item) => item.identityKey == place.identityKey,
+    );
+    if (index >= 0) {
+      next.removeAt(index);
+    } else {
+      next.insert(0, place);
+      if (next.length > _maxFavoritePlaces) {
+        next.removeRange(_maxFavoritePlaces, next.length);
+      }
+    }
+    favoritePlaces = next;
+    unawaited(_persistSavedCollections());
+    notifyListeners();
+  }
+
+  void applySavedPlace(BookingSavedPlace place, {required bool isPickup}) {
+    final controller = isPickup
+        ? pickupAddressController
+        : dropAddressController;
+    controller.value = TextEditingValue(
+      text: place.address,
+      selection: TextSelection.collapsed(offset: place.address.length),
+    );
+
+    if (isPickup) {
+      selectedPickupPoint = place.point;
+      pickupSelectionSource = place.source;
+      pickupSelectedAddress = place.address;
+      selectedPickupSuggestion = null;
+      pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+      loadingPickupSuggestions = false;
+      _latestPickupQuery = place.address.trim();
+    } else {
+      selectedDropPoint = place.point;
+      dropSelectionSource = place.source;
+      dropSelectedAddress = place.address;
+      selectedDropSuggestion = null;
+      dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+      loadingDropSuggestions = false;
+      _latestDropQuery = place.address.trim();
+    }
+
+    routePreview = null;
+    _resetPrice();
+    _rememberCurrentSelections();
+    notifyListeners();
+  }
+
+  void applySavedRoute(BookingSavedRoute route) {
+    applySavedPlace(route.pickup, isPickup: true);
+    applySavedPlace(route.drop, isPickup: false);
+  }
+
   String? buildPickupIso() {
     if (goDate == null || goTime == null) return null;
     final dt = DateTime(
@@ -423,67 +674,92 @@ class BookingModel extends ChangeNotifier {
   }
 
   Future<void> fetchTripPrice() async {
-    final pickupIso = buildPickupIso();
-    if (!hasPickupSelection ||
-        !hasDropSelection ||
-        pickupIso == null ||
-        !BookingRideType.isValid(_selectedRideType)) {
-      routePreview = null;
-      _resetPrice();
-      notifyListeners();
-      return;
+    if (_ongoingPriceRequest != null) {
+      _pendingPriceRefresh = true;
+      return _ongoingPriceRequest!;
     }
 
-    final routeValidationMessage = validateRouteSelection();
-    if (routeValidationMessage != null) {
-      routePreview = null;
-      _resetPrice();
-      priceErrorMessage = routeValidationMessage;
-      notifyListeners();
-      return;
-    }
-
-    isLoadingPrice = true;
-    priceErrorMessage = null;
-    notifyListeners();
-
-    try {
-      final response = await ApiService.resolveRoutePreview(
-        from: selectedPickupPoint!,
-        to: selectedDropPoint!,
-        type: _selectedRideType,
-        pickupTime: pickupIso,
-        paymentMethod: _paymentMethod,
-        quantity: normalizedQuantity,
-      );
-
-      final parsed = ResolveRoutePreviewResponse.fromRawJson(response.body);
-      if (response.statusCode >= 200 &&
-          response.statusCode < 300 &&
-          parsed.success &&
-          parsed.data != null) {
-        routePreview = parsed.data;
-        currentTripId = parsed.data!.tripId;
-        basePrice = parsed.data!.basePrice.toDouble();
-        discount = parsed.data!.discount.toDouble();
-        surcharge = parsed.data!.surcharge.toDouble();
-        tripPrice = parsed.data!.finalPrice.toDouble();
-        isHoliday = parsed.data!.isHoliday;
-        priceErrorMessage = null;
-      } else {
+    Future<void> runOnce() async {
+      final pickupIso = buildPickupIso();
+      if (!hasPickupSelection ||
+          !hasDropSelection ||
+          pickupIso == null ||
+          !BookingRideType.isValid(_selectedRideType)) {
         routePreview = null;
         _resetPrice();
-        priceErrorMessage = parsed.message?.trim().isNotEmpty == true
-            ? parsed.message!.trim()
-            : 'Không thể tính giá cho tuyến đường này.';
+        notifyListeners();
+        return;
       }
-    } catch (_) {
-      routePreview = null;
-      _resetPrice();
-      priceErrorMessage = 'Không thể tính giá chuyến đi, vui lòng thử lại sau.';
-    } finally {
-      isLoadingPrice = false;
+
+      final routeValidationMessage = validateRouteSelection();
+      if (routeValidationMessage != null) {
+        routePreview = null;
+        _resetPrice();
+        priceErrorMessage = routeValidationMessage;
+        notifyListeners();
+        return;
+      }
+
+      isLoadingPrice = true;
+      priceErrorMessage = null;
       notifyListeners();
+
+      try {
+        final response = await ApiService.resolveRoutePreview(
+          from: selectedPickupPoint!,
+          to: selectedDropPoint!,
+          type: _selectedRideType,
+          pickupTime: pickupIso,
+          paymentMethod: _paymentMethod,
+          quantity: normalizedQuantity,
+        );
+
+        final parsed = ResolveRoutePreviewResponse.fromRawJson(response.body);
+        if (response.statusCode >= 200 &&
+            response.statusCode < 300 &&
+            parsed.success &&
+            parsed.data != null) {
+          routePreview = parsed.data;
+          currentTripId = parsed.data!.tripId;
+          basePrice = parsed.data!.basePrice.toDouble();
+          discount = parsed.data!.discount.toDouble();
+          surcharge = parsed.data!.surcharge.toDouble();
+          tripPrice = parsed.data!.finalPrice.toDouble();
+          isHoliday = parsed.data!.isHoliday;
+          priceErrorMessage = null;
+        } else {
+          routePreview = null;
+          _resetPrice();
+          priceErrorMessage = parsed.message?.trim().isNotEmpty == true
+              ? parsed.message!.trim()
+              : 'Không thể tính giá cho tuyến đường này.';
+        }
+      } catch (_) {
+        routePreview = null;
+        _resetPrice();
+        priceErrorMessage =
+            'Không thể tính giá chuyến đi, vui lòng thử lại sau.';
+      } finally {
+        isLoadingPrice = false;
+        notifyListeners();
+      }
+    }
+
+    Future<void> runSerially() async {
+      await runOnce();
+      while (_pendingPriceRefresh) {
+        _pendingPriceRefresh = false;
+        await runOnce();
+      }
+    }
+
+    final request = runSerially();
+    _ongoingPriceRequest = request;
+
+    try {
+      await request;
+    } finally {
+      _ongoingPriceRequest = null;
     }
   }
 
@@ -549,6 +825,120 @@ class BookingModel extends ChangeNotifier {
     _resetPrice();
     isLoadingPrice = false;
     notifyListeners();
+  }
+
+  BookingSavedPlace? _buildSavedPlaceFromSelection({required bool isPickup}) {
+    final point = isPickup ? selectedPickupPoint : selectedDropPoint;
+    final address = isPickup ? pickupDisplayAddress : dropDisplayAddress;
+    final source = isPickup ? pickupSelectionSource : dropSelectionSource;
+
+    if (point == null || !point.isValid || address.isEmpty) return null;
+
+    return BookingSavedPlace(
+      address: address,
+      point: point,
+      source: source ?? AddressSelectionSource.search,
+    );
+  }
+
+  void _rememberCurrentSelections() {
+    final pickup = _buildSavedPlaceFromSelection(isPickup: true);
+    final drop = _buildSavedPlaceFromSelection(isPickup: false);
+
+    if (pickup != null) {
+      recentPlaces = _insertRecentPlace(recentPlaces, pickup, _maxRecentPlaces);
+    }
+    if (drop != null) {
+      recentPlaces = _insertRecentPlace(recentPlaces, drop, _maxRecentPlaces);
+    }
+    if (pickup != null && drop != null) {
+      final route = BookingSavedRoute(pickup: pickup, drop: drop);
+      recentRoutes = _insertRecentRoute(recentRoutes, route, _maxRecentRoutes);
+    }
+
+    unawaited(_persistSavedCollections());
+  }
+
+  List<BookingSavedPlace> _insertRecentPlace(
+    List<BookingSavedPlace> source,
+    BookingSavedPlace place,
+    int limit,
+  ) {
+    final next = List<BookingSavedPlace>.from(source)
+      ..removeWhere((item) => item.identityKey == place.identityKey)
+      ..insert(0, place);
+    if (next.length > limit) {
+      next.removeRange(limit, next.length);
+    }
+    return next;
+  }
+
+  List<BookingSavedRoute> _insertRecentRoute(
+    List<BookingSavedRoute> source,
+    BookingSavedRoute route,
+    int limit,
+  ) {
+    final next = List<BookingSavedRoute>.from(source)
+      ..removeWhere((item) => item.identityKey == route.identityKey)
+      ..insert(0, route);
+    if (next.length > limit) {
+      next.removeRange(limit, next.length);
+    }
+    return next;
+  }
+
+  Future<void> _persistSavedCollections() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _recentPlacesKey,
+      jsonEncode(recentPlaces.map((item) => item.toJson()).toList()),
+    );
+    await prefs.setString(
+      _favoritePlacesKey,
+      jsonEncode(favoritePlaces.map((item) => item.toJson()).toList()),
+    );
+    await prefs.setString(
+      _recentRoutesKey,
+      jsonEncode(recentRoutes.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  List<BookingSavedPlace> _decodeSavedPlaces(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return <BookingSavedPlace>[];
+    final data = jsonDecode(raw);
+    if (data is! List) return <BookingSavedPlace>[];
+
+    return data
+        .whereType<Map>()
+        .map(
+          (item) => BookingSavedPlace.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        )
+        .where((item) => item.address.isNotEmpty && item.point.isValid)
+        .toList();
+  }
+
+  List<BookingSavedRoute> _decodeSavedRoutes(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return <BookingSavedRoute>[];
+    final data = jsonDecode(raw);
+    if (data is! List) return <BookingSavedRoute>[];
+
+    return data
+        .whereType<Map>()
+        .map(
+          (item) => BookingSavedRoute.fromJson(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        )
+        .where(
+          (item) =>
+              item.pickup.address.isNotEmpty &&
+              item.drop.address.isNotEmpty &&
+              item.pickup.point.isValid &&
+              item.drop.point.isValid,
+        )
+        .toList();
   }
 
   @override

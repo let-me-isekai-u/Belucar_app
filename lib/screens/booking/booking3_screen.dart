@@ -377,33 +377,6 @@ class _Booking3ScreenState extends State<Booking3Screen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              BookingStepHero(
-                step: 3,
-                title: 'Rà soát trước khi tạo đơn',
-                subtitle:
-                    'Kiểm tra lại địa chỉ đã chuẩn hóa, hình thức thanh toán và giá cuối cùng trước khi gửi đơn.',
-                assetPath: 'lib/assets/icons/booking_car.png',
-                footer: Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    BookingSummaryChip(
-                      icon: Icons.local_taxi_outlined,
-                      label: model.rideTypeLabel,
-                    ),
-                    BookingSummaryChip(
-                      icon: Icons.schedule_outlined,
-                      label: pickupDateTime,
-                    ),
-                    if (model.tripPrice != null)
-                      BookingSummaryChip(
-                        icon: Icons.payments_outlined,
-                        label: formatCurrency(model.tripPrice!),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
               BookingSectionCard(
                 title: 'Thông tin chuyến đi',
                 subtitle: 'Phần này lấy trực tiếp từ các bước trước.',

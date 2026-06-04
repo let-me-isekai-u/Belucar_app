@@ -49,14 +49,22 @@ class BookingFlowBackground extends StatelessWidget {
 
 class BookingKeyboardDismissArea extends StatelessWidget {
   final Widget child;
+  final VoidCallback? onTap;
 
-  const BookingKeyboardDismissArea({super.key, required this.child});
+  const BookingKeyboardDismissArea({
+    super.key,
+    required this.child,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      onTap: () {
+        FocusManager.instance.primaryFocus?.unfocus();
+        onTap?.call();
+      },
       child: child,
     );
   }

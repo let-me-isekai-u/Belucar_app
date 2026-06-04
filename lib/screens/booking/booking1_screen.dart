@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../app_theme.dart';
 import '../../models/booking_model.dart';
+import '../../models/location_models.dart';
 import 'booking2_screen.dart';
+import 'booking_address_map_picker_screen.dart';
 import 'booking_ui.dart';
 
 class Booking1Screen extends StatefulWidget {
@@ -16,111 +18,487 @@ class Booking1Screen extends StatefulWidget {
 }
 
 class _Booking1ScreenState extends State<Booking1Screen> {
-  final _phoneController = TextEditingController();
-  final _noteController = TextEditingController();
-  final _quantityController = TextEditingController(text: '1');
-  bool _didSeedControllers = false;
+  final FocusNode _pickupFocusNode = FocusNode();
+  final FocusNode _dropFocusNode = FocusNode();
+  bool _isPickupActive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _pickupFocusNode.addListener(() {
+      if (_pickupFocusNode.hasFocus && !_isPickupActive) {
+        setState(() => _isPickupActive = true);
+      }
+    });
+    _dropFocusNode.addListener(() {
+      if (_dropFocusNode.hasFocus && _isPickupActive) {
+        setState(() => _isPickupActive = false);
+      }
+    });
+  }
 
   @override
   void dispose() {
-    _phoneController.dispose();
-    _noteController.dispose();
-    _quantityController.dispose();
+    _pickupFocusNode.dispose();
+    _dropFocusNode.dispose();
     super.dispose();
   }
 
-  void _seedControllers(BookingModel model) {
-    if (_didSeedControllers) return;
-    _didSeedControllers = true;
-    _phoneController.text = model.customerPhone ?? '';
-    _noteController.text = model.note ?? '';
-    _quantityController.text = model.quantity.toString();
-  }
-
-  int? _parseQuantity() {
-    final raw = _quantityController.text.trim();
-    if (raw.isEmpty) return null;
-    return int.tryParse(raw);
-  }
-
-  void _setQuantity(BookingModel model, int value) {
-    final next = value < 1 ? 1 : value;
-    model.quantity = next;
-    _quantityController.value = TextEditingValue(
-      text: next.toString(),
-      selection: TextSelection.collapsed(offset: next.toString().length),
+  InputDecoration _addressFieldDecoration({
+    required BuildContext context,
+    required String hint,
+    required IconData icon,
+    required Color iconColor,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.white,
+      hintStyle: const TextStyle(color: Color(0xFF7D8D88)),
+      prefixIcon: Icon(icon, color: iconColor, size: 20),
+      suffixIcon: suffixIcon,
+      isDense: true,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(18),
+        borderSide: BorderSide(
+          color: Theme.of(context).colorScheme.secondary,
+          width: 1.6,
+        ),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     );
   }
 
-  Widget _buildRideTypeCard(
+  Future<void> _pickPointOnMap(
     BuildContext context,
+    BookingModel model, {
+    required bool isPickup,
+  }) async {
+    dismissBookingKeyboard();
+    model.closeAutocompleteSuggestions();
+
+    final initialPoint = isPickup
+        ? model.selectedPickupPoint
+        : model.selectedDropPoint;
+
+    final resolved = await Navigator.push<AddressResolvedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BookingAddressMapPickerScreen(
+          title: isPickup
+              ? 'Chọn điểm đón trên bản đồ'
+              : 'Chọn điểm đến trên bản đồ',
+          initialPoint: initialPoint,
+        ),
+      ),
+    );
+
+    if (resolved == null) return;
+
+    if (isPickup) {
+      model.selectPickupMapLocation(resolved);
+      setState(() => _isPickupActive = true);
+    } else {
+      model.selectDropMapLocation(resolved);
+      setState(() => _isPickupActive = false);
+    }
+  }
+
+  Widget _buildAddressField({
+    required BuildContext context,
+    required BookingModel model,
+    required bool isPickup,
+    required FocusNode focusNode,
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required Color iconColor,
+    required bool isLoading,
+    required VoidCallback onClearSelection,
+  }) {
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      onTap: () => setState(() => _isPickupActive = isPickup),
+      onChanged: (value) {
+        setState(() => _isPickupActive = isPickup);
+        model.onAddressTextChanged(isPickup: isPickup, query: value);
+      },
+      onTapOutside: (_) {
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      style: const TextStyle(
+        color: Color(0xFF123C2E),
+        fontWeight: FontWeight.w600,
+        fontSize: 15.5,
+      ),
+      cursorColor: Theme.of(context).colorScheme.secondary,
+      decoration: _addressFieldDecoration(
+        context: context,
+        hint: hint,
+        icon: icon,
+        iconColor: iconColor,
+        suffixIcon: isLoading
+            ? const Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : controller.text.trim().isNotEmpty
+            ? IconButton(
+                onPressed: onClearSelection,
+                icon: const Icon(Icons.close_rounded, color: Color(0xFF50635D)),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildSuggestionList(BuildContext context, BookingModel model) {
+    final theme = Theme.of(context);
+    final suggestions = _isPickupActive
+        ? model.pickupSuggestions
+        : model.dropSuggestions;
+
+    if (suggestions.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 360),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+      ),
+      child: ListView.separated(
+        physics: const BouncingScrollPhysics(),
+        primary: false,
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: suggestions.length,
+        separatorBuilder: (_, _) =>
+            Divider(height: 1, color: Colors.black.withValues(alpha: 0.06)),
+        itemBuilder: (context, index) {
+          final suggestion = suggestions[index];
+          return ListTile(
+            dense: true,
+            onTap: () {
+              if (_isPickupActive) {
+                model.selectPickupSuggestion(suggestion);
+                _pickupFocusNode.unfocus();
+              } else {
+                model.selectDropSuggestion(suggestion);
+                _dropFocusNode.unfocus();
+              }
+            },
+            leading: Icon(
+              Icons.location_on_outlined,
+              color: theme.colorScheme.secondary,
+            ),
+            title: Text(
+              suggestion.primaryText,
+              style: const TextStyle(
+                color: Color(0xFF123C2E),
+                fontWeight: FontWeight.w700,
+                fontSize: 15.5,
+              ),
+            ),
+            subtitle: suggestion.secondaryText.isEmpty
+                ? null
+                : Text(
+                    suggestion.secondaryText,
+                    style: const TextStyle(
+                      color: Color(0xFF50635D),
+                      fontSize: 12.5,
+                    ),
+                  ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMapShortcut({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 16),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.secondary,
+          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          textStyle: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFieldActions({
+    required BuildContext context,
+    required BookingModel model,
+    required bool isPickup,
+  }) {
+    final hasSelection = isPickup
+        ? model.hasPickupSelection
+        : model.hasDropSelection;
+    final isFavorite = model.isCurrentSelectionFavorite(isPickup: isPickup);
+
+    return Wrap(
+      spacing: 18,
+      runSpacing: 0,
+      children: [
+        _buildMapShortcut(
+          context: context,
+          label: 'Chọn trên bản đồ',
+          icon: Icons.map_outlined,
+          onTap: () => _pickPointOnMap(context, model, isPickup: isPickup),
+        ),
+        if (hasSelection)
+          _buildMapShortcut(
+            context: context,
+            label: isFavorite ? 'Đã lưu' : 'Lưu yêu thích',
+            icon: isFavorite
+                ? Icons.favorite_rounded
+                : Icons.favorite_border_rounded,
+            onTap: () => model.toggleFavoriteForSelection(isPickup: isPickup),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSavedCollectionHeader({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Theme.of(context).colorScheme.secondary),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF123C2E),
+            fontWeight: FontWeight.w800,
+            fontSize: 15,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRouteCard(
+    BuildContext context,
+    BookingSavedRoute route,
     BookingModel model,
-    BookingRideTypeOption option,
   ) {
     final theme = Theme.of(context);
-    final isSelected = model.selectedRideType == option.value;
-    final subtitle = switch (option.value) {
-      BookingRideType.passenger => 'Tối ưu cho chuyến ghép khách',
-      BookingRideType.charter5Seats => 'Riêng tư cho nhóm nhỏ hoặc gia đình',
-      _ => 'Không gian rộng hơn cho nhóm nhiều hành lý',
-    };
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => model.setSelectedRideType(option.value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(16),
+    return Material(
+      color: Colors.white.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: () {
+          dismissBookingKeyboard();
+          model.closeAutocompleteSuggestions();
+          model.applySavedRoute(route);
+          _pickupFocusNode.unfocus();
+          _dropFocusNode.unfocus();
+          setState(() => _isPickupActive = false);
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            color: isSelected
-                ? theme.colorScheme.secondary.withValues(alpha: 0.14)
-                : Colors.white.withValues(alpha: 0.04),
-            border: Border.all(
-              color: isSelected
-                  ? theme.colorScheme.secondary
-                  : Colors.white.withValues(alpha: 0.10),
-              width: isSelected ? 1.6 : 1,
-            ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                width: 44,
-                height: 44,
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withValues(
+                        alpha: 0.14,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.route_rounded,
+                      size: 18,
+                      color: theme.colorScheme.secondary,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_outward_rounded,
+                    size: 18,
+                    color: theme.colorScheme.secondary,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _buildRoutePointLine(
+                icon: Icons.trip_origin_rounded,
+                color: const Color(0xFF3D7DFF),
+                text: route.pickup.title,
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Container(
+                  width: 1.5,
+                  height: 14,
+                  color: Colors.black.withValues(alpha: 0.10),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildRoutePointLine(
+                icon: Icons.location_on_rounded,
+                color: const Color(0xFF16B26A),
+                text: route.drop.title,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoutePointLine({
+    required IconData icon,
+    required Color color,
+    required String text,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF123C2E),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSavedPlaceCard(
+    BuildContext context,
+    BookingSavedPlace place,
+    BookingModel model, {
+    required bool isFavorite,
+  }) {
+    final theme = Theme.of(context);
+    return Material(
+      color: Colors.white.withValues(alpha: 0.92),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: () {
+          dismissBookingKeyboard();
+          model.closeAutocompleteSuggestions();
+          model.applySavedPlace(place, isPickup: _isPickupActive);
+          if (_isPickupActive) {
+            _pickupFocusNode.unfocus();
+          } else {
+            _dropFocusNode.unfocus();
+          }
+        },
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? theme.colorScheme.secondary.withValues(alpha: 0.18)
-                      : Colors.white.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
+                  color: theme.colorScheme.secondary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  option.value == BookingRideType.passenger
-                      ? Icons.person_2_outlined
-                      : Icons.airport_shuttle_outlined,
-                  color: isSelected
-                      ? theme.colorScheme.secondary
-                      : Colors.white70,
+                  isFavorite ? Icons.favorite_rounded : Icons.history_rounded,
+                  color: theme.colorScheme.secondary,
+                  size: 19,
                 ),
               ),
-              const SizedBox(height: 14),
-              Text(
-                option.label,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  fontSize: 16,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      place.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF123C2E),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (place.subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        place.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF6B7B76),
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.68),
-                  height: 1.35,
+              IconButton(
+                onPressed: () => model.toggleFavoritePlace(place),
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  model.favoritePlaces.any(
+                        (item) => item.identityKey == place.identityKey,
+                      )
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: theme.colorScheme.secondary,
+                  size: 20,
                 ),
               ),
             ],
@@ -130,67 +508,148 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     );
   }
 
-  Widget _buildQuantityInput(BuildContext context, BookingModel model) {
-    final theme = Theme.of(context);
+  Widget _buildSavedCollections(BuildContext context, BookingModel model) {
+    final activeText =
+        (_isPickupActive
+                ? model.pickupAddressController.text
+                : model.dropAddressController.text)
+            .trim();
+    final activeSuggestions = _isPickupActive
+        ? model.pickupSuggestions
+        : model.dropSuggestions;
+    final hasActiveSelection = _isPickupActive
+        ? model.hasPickupSelection
+        : model.hasDropSelection;
 
-    return BookingSectionCard(
-      title: 'Số lượng hành khách',
-      subtitle: 'Bước này chỉ áp dụng cho loại chuyến chở người.',
-      icon: Icons.groups_2_outlined,
-      accentColor: Colors.lightGreenAccent.shade100,
-      child: Column(
-        children: [
-          Row(
-            children: [
-              _QuantityButton(
-                icon: Icons.remove_rounded,
-                onTap: () => _setQuantity(model, model.quantity - 1),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _quantityController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  decoration: bookingInputDecoration(
-                    context,
-                    label: 'Số người',
-                    hint: 'Nhập từ 1 trở lên',
-                    icon: Icons.people_alt_outlined,
-                  ),
-                  onChanged: (value) {
-                    final parsed = int.tryParse(value.trim());
-                    if (parsed != null) {
-                      model.quantity = parsed;
-                    }
-                  },
+    if (activeSuggestions.isNotEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    if (activeText.isNotEmpty && !hasActiveSelection) {
+      return const SizedBox.shrink();
+    }
+
+    if (model.recentRoutes.isEmpty &&
+        model.favoritePlaces.isEmpty &&
+        model.recentPlaces.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (model.recentRoutes.isNotEmpty) ...[
+          _buildSavedCollectionHeader(
+            context: context,
+            title: 'Tuyến quen',
+            icon: Icons.route_rounded,
+          ),
+          const SizedBox(height: 10),
+          ...model.recentRoutes
+              .take(3)
+              .map(
+                (route) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildRouteCard(context, route, model),
                 ),
               ),
-              const SizedBox(width: 12),
-              _QuantityButton(
-                icon: Icons.add_rounded,
-                onTap: () => _setQuantity(model, model.quantity + 1),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Số lượng hiện tại sẽ được dùng để tính giá ở bước tiếp theo.',
-              style: TextStyle(
-                color: theme.colorScheme.secondary.withValues(alpha: 0.92),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
         ],
+        if (model.favoritePlaces.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          _buildSavedCollectionHeader(
+            context: context,
+            title: 'Yêu thích',
+            icon: Icons.favorite_rounded,
+          ),
+          const SizedBox(height: 10),
+          ...model.favoritePlaces
+              .take(4)
+              .map(
+                (place) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildSavedPlaceCard(
+                    context,
+                    place,
+                    model,
+                    isFavorite: true,
+                  ),
+                ),
+              ),
+        ],
+        if (model.recentPlaces.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          _buildSavedCollectionHeader(
+            context: context,
+            title: 'Gần đây',
+            icon: Icons.history_rounded,
+          ),
+          const SizedBox(height: 10),
+          ...model.recentPlaces
+              .take(4)
+              .map(
+                (place) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildSavedPlaceCard(
+                    context,
+                    place,
+                    model,
+                    isFavorite: false,
+                  ),
+                ),
+              ),
+        ],
+      ],
+    );
+  }
+
+  bool _validate(BookingModel model) {
+    if (!model.hasPickupSelection) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn điểm đón'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    if (!model.hasDropSelection) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng chọn điểm đến'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    final routeValidationMessage = model.validateRouteSelection();
+    if (routeValidationMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(routeValidationMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  void _goNext(BookingModel model) {
+    dismissBookingKeyboard();
+    model.closeAutocompleteSuggestions();
+
+    if (!_validate(model)) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: model,
+          child: Booking2Screen(onRideBooked: widget.onRideBooked),
+        ),
       ),
     );
   }
@@ -199,261 +658,158 @@ class _Booking1ScreenState extends State<Booking1Screen> {
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
     final theme = Theme.of(context);
-
-    _seedControllers(model);
-
-    if (model.showQuantityField &&
-        _quantityController.text != model.quantity.toString()) {
-      _quantityController.value = TextEditingValue(
-        text: model.quantity.toString(),
-        selection: TextSelection.collapsed(
-          offset: model.quantity.toString().length,
-        ),
-      );
-    }
+    final activeLoading = _isPickupActive
+        ? model.loadingPickupSuggestions
+        : model.loadingDropSuggestions;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Tạo đơn - Bước 1/3',
+          'Chọn địa chỉ',
           style: TextStyle(color: theme.colorScheme.secondary),
         ),
         centerTitle: true,
         iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: () => _goNext(model),
+              child: Text(
+                'Tiếp theo',
+                style: TextStyle(
+                  color: theme.colorScheme.secondary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: BookingKeyboardDismissArea(
-        child: BookingFlowBackground(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                BookingStepHero(
-                  step: 1,
-                  title: 'Thiết lập nhu cầu chuyến đi',
-                  subtitle:
-                      'Chọn loại chuyến phù hợp và để lại thông tin để hệ thống giữ nguyên logic tạo đơn hiện tại nhưng dễ thao tác hơn.',
-                  assetPath: 'lib/assets/icons/booking_car.png',
-                  footer: Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      BookingSummaryChip(
-                        icon: Icons.local_taxi_outlined,
-                        label: model.rideTypeLabel,
-                      ),
-                      BookingSummaryChip(
-                        icon: Icons.payment_outlined,
-                        label: 'Giữ nguyên bước thanh toán cuối',
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                BookingSectionCard(
-                  title: 'Loại chuyến',
-                  subtitle: 'Chạm để chọn nhanh thay vì mở dropdown.',
-                  icon: Icons.directions_car_filled_outlined,
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children:
-                            BookingRideType.options
-                                .map(
-                                  (option) => _buildRideTypeCard(
-                                    context,
-                                    model,
-                                    option,
-                                  ),
-                                )
-                                .expand(
-                                  (widget) => [
-                                    widget,
-                                    const SizedBox(width: 12),
-                                  ],
-                                )
-                                .toList()
-                              ..removeLast(),
-                      ),
-                      if (model.isBaoXe) ...[
-                        const SizedBox(height: 14),
-                        const BookingInfoBanner(
-                          text:
-                              'Các loại bao xe mặc định số lượng là 1, chỉ thay đổi loại xe chứ không thay đổi logic tính giá hiện tại.',
-                          icon: Icons.verified_outlined,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (model.showQuantityField) ...[
-                  const SizedBox(height: 18),
-                  _buildQuantityInput(context, model),
-                ],
-                const SizedBox(height: 18),
-                BookingSectionCard(
-                  title: 'Liên hệ & ghi chú',
-                  subtitle: 'Thông tin này sẽ được mang sang các bước sau.',
-                  icon: Icons.support_agent_outlined,
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.phone,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        style: const TextStyle(color: Colors.white),
-                        decoration: bookingInputDecoration(
-                          context,
-                          label: 'Số điện thoại liên hệ',
-                          hint: 'Ví dụ: 09xxxxxxxx',
-                          icon: Icons.phone_outlined,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: _noteController,
-                        maxLines: 4,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: bookingInputDecoration(
-                          context,
-                          label: 'Ghi chú cho tài xế',
-                          hint:
-                              'Mã bưu kiện, số người, điểm nhận dễ nhận biết...',
-                          icon: Icons.edit_note_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: BookingBottomActionBar(
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.94),
-            border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFF7F6F1), Color(0xFFEAF1ED)],
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Bước tiếp theo: chọn điểm đón, điểm đến và thời gian.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.78),
-                        height: 1.35,
-                      ),
+          child: SafeArea(
+            top: false,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.82),
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(
+                              color: Colors.black.withValues(alpha: 0.05),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.04),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              _buildAddressField(
+                                context: context,
+                                model: model,
+                                isPickup: true,
+                                focusNode: _pickupFocusNode,
+                                controller: model.pickupAddressController,
+                                hint: 'Điểm đón',
+                                icon: Icons.local_taxi_outlined,
+                                iconColor: const Color(0xFF3D7DFF),
+                                isLoading: _isPickupActive && activeLoading,
+                                onClearSelection: model.clearPickupSelection,
+                              ),
+                              _buildFieldActions(
+                                context: context,
+                                model: model,
+                                isPickup: true,
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 0,
+                                ),
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Material(
+                                    color: theme.colorScheme.secondary,
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: InkWell(
+                                      onTap: model.swapRoutePoints,
+                                      borderRadius: BorderRadius.circular(14),
+                                      child: const SizedBox(
+                                        width: 36,
+                                        height: 36,
+                                        child: Icon(
+                                          Icons.swap_vert_rounded,
+                                          color: AppColors.primaryGreen,
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              _buildAddressField(
+                                context: context,
+                                model: model,
+                                isPickup: false,
+                                focusNode: _dropFocusNode,
+                                controller: model.dropAddressController,
+                                hint: 'Điểm đến',
+                                icon: Icons.local_taxi_outlined,
+                                iconColor: const Color(0xFF16B26A),
+                                isLoading: !_isPickupActive && activeLoading,
+                                onClearSelection: model.clearDropSelection,
+                              ),
+                              _buildFieldActions(
+                                context: context,
+                                model: model,
+                                isPickup: false,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _buildSuggestionList(context, model),
+                        if ((_isPickupActive
+                                    ? model.pickupSuggestions
+                                    : model.dropSuggestions)
+                                .isNotEmpty ==
+                            false) ...[
+                          const SizedBox(height: 12),
+                          _buildSavedCollections(context, model),
+                        ],
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '1/3',
-                    style: TextStyle(
-                      color: theme.colorScheme.secondary,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    dismissBookingKeyboard();
-
-                    if (_phoneController.text.trim().isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Vui lòng nhập số điện thoại'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
-
-                    if (model.showQuantityField) {
-                      final q = _parseQuantity();
-                      if (q == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Vui lòng nhập số lượng người'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-                      if (q < 1) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Số lượng người phải >= 1'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                        return;
-                      }
-                      model.quantity = q;
-                    }
-
-                    model.customerPhone = _phoneController.text.trim();
-                    model.note = _noteController.text.trim();
-
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChangeNotifierProvider.value(
-                          value: model,
-                          child: Booking2Screen(
-                            onRideBooked: widget.onRideBooked,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 56),
-                  ),
-                  child: const Text('TIẾP THEO'),
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuantityButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _QuantityButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: SizedBox(
-          width: 52,
-          height: 56,
-          child: Icon(icon, color: Theme.of(context).colorScheme.secondary),
         ),
       ),
     );
