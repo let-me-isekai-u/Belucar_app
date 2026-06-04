@@ -19,7 +19,6 @@ void main() async {
     FirebaseNotificationService.firebaseMessagingBackgroundHandler,
   );
 
-  await FirebaseNotificationService.init();
   await SharedPreferences.getInstance();
 
   runApp(const BelucarApp());

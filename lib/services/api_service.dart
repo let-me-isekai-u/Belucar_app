@@ -1,9 +1,25 @@
 ///Tài liệu cho file api này:
 ///https://docs.google.com/document/d/1MD5Tx42I-CpFgTNwrrwUhB8FsdQFhiiqAN_Xy0kUfAc/edit?tab=t.d9q2g56xpd8j
+///API 21, 22 TẠM chưa dùng tới
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+import '../models/deposit_model.dart';
+import '../models/location_models.dart';
+
 class ApiService {
+  static http.Response _jsonResponse(
+    Map<String, dynamic> payload,
+    int statusCode,
+  ) {
+    final body = jsonEncode(payload);
+    return http.Response.bytes(
+      utf8.encode(body),
+      statusCode,
+      headers: {"Content-Type": "application/json; charset=utf-8"},
+    );
+  }
+
   static dynamic safeDecode(String? body) {
     if (body == null || body.isEmpty) return {};
 
@@ -20,7 +36,7 @@ class ApiService {
   // BASE URL CHUẨN
   // -----------------------------------------------------------
   static const String _baseUrl =
-      "https://belucar.com/api/accountcustomerapi";
+      "https://xeghepdongduong.com/api/accountcustomerapi";
 
   // Default headers
   static Map<String, String> _defaultHeaders() => {
@@ -36,12 +52,10 @@ class ApiService {
 
   // Lỗi fallback
   static http.Response _errorResponse(Object e) {
-    final body = jsonEncode({
+    return _jsonResponse({
       "success": false,
       "message": "Lỗi kết nối tới server: $e",
-    });
-    return http.Response(body, 500,
-        headers: {"Content-Type": "application/json"});
+    }, 500);
   }
 
   // -----------------------------------------------------------
@@ -68,10 +82,9 @@ class ApiService {
           .timeout(const Duration(seconds: 20));
     } catch (e) {
       // Trả về một Response lỗi giả lập nếu có sự cố kết nối để tránh Crash App
-      return http.Response(jsonEncode({"message": "Lỗi kết nối mạng: $e"}), 500);
+      return _jsonResponse({"message": "Lỗi kết nối mạng: $e"}, 500);
     }
   }
-
 
   // -----------------------------------------------------------
   // 2️⃣ LOGOUT
@@ -109,7 +122,6 @@ class ApiService {
       request.fields["email"] = email;
       request.fields["password"] = password;
 
-
       if (referredByCode != null && referredByCode.isNotEmpty) {
         request.fields["referredByCode"] = referredByCode;
       }
@@ -127,7 +139,6 @@ class ApiService {
       return _errorResponse(e);
     }
   }
-
 
   // -----------------------------------------------------------
   // 4️⃣ REFRESH TOKEN
@@ -211,8 +222,11 @@ class ApiService {
     final url = Uri.parse("$_baseUrl/reset-password");
 
     try {
-      final body =
-      jsonEncode({"email": email, "otp": otp, "newPassword": newPassword});
+      final body = jsonEncode({
+        "email": email,
+        "otp": otp,
+        "newPassword": newPassword,
+      });
 
       return await http
           .post(url, headers: _defaultHeaders(), body: body)
@@ -239,9 +253,6 @@ class ApiService {
     }
   }
 
-
-
-
   // (10) Xoá tài khoản
   static Future<http.Response> deleteAccount({
     required String accessToken,
@@ -251,13 +262,15 @@ class ApiService {
     print("🔵 [API] CALL DELETE ACCOUNT → $url");
 
     try {
-      final res = await http.post(
-        url,
-        headers: {
-          "Authorization": "Bearer $accessToken",
-          "Accept": "application/json",
-        },
-      ).timeout(const Duration(seconds: 30));
+      final res = await http
+          .post(
+            url,
+            headers: {
+              "Authorization": "Bearer $accessToken",
+              "Accept": "application/json",
+            },
+          )
+          .timeout(const Duration(seconds: 30));
 
       print("📥 [API] Status: ${res.statusCode}");
       print("📥 [API] Body: ${res.body}");
@@ -269,14 +282,15 @@ class ApiService {
     }
   }
 
-
   //(11) Đổi mật khẩu
   static Future<http.Response> changePassword({
     required String accessToken,
     required String oldPassword,
     required String newPassword,
   }) async {
-    final url = Uri.parse("https://belucar.com/api/accountcustomerapi/change-password");
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/accountcustomerapi/change-password",
+    );
 
     print("🔵 [API] CALL CHANGE PASSWORD → $url");
     print("📌 oldPassword: $oldPassword");
@@ -288,15 +302,17 @@ class ApiService {
         "newPassword": newPassword,
       });
 
-      final res = await http.post(
-        url,
-        headers: {
-          "Authorization": "Bearer $accessToken",
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: body,
-      ).timeout(const Duration(seconds: 20));
+      final res = await http
+          .post(
+            url,
+            headers: {
+              "Authorization": "Bearer $accessToken",
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+            body: body,
+          )
+          .timeout(const Duration(seconds: 20));
 
       print("📥 [API] Status: ${res.statusCode}");
       print("📥 [API] Body: ${res.body}");
@@ -308,14 +324,11 @@ class ApiService {
     }
   }
 
-
   // =============================
-// Lấy danh sách Tỉnh
-// =============================
+  // Lấy danh sách Tỉnh
+  // =============================
   static Future<List<dynamic>> getProvinces() async {
-    final url = Uri.parse(
-      "https://belucar.com/api/provinceapi/active",
-    );
+    final url = Uri.parse("https://xeghepdongduong.com/api/provinceapi/active");
 
     try {
       final response = await http.get(url).timeout(const Duration(seconds: 15));
@@ -336,19 +349,17 @@ class ApiService {
   }
 
   //Lấy huyện theo tỉnh
-  static Future<List<dynamic>> getDistricts({
-    required int  provinceId,
-  })
-  async{
-    final url = Uri.parse("https://belucar.com/api/provinceapi/district/$provinceId",
+  static Future<List<dynamic>> getDistricts({required int provinceId}) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/provinceapi/district/$provinceId",
     );
 
-    try{
+    try {
       final response = await http.get(url).timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200){
+      if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data is List){
+        if (data is List) {
           return data;
         }
       }
@@ -361,6 +372,95 @@ class ApiService {
     }
   }
 
+  static Future<http.Response> autocompleteTrackAsia({
+    required String input,
+    String? location,
+    int size = 10,
+  }) async {
+    final url =
+        Uri.parse(
+          "https://xeghepdongduong.com/api/track-asia/autocomplete",
+        ).replace(
+          queryParameters: {
+            "input": input,
+            "size": size.toString(),
+            if (location != null && location.trim().isNotEmpty)
+              "location": location.trim(),
+          },
+        );
+
+    try {
+      return await http
+          .get(url, headers: {"Accept": "application/json"})
+          .timeout(const Duration(seconds: 20));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
+
+  static Future<http.Response> getTrackAsiaPlaceDetail({
+    required String placeId,
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/track-asia/place-detail",
+    ).replace(queryParameters: {"placeId": placeId});
+
+    try {
+      return await http
+          .get(url, headers: {"Accept": "application/json"})
+          .timeout(const Duration(seconds: 20));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
+
+  static Future<http.Response> resolveAddressPoint({
+    required double lat,
+    required double lng,
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/v2/address/resolve-point",
+    );
+
+    try {
+      final body = jsonEncode({"lat": lat, "lng": lng});
+      return await http
+          .post(url, headers: _defaultHeaders(), body: body)
+          .timeout(const Duration(seconds: 30));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
+
+  static Future<http.Response> resolveRoutePreview({
+    required RidePointPayload from,
+    required RidePointPayload to,
+    required int type,
+    required String pickupTime,
+    required int paymentMethod,
+    required int quantity,
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/v2/address/resolve-route",
+    );
+
+    try {
+      final body = jsonEncode({
+        "from": from.toJson(),
+        "to": to.toJson(),
+        "type": type,
+        "pickupTime": pickupTime,
+        "paymentMethod": paymentMethod,
+        "quantity": quantity,
+      });
+
+      return await http
+          .post(url, headers: _defaultHeaders(), body: body)
+          .timeout(const Duration(seconds: 30));
+    } catch (e) {
+      return _errorResponse(e);
+    }
+  }
 
   //Lấy giá (12)
   static Future<http.Response> getTripPrice({
@@ -371,16 +471,17 @@ class ApiService {
     required String pickupTime,
     required int quantity,
   }) async {
-    final url = Uri.parse(
-      "https://belucar.com/api/tripapi/getprice",
-    ).replace(queryParameters: <String, String>{
-      "fromDistrictId": fromDistrictId.toString(),
-      "toDistrictId": toDistrictId.toString(),
-      "type": type.toString(),
-      "paymentMethod": paymentMethod.toString(),
-      "pickupTime": pickupTime,
-      "quantity": quantity.toString(),
-    });
+    final url = Uri.parse("https://xeghepdongduong.com/api/tripapi/getprice")
+        .replace(
+          queryParameters: <String, String>{
+            "fromDistrictId": fromDistrictId.toString(),
+            "toDistrictId": toDistrictId.toString(),
+            "type": type.toString(),
+            "paymentMethod": paymentMethod.toString(),
+            "pickupTime": pickupTime,
+            "quantity": quantity.toString(),
+          },
+        );
 
     print("🔵 [PRICE] GET $url");
 
@@ -395,83 +496,82 @@ class ApiService {
     }
   }
 
-
-// 13. API TẠO CHUYẾN ĐI
+  // 13. API TẠO CHUYẾN ĐI
   static Future<http.Response> createRide({
     required String accessToken,
-    required int tripId,
-    required String fromAddress,
-    required String toAddress,
+    required RidePointPayload from,
+    required RidePointPayload to,
+    required int type,
     required String customerPhone,
     required String pickupTime,
     required int paymentMethod,
     required int quantity,
     String note = "",
-    String content = "", // Để mặc định là rỗng nếu không truyền
+    String? content,
   }) async {
-    final url = Uri.parse(
-      "https://belucar.com/api/rideapi/create",
-    );
+    final url = Uri.parse("https://xeghepdongduong.com/api/v2/ride/create");
 
     final body = jsonEncode({
-      "tripId": tripId,
-      "fromAddress": fromAddress,
-      "toAddress": toAddress,
+      "from": from.toJson(),
+      "to": to.toJson(),
+      "type": type,
       "customerPhone": customerPhone,
       "pickupTime": pickupTime,
       "note": note,
       "paymentMethod": paymentMethod,
       "content": content,
+      "voucherCode": null,
       "quantity": quantity,
     });
 
     try {
       final response = await http
           .post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $accessToken",
-        },
-        body: body,
-      )
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer $accessToken",
+            },
+            body: body,
+          )
           .timeout(const Duration(seconds: 15));
 
       return response;
     } catch (e) {
       print("🔥 ERROR createRide(): $e");
-      return http.Response(
-        jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
-        500,
-      );
+      return _jsonResponse({
+        "success": false,
+        "message": "Lỗi kết nối hệ thống: $e",
+      }, 500);
     }
   }
 
-
   //Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 14)
-  static Future<http.Response>
-  getTripCurrent({required String accessToken})
-  async {
+  static Future<http.Response> getTripCurrent({
+    required String accessToken,
+  }) async {
     final headers = {
       "Content-Type": "application/json",
       "Authorization": "Bearer $accessToken",
     };
     return await http.get(
-        Uri.parse("https://belucar.com/api/rideapi/current"),
-        headers: headers);
+      Uri.parse("https://xeghepdongduong.com/api/rideapi/current"),
+      headers: headers,
+    );
   }
 
-//Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 15)
-  static Future<http.Response>
-  getTripHistory({required String accessToken})
-  async {
+  //Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 15)
+  static Future<http.Response> getTripHistory({
+    required String accessToken,
+  }) async {
     final headers = {
       "Content-Type": "application/json",
       "Authorization": "Bearer $accessToken",
     };
     return await http.get(
-        Uri.parse("https://belucar.com/api/rideapi/history"),
-        headers: headers);
+      Uri.parse("https://xeghepdongduong.com/api/rideapi/history"),
+      headers: headers,
+    );
   }
 
   // API 16: Lấy chi tiết chuyến đi
@@ -480,7 +580,7 @@ class ApiService {
     required int rideId,
   }) async {
     final uri = Uri.parse(
-      'https://belucar.com/api/rideapi/ride-detail/$rideId',
+      'https://xeghepdongduong.com/api/rideapi/ride-detail/$rideId',
     );
 
     try {
@@ -516,15 +616,17 @@ class ApiService {
   static Future<void> cancelTrip({
     required String accessToken,
     required int rideId,
-}) async {
-    final url = Uri.parse("https://belucar.com/api/rideapi/cancel/$rideId",);
-    final headers = {
-      "Authorization": "Bearer $accessToken",
-    };
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/rideapi/cancel/$rideId",
+    );
+    final headers = {"Authorization": "Bearer $accessToken"};
     final response = await http.put(url, headers: headers);
 
-    if(response.statusCode != 200){
-      throw Exception("Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh");
+    if (response.statusCode != 200) {
+      throw Exception(
+        "Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh",
+      );
     }
   }
 
@@ -532,14 +634,16 @@ class ApiService {
     required String accessToken,
     required int rideId,
   }) async {
-    final url = Uri.parse("https://belucar.com/api/rideapi/cancel-confirmed/$rideId",);
-    final headers = {
-      "Authorization": "Bearer $accessToken",
-    };
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/rideapi/cancel-confirmed/$rideId",
+    );
+    final headers = {"Authorization": "Bearer $accessToken"};
     final response = await http.put(url, headers: headers);
 
-    if(response.statusCode != 200){
-      throw Exception("Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh");
+    if (response.statusCode != 200) {
+      throw Exception(
+        "Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh",
+      );
     }
   }
 
@@ -550,22 +654,21 @@ class ApiService {
     required String content,
   }) async {
     final url = Uri.parse(
-      "https://belucar.com/api/paymentapi/deposite",
+      "https://xeghepdongduong.com/api/paymentapi/deposite",
     );
 
     try {
-      final res = await http.post(
-        url,
-        headers: {
-          "Authorization": "Bearer $accessToken",
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "amount": amount,
-          "content": content,
-        }),
-      ).timeout(const Duration(seconds: 20));
+      final res = await http
+          .post(
+            url,
+            headers: {
+              "Authorization": "Bearer $accessToken",
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+            },
+            body: jsonEncode({"amount": amount, "content": content}),
+          )
+          .timeout(const Duration(seconds: 20));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -584,20 +687,20 @@ class ApiService {
   static Future<http.Response> getWalletHistory({
     required String accessToken,
   }) async {
-    final url = Uri.parse(
-      "https://belucar.com/api/paymentapi/history",
-    );
+    final url = Uri.parse("https://xeghepdongduong.com/api/paymentapi/history");
 
     print("🔵 [API] WALLET HISTORY → $url");
 
     try {
-      final res = await http.get(
-        url,
-        headers: {
-          "Authorization": "Bearer $accessToken",
-          "Accept": "application/json",
-        },
-      ).timeout(const Duration(seconds: 20));
+      final res = await http
+          .get(
+            url,
+            headers: {
+              "Authorization": "Bearer $accessToken",
+              "Accept": "application/json",
+            },
+          )
+          .timeout(const Duration(seconds: 20));
 
       print("📥 [API] STATUS: ${res.statusCode}");
       print("📥 [API] BODY: ${res.body}");
@@ -609,9 +712,8 @@ class ApiService {
     }
   }
 
-
   //====TẾT=========//
-//LẤY GIÁ SỰ KIỆN TÊT
+  //LẤY GIÁ SỰ KIỆN TÊT
   static Future<http.Response> getTripPriceTET({
     required int fromDistrictId,
     required int toDistrictId,
@@ -619,18 +721,19 @@ class ApiService {
     required int paymentMethod,
     required String pickupTime,
   }) async {
-    final url = Uri.parse("https://belucar.com/api/tetapi/getprice").replace(queryParameters: {
-      "fromDistrictId": fromDistrictId.toString(),
-      "toDistrictId": toDistrictId.toString(),
-      "type": type.toString(),
-      "paymentMethod": paymentMethod.toString(),
-      "pickupTime": pickupTime,
-    });
+    final url = Uri.parse("https://xeghepdongduong.com/api/tetapi/getprice")
+        .replace(
+          queryParameters: {
+            "fromDistrictId": fromDistrictId.toString(),
+            "toDistrictId": toDistrictId.toString(),
+            "type": type.toString(),
+            "paymentMethod": paymentMethod.toString(),
+            "pickupTime": pickupTime,
+          },
+        );
 
     try {
-      final res = await http.get(url).timeout(
-        const Duration(seconds: 15),
-      );
+      final res = await http.get(url).timeout(const Duration(seconds: 15));
       return res;
     } catch (e) {
       return http.Response('{"error":"$e"}', 500);
@@ -647,10 +750,11 @@ class ApiService {
     required String pickupTime,
     required int paymentMethod,
     String note = "",
-    String content = "", // truyền "" nếu thanh toán sau, truyền mã cố định nếu chuyển khoản
+    String content =
+        "", // truyền "" nếu thanh toán sau, truyền mã cố định nếu chuyển khoản
     String voucherCode = "", // voucherCode nên có parameter riêng
   }) async {
-    final url = Uri.parse("https://belucar.com/api/tetapi/create");
+    final url = Uri.parse("https://xeghepdongduong.com/api/tetapi/create");
 
     final body = jsonEncode({
       "tripId": tripId,
@@ -665,20 +769,22 @@ class ApiService {
     });
 
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $accessToken",
-        },
-        body: body,
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(
+            url,
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer $accessToken",
+            },
+            body: body,
+          )
+          .timeout(const Duration(seconds: 15));
       return response;
     } catch (e) {
-      return http.Response(
-        jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
-        500,
-      );
+      return _jsonResponse({
+        "success": false,
+        "message": "Lỗi kết nối hệ thống: $e",
+      }, 500);
     }
   }
 
@@ -689,7 +795,9 @@ class ApiService {
     required String pickupTime,
     required String voucherCode,
   }) async {
-    final url = Uri.parse("https://belucar.com/api/tetapi/apply-voucher");
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/tetapi/apply-voucher",
+    );
 
     try {
       final response = await http.post(
@@ -713,7 +821,6 @@ class ApiService {
         "data": json["data"],
         "message": json["message"] ?? json["error"] ?? null,
       };
-
     } catch (e) {
       return {
         "success": false,
@@ -723,4 +830,89 @@ class ApiService {
     }
   }
 
+  // 21. Tạo content trả về khi nạp tiền (POST)
+  static Future<DepositContentResponse> createDepositContent({
+    required String accessToken,
+    required double amount,
+  }) async {
+    final url = Uri.parse("https://xeghepdongduong.com/api/depositapi/create");
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {
+              "Authorization": "Bearer $accessToken",
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+            },
+            body: jsonEncode({"amount": amount}),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final data = safeDecode(response.body);
+      if (data is Map<String, dynamic>) {
+        return DepositContentResponse.fromJson(data);
+      }
+
+      if (data is Map) {
+        return DepositContentResponse.fromJson(Map<String, dynamic>.from(data));
+      }
+
+      return DepositContentResponse(
+        success: false,
+        message: 'Dữ liệu phản hồi không hợp lệ.',
+      );
+    } catch (e) {
+      return DepositContentResponse(
+        success: false,
+        message: "Không thể tạo nạp tiền, lỗi: $e",
+      );
+    }
+  }
+
+  // 22. Hủy nạp tiền sau khi hiện QR (PUT)
+  static Future<CancelDepositResponse> cancelDeposit({
+    required String accessToken,
+    required int depositId,
+  }) async {
+    final url = Uri.parse(
+      "https://xeghepdongduong.com/api/depositapi/cancel/$depositId",
+    );
+    try {
+      final response = await http
+          .put(
+            url,
+            headers: {
+              "Authorization": "Bearer $accessToken",
+              "Accept": "application/json",
+            },
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.body.isEmpty) {
+        return CancelDepositResponse(success: response.statusCode == 200);
+      }
+
+      final data = safeDecode(response.body);
+      if (data is Map<String, dynamic>) {
+        return CancelDepositResponse.fromJson(data);
+      }
+
+      if (data is Map) {
+        return CancelDepositResponse.fromJson(Map<String, dynamic>.from(data));
+      }
+
+      return CancelDepositResponse(
+        success: response.statusCode == 200,
+        message: response.statusCode == 200
+            ? null
+            : 'Không thể huỷ yêu cầu nạp tiền.',
+      );
+    } catch (e) {
+      return CancelDepositResponse(
+        success: false,
+        message: 'Không thể huỷ yêu cầu nạp tiền, lỗi: $e',
+      );
+    }
+  }
 }

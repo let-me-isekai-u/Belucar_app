@@ -1,13 +1,60 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../models/location_models.dart';
 import '../services/api_service.dart';
 
-/// ================== ENUM DÙNG CHO RADIO ==================
-enum TripCategory {
-  choNguoi,
-  choHang,
+class BookingRideTypeOption {
+  final int value;
+  final String label;
+
+  const BookingRideTypeOption({required this.value, required this.label});
+}
+
+class BookingRideType {
+  static const int passenger = 1;
+  static const int charter5Seats = 2;
+  static const int charter7Seats = 3;
+
+  static const List<BookingRideTypeOption> options = [
+    BookingRideTypeOption(value: passenger, label: 'Chở người'),
+    BookingRideTypeOption(value: charter5Seats, label: 'Bao xe 5 chỗ'),
+    BookingRideTypeOption(value: charter7Seats, label: 'Bao xe 7 chỗ'),
+  ];
+
+  static bool isValid(int type) {
+    return type == passenger || type == charter5Seats || type == charter7Seats;
+  }
+
+  static bool requiresPassengerQuantity(int type) => type == passenger;
+
+  static bool isCharter(int type) =>
+      type == charter5Seats || type == charter7Seats;
+
+  static int normalizeQuantity({required int type, required int quantity}) {
+    if (isCharter(type)) return 1;
+    return quantity < 1 ? 1 : quantity;
+  }
+
+  static String labelOf(int type) {
+    for (final option in options) {
+      if (option.value == type) return option.label;
+    }
+    return 'Không xác định';
+  }
 }
 
 class BookingModel extends ChangeNotifier {
+  final pickupAddressController = TextEditingController();
+  final dropAddressController = TextEditingController();
+
+  Timer? _pickupDebounce;
+  Timer? _dropDebounce;
+  String _latestPickupQuery = '';
+  String _latestDropQuery = '';
+
   int _userId = 0;
   int get userId => _userId;
 
@@ -16,284 +63,430 @@ class BookingModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ================== LOẠI CHUYẾN ==================
-  bool isChoNguoi = true; // true = chở người, false = chở hàng
-  bool isBaoXe = false; // chỉ dùng khi chở người
-  bool isHoaToc = false; // chỉ dùng khi chở hàng
+  int _selectedRideType = BookingRideType.passenger;
+  int get selectedRideType => _selectedRideType;
+
+  bool get showQuantityField =>
+      BookingRideType.requiresPassengerQuantity(_selectedRideType);
+
+  int get normalizedQuantity => BookingRideType.normalizeQuantity(
+    type: _selectedRideType,
+    quantity: _quantity,
+  );
+
+  String get rideTypeLabel => BookingRideType.labelOf(_selectedRideType);
+
+  void setSelectedRideType(int value) {
+    if (!BookingRideType.isValid(value) || _selectedRideType == value) return;
+    _selectedRideType = value;
+    notifyListeners();
+    fetchTripPrice();
+  }
+
+  bool get isChoNguoi => _selectedRideType == BookingRideType.passenger;
+  bool get isBaoXe => BookingRideType.isCharter(_selectedRideType);
+  bool get isHoaToc => false;
 
   void setIsBaoXe(bool value) {
-    if (isBaoXe != value) {
-      isBaoXe = value;
+    final nextType = value
+        ? BookingRideType.charter5Seats
+        : BookingRideType.passenger;
+    if (_selectedRideType != nextType) {
+      _selectedRideType = nextType;
       notifyListeners();
       fetchTripPrice();
     }
   }
 
-  void setIsHoaToc(bool value) {
-    if (isHoaToc != value) {
-      isHoaToc = value;
-      notifyListeners();
-      fetchTripPrice();
-    }
-  }
-
-  // ================== PHƯƠNG THỨC THANH TOÁN ==================
-  // 1: Chuyển khoản | 2: Thanh toán bằng ví | 3: Tiền mặt (Thanh toán sau)
   int _paymentMethod = 2;
   int get paymentMethod => _paymentMethod;
 
   set paymentMethod(int value) {
-    if (_paymentMethod != value) {
-      _paymentMethod = value;
-      notifyListeners();
-      fetchTripPrice();
-    }
+    if (_paymentMethod == value) return;
+    _paymentMethod = value;
+    notifyListeners();
+    fetchTripPrice();
   }
 
-  // ================== RADIO STATE ==================
-  TripCategory tripCategory = TripCategory.choNguoi;
-
-  // ================== NGÀY GIỜ ==================
   DateTime? goDate;
   TimeOfDay? goTime;
 
-  // ================== SỐ LƯỢNG (NEW) ==================
+  void setGoDate(DateTime? value) {
+    goDate = value;
+    notifyListeners();
+    fetchTripPrice();
+  }
+
+  void setGoTime(TimeOfDay? value) {
+    goTime = value;
+    notifyListeners();
+    fetchTripPrice();
+  }
+
   int _quantity = 1;
   int get quantity => _quantity;
 
   set quantity(int value) {
-    final v = value < 1 ? 1 : value;
-    if (_quantity != v) {
-      _quantity = v;
-      notifyListeners();
-      fetchTripPrice();
-    }
+    final next = value < 1 ? 1 : value;
+    if (_quantity == next) return;
+    _quantity = next;
+    notifyListeners();
+    fetchTripPrice();
   }
 
-  // ================== DANH SÁCH ==================
-  List<dynamic> provinces = [];
+  RidePointPayload? selectedPickupPoint;
+  RidePointPayload? selectedDropPoint;
+  AddressSelectionSource? pickupSelectionSource;
+  AddressSelectionSource? dropSelectionSource;
+  String? pickupSelectedAddress;
+  String? dropSelectedAddress;
+  TrackAsiaAutocompleteSuggestion? selectedPickupSuggestion;
+  TrackAsiaAutocompleteSuggestion? selectedDropSuggestion;
 
-  List<dynamic> pickupDistricts = [];
-  List<dynamic> dropDistricts = [];
+  bool loadingPickupSuggestions = false;
+  bool loadingDropSuggestions = false;
 
-  // ================== ĐIỂM ĐÓN ==================
-  // lưu id thay vì string để dễ dùng với API
-  int? _selectedProvincePickup;
-  int? get selectedProvincePickup => _selectedProvincePickup;
+  List<TrackAsiaAutocompleteSuggestion> pickupSuggestions =
+      <TrackAsiaAutocompleteSuggestion>[];
+  List<TrackAsiaAutocompleteSuggestion> dropSuggestions =
+      <TrackAsiaAutocompleteSuggestion>[];
 
-  int? _selectedDistrictPickup;
-  int? get selectedDistrictPickup => _selectedDistrictPickup;
-
-  String? addressPickup;
-
-  // ================== ĐIỂM ĐẾN ==================
-  int? _selectedProvinceDrop;
-  int? get selectedProvinceDrop => _selectedProvinceDrop;
-
-  int? _selectedDistrictDrop;
-  int? get selectedDistrictDrop => _selectedDistrictDrop;
-
-  String? addressDrop;
-
-  // ================== THÔNG TIN KHÁCH ==================
   String? customerPhone;
   String? note;
 
-  // ================== GIÁ ==================
-  double? tripPrice; // thành  tiền
+  ResolveRoutePreviewData? routePreview;
+  double? tripPrice;
   int? currentTripId;
   double? basePrice;
   double discount = 0;
   double surcharge = 0;
   bool isHoliday = false;
   String? priceErrorMessage;
-
   bool isLoadingPrice = false;
 
-  BookingModel() {
-    fetchProvinces();
-    // Không gọi fetchDistricts() ở đây vì chưa có provinceId cụ thể
+  BookingModel();
+
+  bool get hasPickupSelection => selectedPickupPoint?.isValid == true;
+  bool get hasDropSelection => selectedDropPoint?.isValid == true;
+
+  AddressResolvedLocation? get resolvedPickup => routePreview?.from;
+  AddressResolvedLocation? get resolvedDrop => routePreview?.to;
+
+  String get pickupDisplayAddress {
+    return (pickupSelectedAddress ?? pickupAddressController.text).trim();
   }
 
-  // =====================================================
-  // RADIO HANDLER
-  // =====================================================
-  void setTripCategory(TripCategory value) {
-    tripCategory = value;
+  String get dropDisplayAddress {
+    return (dropSelectedAddress ?? dropAddressController.text).trim();
+  }
 
-    if (value == TripCategory.choNguoi) {
-      isChoNguoi = true;
-      isHoaToc = false;
+  void onAddressTextChanged({required bool isPickup, required String query}) {
+    final trimmed = query.trim();
+    final hasSelection = isPickup ? hasPickupSelection : hasDropSelection;
+
+    if (isPickup) {
+      _latestPickupQuery = trimmed;
+      if (hasSelection) {
+        selectedPickupPoint = null;
+        pickupSelectionSource = null;
+        pickupSelectedAddress = null;
+        selectedPickupSuggestion = null;
+      }
+      pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+      loadingPickupSuggestions = trimmed.length >= 2;
     } else {
-      isChoNguoi = false;
-      isBaoXe = false;
+      _latestDropQuery = trimmed;
+      if (hasSelection) {
+        selectedDropPoint = null;
+        dropSelectionSource = null;
+        dropSelectedAddress = null;
+        selectedDropSuggestion = null;
+      }
+      dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+      loadingDropSuggestions = trimmed.length >= 2;
     }
 
-    notifyListeners();
-    fetchTripPrice();
-  }
+    routePreview = null;
+    _resetPrice();
 
-  // =====================================================
-  // LẤY TỈNH / HUYỆN
-  // =====================================================
-  Future<void> fetchProvinces() async {
-    provinces = await ApiService.getProvinces();
-    notifyListeners();
-  }
+    final debounce = isPickup ? _pickupDebounce : _dropDebounce;
+    debounce?.cancel();
 
-  Future<void> fetchPickupDistricts(int provinceId) async {
-    pickupDistricts = await ApiService.getDistricts(
-      provinceId: provinceId,
-    );
-    notifyListeners();
-  }
-
-  Future<void> fetchDropDistricts(int provinceId) async {
-    dropDistricts = await ApiService.getDistricts(
-      provinceId: provinceId,
-    );
-    notifyListeners();
-  }
-
-  // Setter cho province pickup: khi đổi tỉnh sẽ load danh sách huyện cho điểm đón
-  Future<void> setSelectedProvincePickup(int? provinceId) async {
-    if (_selectedProvincePickup == provinceId) return;
-
-    _selectedProvincePickup = provinceId;
-    // reset district selection khi đổi tỉnh
-    _selectedDistrictPickup = null;
-    pickupDistricts = [];
-
-    notifyListeners();
-
-    if (provinceId != null) {
-      await fetchPickupDistricts(provinceId);
-    }
-
-    // cập nhật giá nếu cần
-    fetchTripPrice();
-  }
-
-  // Setter cho district pickup
-  void setSelectedDistrictPickup(int? districtId) {
-    if (_selectedDistrictPickup == districtId) return;
-    _selectedDistrictPickup = districtId;
-    fetchTripPrice();
-    notifyListeners();
-  }
-
-  void setSelectedDistrictDrop(int? districtId) {
-    if (_selectedDistrictDrop == districtId) return;
-    _selectedDistrictDrop = districtId;
-    fetchTripPrice();
-    notifyListeners();
-  }
-
-  // Setter cho province drop: khi đổi tỉnh sẽ load danh sách huyện cho điểm đến
-  Future<void> setSelectedProvinceDrop(int? provinceId) async {
-    if (_selectedProvinceDrop == provinceId) return;
-
-    _selectedProvinceDrop = provinceId;
-    // reset district selection khi đổi tỉnh
-    _selectedDistrictDrop = null;
-    dropDistricts = [];
-
-    notifyListeners();
-
-    if (provinceId != null) {
-      await fetchDropDistricts(provinceId);
-    }
-
-    // cập nhật giá nếu cần
-    fetchTripPrice();
-  }
-
-  // =====================================================
-  // MAP UI → TYPE API
-  // =====================================================
-  int get tripType {
-    if (isChoNguoi) {
-      return isBaoXe ? 2 : 1;
-    } else {
-      return isHoaToc ? 4 : 3;
-    }
-  }
-
-  // =====================================================
-  // 12. LẤY GIÁ
-  // =====================================================
-  Future<void> fetchTripPrice() async {
-    if (selectedProvincePickup == null ||
-        selectedDistrictPickup == null ||
-        selectedProvinceDrop == null ||
-        selectedDistrictDrop == null ||
-        goDate == null ||
-        goTime == null) {
-      _resetPrice();
+    if (trimmed.length < 2) {
+      if (isPickup) {
+        loadingPickupSuggestions = false;
+      } else {
+        loadingDropSuggestions = false;
+      }
       notifyListeners();
       return;
     }
 
-    final fromId = selectedProvincePickup;
-    final toId = selectedProvinceDrop;
-    if (fromId == null || toId == null) {
-      _resetPrice();
-      notifyListeners();
-      return;
+    notifyListeners();
+
+    final timer = Timer(
+      const Duration(milliseconds: 350),
+      () => _fetchAutocomplete(isPickup: isPickup, query: trimmed),
+    );
+
+    if (isPickup) {
+      _pickupDebounce = timer;
+    } else {
+      _dropDebounce = timer;
+    }
+  }
+
+  Future<void> _fetchAutocomplete({
+    required bool isPickup,
+    required String query,
+  }) async {
+    try {
+      final response = await ApiService.autocompleteTrackAsia(input: query);
+      final latestQuery = isPickup ? _latestPickupQuery : _latestDropQuery;
+      if (latestQuery != query) return;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final parsed = TrackAsiaAutocompleteResponse.fromRawJson(response.body);
+        final suggestions = parsed.success
+            ? parsed.data
+            : <TrackAsiaAutocompleteSuggestion>[];
+
+        if (isPickup) {
+          pickupSuggestions = suggestions;
+          loadingPickupSuggestions = false;
+        } else {
+          dropSuggestions = suggestions;
+          loadingDropSuggestions = false;
+        }
+      } else {
+        if (isPickup) {
+          pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+          loadingPickupSuggestions = false;
+        } else {
+          dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+          loadingDropSuggestions = false;
+        }
+      }
+    } catch (_) {
+      if (isPickup) {
+        pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+        loadingPickupSuggestions = false;
+      } else {
+        dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+        loadingDropSuggestions = false;
+      }
     }
 
-    final pickupDateTime = DateTime(
+    notifyListeners();
+  }
+
+  void closeAutocompleteSuggestions() {
+    _pickupDebounce?.cancel();
+    _dropDebounce?.cancel();
+    pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingPickupSuggestions = false;
+    loadingDropSuggestions = false;
+    notifyListeners();
+  }
+
+  void selectPickupSuggestion(TrackAsiaAutocompleteSuggestion suggestion) {
+    pickupAddressController.value = TextEditingValue(
+      text: suggestion.displayText,
+      selection: TextSelection.collapsed(offset: suggestion.displayText.length),
+    );
+
+    selectedPickupPoint = RidePointPayload.placeId(suggestion.placeId);
+    pickupSelectionSource = AddressSelectionSource.search;
+    pickupSelectedAddress = suggestion.displayText;
+    selectedPickupSuggestion = suggestion;
+    pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingPickupSuggestions = false;
+    _latestPickupQuery = suggestion.displayText.trim();
+    routePreview = null;
+    _resetPrice();
+    notifyListeners();
+  }
+
+  void selectDropSuggestion(TrackAsiaAutocompleteSuggestion suggestion) {
+    dropAddressController.value = TextEditingValue(
+      text: suggestion.displayText,
+      selection: TextSelection.collapsed(offset: suggestion.displayText.length),
+    );
+
+    selectedDropPoint = RidePointPayload.placeId(suggestion.placeId);
+    dropSelectionSource = AddressSelectionSource.search;
+    dropSelectedAddress = suggestion.displayText;
+    selectedDropSuggestion = suggestion;
+    dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingDropSuggestions = false;
+    _latestDropQuery = suggestion.displayText.trim();
+    routePreview = null;
+    _resetPrice();
+    notifyListeners();
+  }
+
+  void selectPickupMapLocation(AddressResolvedLocation location) {
+    final address = location.formattedAddress.trim();
+    pickupAddressController.value = TextEditingValue(
+      text: address,
+      selection: TextSelection.collapsed(offset: address.length),
+    );
+
+    selectedPickupPoint = RidePointPayload.coordinates(
+      lat: location.lat,
+      lng: location.lng,
+    );
+    pickupSelectionSource = AddressSelectionSource.map;
+    pickupSelectedAddress = address;
+    selectedPickupSuggestion = null;
+    pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingPickupSuggestions = false;
+    _latestPickupQuery = address;
+    routePreview = null;
+    _resetPrice();
+    notifyListeners();
+  }
+
+  void selectDropMapLocation(AddressResolvedLocation location) {
+    final address = location.formattedAddress.trim();
+    dropAddressController.value = TextEditingValue(
+      text: address,
+      selection: TextSelection.collapsed(offset: address.length),
+    );
+
+    selectedDropPoint = RidePointPayload.coordinates(
+      lat: location.lat,
+      lng: location.lng,
+    );
+    dropSelectionSource = AddressSelectionSource.map;
+    dropSelectedAddress = address;
+    selectedDropSuggestion = null;
+    dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingDropSuggestions = false;
+    _latestDropQuery = address;
+    routePreview = null;
+    _resetPrice();
+    notifyListeners();
+  }
+
+  void clearPickupSelection() {
+    pickupAddressController.clear();
+    selectedPickupPoint = null;
+    pickupSelectionSource = null;
+    pickupSelectedAddress = null;
+    selectedPickupSuggestion = null;
+    pickupSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingPickupSuggestions = false;
+    _latestPickupQuery = '';
+    routePreview = null;
+    _resetPrice();
+    notifyListeners();
+  }
+
+  void clearDropSelection() {
+    dropAddressController.clear();
+    selectedDropPoint = null;
+    dropSelectionSource = null;
+    dropSelectedAddress = null;
+    selectedDropSuggestion = null;
+    dropSuggestions = <TrackAsiaAutocompleteSuggestion>[];
+    loadingDropSuggestions = false;
+    _latestDropQuery = '';
+    routePreview = null;
+    _resetPrice();
+    notifyListeners();
+  }
+
+  String? buildPickupIso() {
+    if (goDate == null || goTime == null) return null;
+    final dt = DateTime(
       goDate!.year,
       goDate!.month,
       goDate!.day,
       goTime!.hour,
       goTime!.minute,
-    ).toIso8601String();
+    );
+    return DateFormat("yyyy-MM-dd'T'HH:mm:ss").format(dt);
+  }
+
+  String? validateRouteSelection() {
+    if (!hasPickupSelection || !hasDropSelection) {
+      return null;
+    }
+
+    if (selectedPickupPoint!.identityKey == selectedDropPoint!.identityKey) {
+      return 'Điểm đón và điểm đến không được trùng nhau.';
+    }
+
+    return null;
+  }
+
+  Future<void> fetchTripPrice() async {
+    final pickupIso = buildPickupIso();
+    if (!hasPickupSelection ||
+        !hasDropSelection ||
+        pickupIso == null ||
+        !BookingRideType.isValid(_selectedRideType)) {
+      routePreview = null;
+      _resetPrice();
+      notifyListeners();
+      return;
+    }
+
+    final routeValidationMessage = validateRouteSelection();
+    if (routeValidationMessage != null) {
+      routePreview = null;
+      _resetPrice();
+      priceErrorMessage = routeValidationMessage;
+      notifyListeners();
+      return;
+    }
 
     isLoadingPrice = true;
+    priceErrorMessage = null;
     notifyListeners();
 
     try {
-      final res = await ApiService.getTripPrice(
-        fromDistrictId: selectedDistrictPickup!,
-        toDistrictId: selectedDistrictDrop!,
-        type: tripType,
+      final response = await ApiService.resolveRoutePreview(
+        from: selectedPickupPoint!,
+        to: selectedDropPoint!,
+        type: _selectedRideType,
+        pickupTime: pickupIso,
         paymentMethod: _paymentMethod,
-        pickupTime: pickupDateTime,
-        quantity: _quantity, // NEW
+        quantity: normalizedQuantity,
       );
 
-      final json = ApiService.safeDecode(res.body);
-
-      if (res.statusCode == 200 &&
-          json["success"] == true &&
-          json["data"] != null) {
-        final data = json["data"];
-
-        currentTripId = data["id"];
-        basePrice = (data["basePrice"] as num).toDouble();
-        discount = (data["discount"] as num).toDouble();
-        surcharge = (data["surcharge"] as num).toDouble();
-        tripPrice = (data["finalPrice"] as num).toDouble();
-        isHoliday = data["isHoliday"] ?? false;
-
+      final parsed = ResolveRoutePreviewResponse.fromRawJson(response.body);
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          parsed.success &&
+          parsed.data != null) {
+        routePreview = parsed.data;
+        currentTripId = parsed.data!.tripId;
+        basePrice = parsed.data!.basePrice.toDouble();
+        discount = parsed.data!.discount.toDouble();
+        surcharge = parsed.data!.surcharge.toDouble();
+        tripPrice = parsed.data!.finalPrice.toDouble();
+        isHoliday = parsed.data!.isHoliday;
         priceErrorMessage = null;
       } else {
+        routePreview = null;
         _resetPrice();
-        priceErrorMessage =
-            json["message"] ?? "Tuyến đường này hi���n chưa có đơn giá";
+        priceErrorMessage = parsed.message?.trim().isNotEmpty == true
+            ? parsed.message!.trim()
+            : 'Không thể tính giá cho tuyến đường này.';
       }
-    } catch (e) {
+    } catch (_) {
+      routePreview = null;
       _resetPrice();
-      priceErrorMessage =
-      "Không thể lấy giá chuyến đi, vui lòng thử lại sau hoặc liên hệ CSKH";
+      priceErrorMessage = 'Không thể tính giá chuyến đi, vui lòng thử lại sau.';
     } finally {
       isLoadingPrice = false;
       notifyListeners();
     }
   }
 
-  //RESET GIÁ
   void _resetPrice() {
     currentTripId = null;
     basePrice = null;
@@ -301,88 +494,69 @@ class BookingModel extends ChangeNotifier {
     discount = 0;
     surcharge = 0;
     isHoliday = false;
+    priceErrorMessage = null;
   }
 
-  // =====================================================
-  // 13. TẠO CHUYẾN (NHẬN THÊM CONTENT TỪ UI)
-  // =====================================================
   Future<Map<String, dynamic>> createRide(
-      String accessToken, {
-        String content = "",
-      }) async {
-    if (currentTripId == null) {
-      throw Exception("Chưa có giá chuyến đi");
+    String accessToken, {
+    String? content,
+  }) async {
+    final pickupIso = buildPickupIso();
+    if (!hasPickupSelection || !hasDropSelection || pickupIso == null) {
+      throw Exception('Thông tin chuyến đi chưa đầy đủ');
     }
 
-    // Kết hợp ngày và giờ thành chuỗi ISO
-    final String pickupDateTime = DateTime(
-      goDate!.year,
-      goDate!.month,
-      goDate!.day,
-      goTime!.hour,
-      goTime!.minute,
-    ).toIso8601String();
+    final routeValidationMessage = validateRouteSelection();
+    if (routeValidationMessage != null) {
+      throw Exception(routeValidationMessage);
+    }
 
-    final res = await ApiService.createRide(
+    final response = await ApiService.createRide(
       accessToken: accessToken,
-      tripId: currentTripId!,
-      fromAddress: addressPickup ?? "",
-      toAddress: addressDrop ?? "",
-      customerPhone: customerPhone ?? "",
-      pickupTime: pickupDateTime,
-      note: note ?? "",
+      from: selectedPickupPoint!,
+      to: selectedDropPoint!,
+      type: _selectedRideType,
+      customerPhone: customerPhone ?? '',
+      pickupTime: pickupIso,
       paymentMethod: _paymentMethod,
-      quantity: _quantity, // NEW
+      quantity: normalizedQuantity,
+      note: note ?? '',
       content: content,
     );
 
-    final data = ApiService.safeDecode(res.body);
-
-    // Kiểm tra lỗi từ backend (ví dụ: "Chưa chuyển khoản thành công!")
-    if (res.statusCode != 200 || data['success'] == false) {
-      throw data['message'] ?? "Lỗi không xác định khi tạo chuyến";
+    final data = ApiService.safeDecode(response.body);
+    if (response.statusCode != 200 || data['success'] == false) {
+      throw data['message'] ?? 'Lỗi không xác định khi tạo chuyến';
     }
 
     return Map<String, dynamic>.from(data);
   }
 
-  // =====================================================
-  // RESET FORM
-  // =====================================================
   void resetForm() {
-    // 1️⃣ Reset loại chuyến & payment
-    tripCategory = TripCategory.choNguoi;
-    isChoNguoi = true;
-    isBaoXe = false;
-    isHoaToc = false;
-    _paymentMethod = 3;
-
-    // 1.1️⃣ Reset quantity (NEW)
+    _selectedRideType = BookingRideType.passenger;
+    _paymentMethod = 2;
     _quantity = 1;
 
-    // 2️⃣ Reset địa điểm
-    _selectedProvincePickup = null;
-    _selectedDistrictPickup = null;
-    addressPickup = null;
-    pickupDistricts = [];
+    clearPickupSelection();
+    clearDropSelection();
 
-    _selectedProvinceDrop = null;
-    _selectedDistrictDrop = null;
-    addressDrop = null;
-    dropDistricts = [];
-
-    // 3️⃣ Reset thời gian & thông tin khách
     goDate = null;
     goTime = null;
     customerPhone = null;
     note = null;
 
-    // 4️⃣ Reset giá (1 nơi duy nhất)
+    routePreview = null;
     _resetPrice();
-
-    // 5️⃣ Reset loading
     isLoadingPrice = false;
-
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _pickupDebounce?.cancel();
+    _dropDebounce?.cancel();
+    pickupAddressController.dispose();
+    dropAddressController.dispose();
+    super.dispose();
   }
 }
