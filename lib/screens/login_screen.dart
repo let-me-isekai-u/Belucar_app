@@ -63,54 +63,58 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     setState(() => _isLoading = true);
-
-    final deviceToken = await FirebaseNotificationService.getDeviceToken();
-    final res = await ApiService.customerLogin(
-      phone: phone,
-      password: password,
-      deviceToken: deviceToken ?? '',
-    );
-
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (res.statusCode == 200) {
-      try {
-        final data = jsonDecode(res.body);
-
-        final accessToken = data['accessToken'] ?? '';
-        final refreshToken = data['refreshToken'] ?? '';
-        final fullName = data['fullName'] ?? '';
-        final int userId = data['id'] ?? 0;
-
-        if (accessToken.isEmpty) {
-          _showSnack('Server không trả về accessToken');
-          return;
-        }
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('accessToken', accessToken);
-        await prefs.setString('refreshToken', refreshToken);
-        await prefs.setString('fullName', fullName);
-        await prefs.setInt('id', userId);
-        await prefs.setBool('showEventBanner', true);
-
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      } catch (_) {
-        _showSnack('Lỗi dữ liệu từ server');
-      }
-      return;
-    }
-
     try {
-      final err = jsonDecode(res.body);
-      _showSnack(err['message'] ?? 'Sai tài khoản hoặc mật khẩu');
-    } catch (_) {
-      _showSnack('Đăng nhập thất bại (Mã: ${res.statusCode})');
+      final deviceToken = await FirebaseNotificationService.getDeviceToken();
+      final res = await ApiService.customerLogin(
+        phone: phone,
+        password: password,
+        deviceToken: deviceToken ?? '',
+      );
+
+      if (res.statusCode == 200) {
+        try {
+          final data = jsonDecode(res.body);
+
+          final accessToken = data['accessToken'] ?? '';
+          final refreshToken = data['refreshToken'] ?? '';
+          final fullName = data['fullName'] ?? '';
+          final int userId = data['id'] ?? 0;
+
+          if (accessToken.isEmpty) {
+            _showSnack('Server không trả về accessToken');
+            return;
+          }
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('accessToken', accessToken);
+          await prefs.setString('refreshToken', refreshToken);
+          await prefs.setString('fullName', fullName);
+          await prefs.setInt('id', userId);
+          await prefs.setBool('showEventBanner', true);
+
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        } catch (_) {
+          _showSnack('Lỗi dữ liệu từ server');
+        }
+        return;
+      }
+
+      try {
+        final err = jsonDecode(res.body);
+        _showSnack(err['message'] ?? 'Sai tài khoản hoặc mật khẩu');
+      } catch (_) {
+        _showSnack('Đăng nhập thất bại (Mã: ${res.statusCode})');
+      }
+    } catch (e) {
+      _showSnack('Không thể đăng nhập: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

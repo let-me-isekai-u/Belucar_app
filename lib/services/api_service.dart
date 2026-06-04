@@ -8,6 +8,18 @@ import '../models/deposit_model.dart';
 import '../models/location_models.dart';
 
 class ApiService {
+  static http.Response _jsonResponse(
+    Map<String, dynamic> payload,
+    int statusCode,
+  ) {
+    final body = jsonEncode(payload);
+    return http.Response.bytes(
+      utf8.encode(body),
+      statusCode,
+      headers: {"Content-Type": "application/json; charset=utf-8"},
+    );
+  }
+
   static dynamic safeDecode(String? body) {
     if (body == null || body.isEmpty) return {};
 
@@ -40,15 +52,10 @@ class ApiService {
 
   // Lỗi fallback
   static http.Response _errorResponse(Object e) {
-    final body = jsonEncode({
+    return _jsonResponse({
       "success": false,
       "message": "Lỗi kết nối tới server: $e",
-    });
-    return http.Response(
-      body,
-      500,
-      headers: {"Content-Type": "application/json"},
-    );
+    }, 500);
   }
 
   // -----------------------------------------------------------
@@ -75,10 +82,7 @@ class ApiService {
           .timeout(const Duration(seconds: 20));
     } catch (e) {
       // Trả về một Response lỗi giả lập nếu có sự cố kết nối để tránh Crash App
-      return http.Response(
-        jsonEncode({"message": "Lỗi kết nối mạng: $e"}),
-        500,
-      );
+      return _jsonResponse({"message": "Lỗi kết nối mạng: $e"}, 500);
     }
   }
 
@@ -535,10 +539,10 @@ class ApiService {
       return response;
     } catch (e) {
       print("🔥 ERROR createRide(): $e");
-      return http.Response(
-        jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
-        500,
-      );
+      return _jsonResponse({
+        "success": false,
+        "message": "Lỗi kết nối hệ thống: $e",
+      }, 500);
     }
   }
 
@@ -777,10 +781,10 @@ class ApiService {
           .timeout(const Duration(seconds: 15));
       return response;
     } catch (e) {
-      return http.Response(
-        jsonEncode({"success": false, "message": "Lỗi kết nối hệ thống: $e"}),
-        500,
-      );
+      return _jsonResponse({
+        "success": false,
+        "message": "Lỗi kết nối hệ thống: $e",
+      }, 500);
     }
   }
 

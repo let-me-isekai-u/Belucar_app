@@ -28,8 +28,10 @@
 	<string></string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần vị trí để xác định vị trí hiện tại, hỗ trợ chọn điểm đón và điểm đến, và hiển thị thông tin bản đồ phù hợp khi sử dụng ứng dụng.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Ứng dụng cần vị trí để hỗ trợ chọn điểm đón và điểm đến trên bản đồ.</string>
+	<string>Ứng dụng cần vị trí để xác định vị trí hiện tại, hỗ trợ chọn điểm đón và điểm đến, và hiển thị thông tin bản đồ phù hợp khi sử dụng ứng dụng.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

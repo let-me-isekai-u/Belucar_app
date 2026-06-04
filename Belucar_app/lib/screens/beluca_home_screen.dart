@@ -124,7 +124,7 @@ class _HomeViewState extends State<_HomeView> {
 
   // Bước 2: Hiển thị QR và Polling
   void _showQRDialog(double amount, String content) {
-    final qrUrl = "https://img.vietqr.io/image/MB-246878888-compact2.png"
+    final qrUrl = "https://img.vietqr.io/image/MB-08102002-compact2.png"
         "?amount=${amount.toStringAsFixed(0)}&addInfo=$content&accountName=CTY%20CP%20CN%20VA%20DV%20TT%20THE%20BELUGAS";
 
     showDialog(

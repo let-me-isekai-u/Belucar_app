@@ -161,7 +161,7 @@ class _BookingViewState extends State<_BookingView> {
     final int userId = prefs.getInt("id") ?? 0;
     final String content = "$userId${DateFormat('HHmmss').format(DateTime.now())}";
 
-    final qrUrl = "https://img.vietqr.io/image/MB-246878888-compact2.png"
+    final qrUrl = "https://img.vietqr.io/image/MB-08102002-compact2.png"
         "?amount=${model.tripPrice!.toStringAsFixed(0)}&addInfo=$content&accountName=THE%20BELUGAS";
 
     if (!mounted) return;
