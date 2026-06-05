@@ -19,6 +19,17 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    tasks.withType<JavaCompile>().configureEach {
+        if (sourceCompatibility == JavaVersion.VERSION_1_8.toString()) {
+            sourceCompatibility = JavaVersion.VERSION_17.toString()
+        }
+        if (targetCompatibility == JavaVersion.VERSION_1_8.toString()) {
+            targetCompatibility = JavaVersion.VERSION_17.toString()
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

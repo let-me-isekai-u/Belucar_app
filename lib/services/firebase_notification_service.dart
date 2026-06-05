@@ -4,11 +4,14 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class FirebaseNotificationService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  static final FlutterLocalNotificationsPlugin _localNoti = FlutterLocalNotificationsPlugin();
+  static final FlutterLocalNotificationsPlugin _localNoti =
+      FlutterLocalNotificationsPlugin();
 
   /// Hàm xử lý thông báo khi app đang ở chế độ nền hoặc tắt hẳn
   @pragma('vm:entry-point')
-  static Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  static Future<void> firebaseMessagingBackgroundHandler(
+    RemoteMessage message,
+  ) async {
     await Firebase.initializeApp();
     print('[BG] Message nhận được: ${message.messageId}');
   }
@@ -16,17 +19,15 @@ class FirebaseNotificationService {
   /// Hàm khởi tạo toàn bộ dịch vụ thông báo
   static Future<void> init() async {
     // 1. Xin quyền từ người dùng
-    await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true);
+    await _messaging.requestPermission(alert: true, badge: true, sound: true);
 
     // 2. Cấu hình hiển thị thông báo ngay cả khi đang mở app (Bắt buộc cho iOS)
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-      alert: true, // Hiển thị banner
-      badge: true, // Hiện số trên icon
-      sound: true, // Phát âm thanh
-    );
+    await FirebaseMessaging.instance
+        .setForegroundNotificationPresentationOptions(
+          alert: true, // Hiển thị banner
+          badge: true, // Hiện số trên icon
+          sound: true, // Phát âm thanh
+        );
 
     // 3. Đăng ký Topic để nhận thông báo nhóm
     try {
@@ -45,7 +46,9 @@ class FirebaseNotificationService {
     );
 
     await _localNoti
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
 
     // 5. Khởi tạo cài đặt cho từng nền tảng
@@ -58,7 +61,10 @@ class FirebaseNotificationService {
     );
 
     await _localNoti.initialize(
-      const InitializationSettings(android: androidInit, iOS: iosInit),
+      settings: const InitializationSettings(
+        android: androidInit,
+        iOS: iosInit,
+      ),
       onDidReceiveNotificationResponse: (details) {
         // Xử lý logic khi người dùng nhấn vào thông báo lúc app đang mở
       },
@@ -87,10 +93,10 @@ class FirebaseNotificationService {
 
     if (notification != null) {
       _localNoti.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        const NotificationDetails(
+        id: notification.hashCode,
+        title: notification.title,
+        body: notification.body,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             'high_importance_channel',
             'High Importance Notifications',
@@ -111,6 +117,8 @@ class FirebaseNotificationService {
   }
 
   static void _onMessageOpened(RemoteMessage message) {
-    print('[OPEN] Người dùng nhấn vào thông báo: ${message.notification?.title}');
+    print(
+      '[OPEN] Người dùng nhấn vào thông báo: ${message.notification?.title}',
+    );
   }
 }
