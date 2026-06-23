@@ -21,6 +21,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
   final FocusNode _pickupFocusNode = FocusNode();
   final FocusNode _dropFocusNode = FocusNode();
   bool _isPickupActive = true;
+  bool _isNavigatingNext = false;
 
   @override
   void initState() {
@@ -111,6 +112,19 @@ class _Booking1ScreenState extends State<Booking1Screen> {
       model.selectDropMapLocation(resolved);
       setState(() => _isPickupActive = false);
     }
+
+    await _maybeAutoAdvance(model);
+  }
+
+  bool _canAutoAdvance(BookingModel model) {
+    return model.hasPickupSelection &&
+        model.hasDropSelection &&
+        model.validateRouteSelection() == null;
+  }
+
+  Future<void> _maybeAutoAdvance(BookingModel model) async {
+    if (!_canAutoAdvance(model) || _isNavigatingNext || !mounted) return;
+    await _goNext(model);
   }
 
   Widget _buildAddressField({
@@ -204,6 +218,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                 model.selectDropSuggestion(suggestion);
                 _dropFocusNode.unfocus();
               }
+              _maybeAutoAdvance(model);
             },
             leading: Icon(
               Icons.location_on_outlined,
@@ -328,6 +343,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
           _pickupFocusNode.unfocus();
           _dropFocusNode.unfocus();
           setState(() => _isPickupActive = false);
+          _maybeAutoAdvance(model);
         },
         borderRadius: BorderRadius.circular(20),
         child: Container(
@@ -436,6 +452,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
           } else {
             _dropFocusNode.unfocus();
           }
+          _maybeAutoAdvance(model);
         },
         borderRadius: BorderRadius.circular(18),
         child: Container(
@@ -637,21 +654,30 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     return true;
   }
 
-  void _goNext(BookingModel model) {
+  Future<void> _goNext(BookingModel model) async {
+    if (_isNavigatingNext || !mounted) return;
+
     dismissBookingKeyboard();
     model.closeAutocompleteSuggestions();
 
     if (!_validate(model)) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider.value(
-          value: model,
-          child: Booking2Screen(onRideBooked: widget.onRideBooked),
+    setState(() => _isNavigatingNext = true);
+    try {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider.value(
+            value: model,
+            child: Booking2Screen(onRideBooked: widget.onRideBooked),
+          ),
         ),
-      ),
-    );
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isNavigatingNext = false);
+      }
+    }
   }
 
   @override
@@ -674,7 +700,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: TextButton(
-              onPressed: () => _goNext(model),
+              onPressed: _isNavigatingNext ? null : () => _goNext(model),
               child: Text(
                 'Tiếp theo',
                 style: TextStyle(
@@ -758,7 +784,10 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                                     color: theme.colorScheme.secondary,
                                     borderRadius: BorderRadius.circular(14),
                                     child: InkWell(
-                                      onTap: model.swapRoutePoints,
+                                      onTap: () {
+                                        model.swapRoutePoints();
+                                        _maybeAutoAdvance(model);
+                                      },
                                       borderRadius: BorderRadius.circular(14),
                                       child: const SizedBox(
                                         width: 36,

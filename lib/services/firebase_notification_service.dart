@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -19,7 +21,15 @@ class FirebaseNotificationService {
   /// Hàm khởi tạo toàn bộ dịch vụ thông báo
   static Future<void> init() async {
     // 1. Xin quyền từ người dùng
-    await _messaging.requestPermission(alert: true, badge: true, sound: true);
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    if (Platform.isIOS || Platform.isMacOS) {
+      await _waitForApnsToken();
+    }
 
     // 2. Cấu hình hiển thị thông báo ngay cả khi đang mở app (Bắt buộc cho iOS)
     await FirebaseMessaging.instance
@@ -30,11 +40,16 @@ class FirebaseNotificationService {
         );
 
     // 3. Đăng ký Topic để nhận thông báo nhóm
-    try {
-      await _messaging.subscribeToTopic("customers");
-      print('✅ Đã đăng ký nhận thông báo từ topic: customers');
-    } catch (e) {
-      print('❌ Lỗi khi đăng ký topic: $e');
+    if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+        settings.authorizationStatus == AuthorizationStatus.provisional) {
+      try {
+        await _messaging.subscribeToTopic("customers");
+        print('✅ Đã đăng ký nhận thông báo từ topic: customers');
+      } catch (e) {
+        print('❌ Lỗi khi đăng ký topic: $e');
+      }
+    } else {
+      print('⚠️ Người dùng chưa cấp quyền thông báo, bỏ qua subscribe topic');
     }
 
     // 4. Tạo Notification Channel cho Android (Bắt buộc từ Android 8.0+)
@@ -78,6 +93,10 @@ class FirebaseNotificationService {
   /// Hàm lấy FCM Token để gửi lên server lúc Login
   static Future<String?> getDeviceToken() async {
     try {
+      if (Platform.isIOS || Platform.isMacOS) {
+        await _waitForApnsToken();
+      }
+
       String? token = await _messaging.getToken();
       print('📩 FCM TOKEN: $token');
       return token;
@@ -120,5 +139,24 @@ class FirebaseNotificationService {
     print(
       '[OPEN] Người dùng nhấn vào thông báo: ${message.notification?.title}',
     );
+  }
+
+  static Future<String?> _waitForApnsToken({
+    int maxAttempts = 10,
+    Duration delay = const Duration(milliseconds: 800),
+  }) async {
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      final apnsToken = await _messaging.getAPNSToken();
+      if (apnsToken != null && apnsToken.isNotEmpty) {
+        print('✅ APNS token đã sẵn sàng');
+        return apnsToken;
+      }
+
+      print('⏳ Chưa có APNS token, thử lại lần $attempt/$maxAttempts');
+      await Future.delayed(delay);
+    }
+
+    print('⚠️ Hết thời gian chờ APNS token trên iOS');
+    return null;
   }
 }

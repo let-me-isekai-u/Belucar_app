@@ -69,6 +69,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
+        await prefs.setString('fullName', data['fullName']?.toString() ?? '');
+        await prefs.setString('phone', data['phone']?.toString() ?? '');
         setState(() {
           _nameController.text = data['fullName'] ?? '';
           _emailController.text = data['email'] ?? '';

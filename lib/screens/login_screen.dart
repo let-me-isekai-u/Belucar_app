@@ -89,6 +89,7 @@ class _LoginScreenState extends State<LoginScreen>
           await prefs.setString('accessToken', accessToken);
           await prefs.setString('refreshToken', refreshToken);
           await prefs.setString('fullName', fullName);
+          await prefs.setString('phone', phone);
           await prefs.setInt('id', userId);
           await prefs.setBool('showEventBanner', true);
 
