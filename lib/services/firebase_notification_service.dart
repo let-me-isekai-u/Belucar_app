@@ -98,7 +98,6 @@ class FirebaseNotificationService {
       }
 
       String? token = await _messaging.getToken();
-      print('📩 FCM TOKEN: $token');
       return token;
     } catch (e) {
       print('❌ Lỗi lấy Token: $e');

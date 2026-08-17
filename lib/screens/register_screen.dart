@@ -1,10 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
-import '../services/api_service.dart';
+import '../providers/account_provider.dart';
 import 'auth_ui.dart';
 import 'login_screen.dart';
 import 'terms_screen.dart';
@@ -102,7 +102,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _loading = true);
 
-    final res = await ApiService.customerRegister(
+    final result = await context.read<AccountProvider>().register(
       fullName: _fullNameController.text.trim(),
       phone: _phoneController.text.trim(),
       email: _emailController.text.trim(),
@@ -114,7 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
 
-    if (res.statusCode == 200 || res.statusCode == 201) {
+    if (result.isSuccess) {
       _showSnack('Đăng ký thành công!');
       Future.delayed(const Duration(seconds: 1), () {
         if (!mounted) return;
@@ -126,12 +126,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    try {
-      final json = jsonDecode(res.body);
-      _showSnack(json['message'] ?? 'Lỗi đăng ký');
-    } catch (_) {
-      _showSnack('Đăng ký thất bại (${res.statusCode})');
-    }
+    _showSnack(result.message ?? 'Lỗi đăng ký');
   }
 
   @override

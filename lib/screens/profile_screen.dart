@@ -1,11 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../services/api_service.dart';
+import '../providers/account_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/currency_format.dart';
 import 'account_ui.dart';
 import 'change_password_screen.dart';
@@ -55,33 +54,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final accessToken = prefs.getString('accessToken');
-
-      if (accessToken == null) {
-        _goToLogin();
-        return;
-      }
-
-      final res = await ApiService.getCustomerProfile(accessToken: accessToken);
-
+      final result = await context.read<AccountProvider>().loadProfile();
       if (!mounted) return;
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        await prefs.setString('fullName', data['fullName']?.toString() ?? '');
-        await prefs.setString('phone', data['phone']?.toString() ?? '');
+      final profile = result.data;
+      if (result.isSuccess && profile != null) {
         setState(() {
-          _nameController.text = data['fullName'] ?? '';
-          _emailController.text = data['email'] ?? '';
-          _phoneController.text = data['phone'] ?? '';
-          _wallet = (data['wallet'] ?? 0.0).toDouble();
-          _avatarUrl = data['avatarUrl'];
-          _referralCode = data['referralCode'];
+          _nameController.text = profile.fullName;
+          _emailController.text = profile.email;
+          _phoneController.text = profile.phone;
+          _wallet = profile.wallet;
+          _avatarUrl = profile.avatarUrl;
+          _referralCode = profile.referralCode;
           _loading = false;
         });
       } else {
-        _showError('Không thể tải thông tin. Vui lòng đăng nhập lại.');
+        _showError(
+          result.message ?? 'Không thể tải thông tin. Vui lòng đăng nhập lại.',
+        );
         _goToLogin();
       }
     } catch (_) {
@@ -239,6 +228,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(color: theme.colorScheme.secondary),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Xoá tài khoản',
+            onPressed: () => _showDeleteConfirmation(context, theme),
+            icon: const Icon(Icons.close_rounded, color: Colors.red, size: 30),
+          ),
+          const SizedBox(width: 6),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -491,26 +488,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           onPressed: () async {
-            final prefs = await SharedPreferences.getInstance();
-            final accessToken = prefs.getString('accessToken');
-
-            if (accessToken != null) {
-              await ApiService.logout(accessToken);
-            }
-
-            await prefs.clear();
+            await context.read<AuthProvider>().logout();
             if (!mounted) return;
             _goToLogin();
           },
-        ),
-        const SizedBox(height: 10),
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: Colors.red.shade300),
-          onPressed: () => _showDeleteConfirmation(context, theme),
-          child: const Text(
-            'Xoá tài khoản',
-            style: TextStyle(decoration: TextDecoration.underline),
-          ),
         ),
       ],
     );
@@ -574,28 +555,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               Navigator.pop(context);
               final messenger = ScaffoldMessenger.of(this.context);
-
-              final prefs = await SharedPreferences.getInstance();
-              final accessToken = prefs.getString('accessToken');
-
-              if (accessToken == null) {
-                if (!mounted) return;
-                messenger.showSnackBar(
-                  const SnackBar(content: Text('Phiên đăng nhập hết hạn')),
-                );
-                return;
-              }
-
-              final res = await ApiService.deleteAccount(
-                accessToken: accessToken,
-              );
-
+              final result = await this.context
+                  .read<AccountProvider>()
+                  .deleteAccount();
               if (!mounted) return;
-
-              if (res.statusCode == 200) {
-                await prefs.remove('accessToken');
-                await prefs.remove('refreshToken');
-                if (!mounted) return;
+              if (result.isSuccess) {
                 messenger.showSnackBar(
                   const SnackBar(content: Text('Tài khoản đã bị xoá')),
                 );
@@ -603,9 +567,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               } else {
                 messenger.showSnackBar(
                   SnackBar(
-                    content: Text(
-                      'Không thể xoá tài khoản (${res.statusCode})',
-                    ),
+                    content: Text(result.message ?? 'Không thể xoá tài khoản'),
                   ),
                 );
               }

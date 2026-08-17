@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,7 +6,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/booking_model.dart';
-import '../../services/api_service.dart';
+import '../../providers/account_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/booking_provider.dart';
 import 'booking_ui.dart';
 
 class Booking2Screen extends StatefulWidget {
@@ -48,7 +48,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _fetchPriceIfReady(context.read<BookingModel>());
+      _fetchPriceIfReady(context.read<BookingProvider>());
     });
   }
 
@@ -66,22 +66,16 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     var phone = prefs.getString('phone') ?? '';
 
     if (phone.isEmpty) {
-      final accessToken = prefs.getString('accessToken') ?? '';
-      if (accessToken.isNotEmpty) {
-        try {
-          final res = await ApiService.getCustomerProfile(
-            accessToken: accessToken,
-          );
-          if (res.statusCode == 200) {
-            final data = jsonDecode(res.body) as Map<String, dynamic>;
-            fullName = data['fullName']?.toString() ?? fullName;
-            phone = data['phone']?.toString() ?? phone;
-            await prefs.setString('fullName', fullName);
-            await prefs.setString('phone', phone);
-          }
-        } catch (_) {
-          // Keep local fallback values if profile fetch fails.
+      if (!mounted) return;
+      try {
+        final result = await context.read<AccountProvider>().loadProfile();
+        final profile = result.data;
+        if (profile != null) {
+          fullName = profile.fullName;
+          phone = profile.phone;
         }
+      } catch (_) {
+        // Keep local fallback values if profile fetch fails.
       }
     }
 
@@ -95,7 +89,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     _applyPhoneMode();
   }
 
-  void _seedControllers(BookingModel model) {
+  void _seedControllers(BookingProvider model) {
     if (_didSeedControllers) return;
     _didSeedControllers = true;
     _noteController.text = model.note ?? '';
@@ -154,7 +148,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     return int.tryParse(raw);
   }
 
-  void _setQuantity(BookingModel model, int value) {
+  void _setQuantity(BookingProvider model, int value) {
     final next = value < 1 ? 1 : value;
     model.quantity = next;
     _quantityController.value = TextEditingValue(
@@ -163,7 +157,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
-  bool _hasPriceInputs(BookingModel model) {
+  bool _hasPriceInputs(BookingProvider model) {
     return model.hasPickupSelection &&
         model.hasDropSelection &&
         model.goDate != null &&
@@ -172,7 +166,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
         model.validateRouteSelection() == null;
   }
 
-  Future<void> _fetchPriceIfReady(BookingModel model) async {
+  Future<void> _fetchPriceIfReady(BookingProvider model) async {
     if (!_hasPriceInputs(model) ||
         model.isLoadingPrice ||
         (model.tripPrice != null && model.routePreview != null)) {
@@ -215,7 +209,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
 
   Widget _buildRideTypeCard(
     BuildContext context,
-    BookingModel model,
+    BookingProvider model,
     BookingRideTypeOption option,
   ) {
     final theme = Theme.of(context);
@@ -279,7 +273,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
-  Widget _buildQuantityInput(BuildContext context, BookingModel model) {
+  Widget _buildQuantityInput(BuildContext context, BookingProvider model) {
     return BookingSectionCard(
       title: 'Số lượng',
       icon: Icons.groups_2_outlined,
@@ -326,7 +320,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
-  Widget _buildAddressSummaryCard(BookingModel model) {
+  Widget _buildAddressSummaryCard(BookingProvider model) {
     final theme = Theme.of(context);
     final preview = model.routePreview;
 
@@ -450,9 +444,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     : Icons.swap_horiz_rounded,
                 size: 18,
               ),
-              label: Text(
-                _isBookingForOther ? 'Đặt cho bản thân' : 'Đặt hộ',
-              ),
+              label: Text(_isBookingForOther ? 'Đặt cho bản thân' : 'Đặt hộ'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: theme.colorScheme.secondary,
                 side: BorderSide(color: theme.colorScheme.secondary),
@@ -553,7 +545,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
-  Widget _timeField({required BookingModel model}) {
+  Widget _timeField({required BookingProvider model}) {
     final theme = Theme.of(context);
 
     return GestureDetector(
@@ -695,7 +687,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                     ),
                                   ),
                                   onSelectedItemChanged: (index) {
-                                    setDialogState(() => selectedMinute = index);
+                                    setDialogState(
+                                      () => selectedMinute = index,
+                                    );
                                   },
                                   children: List.generate(60, (index) {
                                     return Center(
@@ -752,7 +746,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Widget _buildPaymentOption({
-    required BookingModel model,
+    required BookingProvider model,
     required int value,
     required String title,
     required IconData icon,
@@ -932,7 +926,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
-  bool _validate(BookingModel model) {
+  bool _validate(BookingProvider model) {
     if (_phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -970,7 +964,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     return true;
   }
 
-  Future<void> _handleCreateRide(BookingModel model) async {
+  Future<void> _handleCreateRide(BookingProvider model) async {
     dismissBookingKeyboard();
 
     if (!_validate(model)) return;
@@ -1006,9 +1000,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
 
     setState(() => _isCreatingRide = true);
 
-    final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    final accessToken = prefs.getString('accessToken');
+    final accessToken = await context.read<AuthProvider>().requireAccessToken();
+    if (!mounted) return;
 
     if (accessToken == null) {
       ScaffoldMessenger.of(
@@ -1066,7 +1060,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final model = context.watch<BookingModel>();
+    final model = context.watch<BookingProvider>();
     final theme = Theme.of(context);
     final showQuantityField = model.showQuantityField;
 

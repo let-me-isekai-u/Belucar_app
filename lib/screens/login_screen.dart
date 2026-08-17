@@ -1,12 +1,13 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-import '../services/api_service.dart';
-import '../services/firebase_notification_service.dart';
+import '../models/booking_model.dart';
+import '../providers/auth_provider.dart';
 import '../screens/beluca_home_screen.dart';
+import '../services/firebase_notification_service.dart';
+import '../services/login_credential_storage.dart';
 import 'auth_ui.dart';
+import 'concert/concert_booking_screen.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -24,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen>
 
   bool _obscurePassword = true;
   bool _isLoading = false;
-
   late final AnimationController _logoController;
 
   @override
@@ -34,6 +34,38 @@ class _LoginScreenState extends State<LoginScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final credentials = await LoginCredentialStorage.read();
+      if (!mounted || credentials == null) return;
+      if (phoneController.text.isEmpty) {
+        phoneController.text = credentials.phone;
+      }
+      if (passwordController.text.isEmpty) {
+        passwordController.text = credentials.password;
+      }
+    } catch (_) {
+      // Secure storage không khả dụng thì người dùng vẫn có thể nhập thủ công.
+    }
+  }
+
+  Future<void> _clearSavedCredentials() async {
+    phoneController.clear();
+    passwordController.clear();
+    try {
+      await LoginCredentialStorage.clear();
+    } catch (_) {
+      // Vẫn giữ form trống để người dùng nhập tài khoản khác.
+    }
+    if (!mounted) return;
+    setState(() {});
+    _showSnack(
+      'Đã xoá thông tin đăng nhập đã lưu',
+      color: Colors.green.shade700,
+    );
   }
 
   @override
@@ -56,7 +88,6 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _login() async {
     final phone = phoneController.text.trim();
     final password = passwordController.text.trim();
-
     if (phone.isEmpty || password.isEmpty) {
       _showSnack('Vui lòng nhập đầy đủ thông tin');
       return;
@@ -65,57 +96,25 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
     try {
       final deviceToken = await FirebaseNotificationService.getDeviceToken();
-      final res = await ApiService.customerLogin(
+      if (!mounted) return;
+      final result = await context.read<AuthProvider>().login(
         phone: phone,
         password: password,
         deviceToken: deviceToken ?? '',
       );
-
-      if (res.statusCode == 200) {
-        try {
-          final data = jsonDecode(res.body);
-
-          final accessToken = data['accessToken'] ?? '';
-          final refreshToken = data['refreshToken'] ?? '';
-          final fullName = data['fullName'] ?? '';
-          final int userId = data['id'] ?? 0;
-
-          if (accessToken.isEmpty) {
-            _showSnack('Server không trả về accessToken');
-            return;
-          }
-
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('accessToken', accessToken);
-          await prefs.setString('refreshToken', refreshToken);
-          await prefs.setString('fullName', fullName);
-          await prefs.setString('phone', phone);
-          await prefs.setInt('id', userId);
-          await prefs.setBool('showEventBanner', true);
-
-          if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        } catch (_) {
-          _showSnack('Lỗi dữ liệu từ server');
-        }
+      if (!mounted) return;
+      if (!result.isSuccess) {
+        _showSnack(result.message ?? 'Sai tài khoản hoặc mật khẩu');
         return;
       }
-
-      try {
-        final err = jsonDecode(res.body);
-        _showSnack(err['message'] ?? 'Sai tài khoản hoặc mật khẩu');
-      } catch (_) {
-        _showSnack('Đăng nhập thất bại (Mã: ${res.statusCode})');
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
     } catch (e) {
       _showSnack('Không thể đăng nhập: $e');
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -133,10 +132,21 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  Future<void> _buyConcertTicketAsGuest() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => BookingModel(),
+          child: const ConcertBookingScreen(isGuest: true),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return AuthScaffold(
       child: Center(
         child: SingleChildScrollView(
@@ -153,11 +163,12 @@ class _LoginScreenState extends State<LoginScreen>
                       curve: Curves.easeInOut,
                     ),
                   ),
-                  child: AuthLogoHero(
+                  child: const AuthLogoHero(
                     title: 'Đăng nhập Đông Dương',
-                    subtitle:
-                        '',
+                    subtitle: '',
                     assetPath: 'lib/assets/icons/dong_duong_logo.png',
+                    logoSize: 108,
+                    centered: true,
                   ),
                 ),
                 const SizedBox(height: 22),
@@ -175,6 +186,14 @@ class _LoginScreenState extends State<LoginScreen>
                           label: 'Số điện thoại',
                           hint: 'Nhập số điện thoại đã đăng ký',
                           icon: Icons.phone_outlined,
+                          suffixIcon: IconButton(
+                            tooltip: 'Xoá thông tin đăng nhập đã lưu',
+                            onPressed: _clearSavedCredentials,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white70,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -188,11 +207,9 @@ class _LoginScreenState extends State<LoginScreen>
                           hint: 'Nhập mật khẩu',
                           icon: Icons.lock_outline_rounded,
                           suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              );
-                            },
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                             icon: Icon(
                               _obscurePassword
                                   ? Icons.visibility_off_outlined
@@ -202,68 +219,94 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _goToForgotPassword,
-                          child: Text(
-                            'Quên mật khẩu?',
-                            style: TextStyle(
-                              color: theme.colorScheme.secondary,
-                              fontWeight: FontWeight.w700,
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: _isLoading
+                                  ? null
+                                  : _buyConcertTicketAsGuest,
+                              icon: const Icon(
+                                Icons.music_note_rounded,
+                                size: 19,
+                              ),
+                              label: const FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text('ĐI CONCERT NÀO!'),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: theme.colorScheme.secondary,
+                                side: BorderSide(
+                                  color: theme.colorScheme.secondary,
+                                ),
+                                minimumSize: const Size(0, 56),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 56),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.black87,
-                                  ),
-                                )
-                              : const Text('ĐĂNG NHẬP'),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Center(
-                  child: TextButton(
-                    onPressed: _goToRegister,
-                    child: RichText(
-                      text: TextSpan(
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.74),
-                          fontSize: 15,
-                        ),
-                        children: [
-                          const TextSpan(text: 'Chưa có tài khoản? '),
-                          TextSpan(
-                            text: 'Đăng ký ngay',
-                            style: TextStyle(
-                              color: theme.colorScheme.secondary,
-                              fontWeight: FontWeight.w800,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size(0, 56),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.black87,
+                                      ),
+                                    )
+                                  : const FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text('ĐĂNG NHẬP'),
+                                    ),
                             ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: _goToForgotPassword,
+                      child: Text(
+                        'Quên mật khẩu?',
+                        style: TextStyle(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 1,
+                      height: 18,
+                      color: Colors.white.withValues(alpha: 0.28),
+                    ),
+                    TextButton(
+                      onPressed: _goToRegister,
+                      child: Text(
+                        'Đăng ký ngay',
+                        style: TextStyle(
+                          color: theme.colorScheme.secondary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

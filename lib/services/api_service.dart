@@ -292,10 +292,6 @@ class ApiService {
       "https://xeghepdongduong.com/api/accountcustomerapi/change-password",
     );
 
-    print("🔵 [API] CALL CHANGE PASSWORD → $url");
-    print("📌 oldPassword: $oldPassword");
-    print("📌 newPassword: $newPassword");
-
     try {
       final body = jsonEncode({
         "oldPassword": oldPassword,

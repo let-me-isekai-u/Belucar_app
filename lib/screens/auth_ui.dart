@@ -84,6 +84,8 @@ class AuthLogoHero extends StatelessWidget {
   final String subtitle;
   final String assetPath;
   final Widget? trailing;
+  final double logoSize;
+  final bool centered;
 
   const AuthLogoHero({
     super.key,
@@ -91,22 +93,29 @@ class AuthLogoHero extends StatelessWidget {
     required this.subtitle,
     required this.assetPath,
     this.trailing,
+    this.logoSize = 82,
+    this.centered = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: centered
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: centered
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             BrandLogoBadge(
               assetPath: assetPath,
-              size: 82,
-              borderRadius: 24,
-              padding: 5,
+              size: logoSize,
+              borderRadius: logoSize * 0.29,
+              padding: logoSize * 0.06,
             ),
             if (trailing != null) ...[
               const SizedBox(width: 12),
@@ -115,15 +124,22 @@ class AuthLogoHero extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 20),
-        Text(title, style: theme.textTheme.displayMedium),
-        const SizedBox(height: 8),
         Text(
-          subtitle,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: Colors.white.withValues(alpha: 0.78),
-            height: 1.45,
-          ),
+          title,
+          textAlign: centered ? TextAlign.center : TextAlign.start,
+          style: theme.textTheme.displayMedium,
         ),
+        if (subtitle.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            textAlign: centered ? TextAlign.center : TextAlign.start,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: Colors.white.withValues(alpha: 0.78),
+              height: 1.45,
+            ),
+          ),
+        ],
       ],
     );
   }

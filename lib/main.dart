@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:provider/provider.dart';
 
-import 'screens/beluca_home_screen.dart';
 import 'app_theme.dart';
+import 'providers/account_provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/location_provider.dart';
+import 'providers/trip_provider.dart';
+import 'screens/beluca_home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/firebase_notification_service.dart';
+import 'services/token_storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,8 +24,6 @@ void main() async {
     FirebaseNotificationService.firebaseMessagingBackgroundHandler,
   );
 
-  await SharedPreferences.getInstance();
-
   runApp(const BelucarApp());
 }
 
@@ -29,16 +32,36 @@ class BelucarApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'BeluCar',
-      theme: AppTheme.theme,
-      initialRoute: "/splash",
-      routes: {
-        "/splash": (_) => const SplashScreen(),
-        "/login": (_) => const LoginScreen(),
-        "/home": (_) => const HomeScreen(),
-      },
+    return MultiProvider(
+      providers: [
+        Provider<TokenStorage>(create: (_) => TokenStorage()),
+        ChangeNotifierProvider<AuthProvider>(
+          create: (context) =>
+              AuthProvider(tokenStorage: context.read<TokenStorage>()),
+        ),
+        ChangeNotifierProvider<AccountProvider>(
+          create: (context) =>
+              AccountProvider(authProvider: context.read<AuthProvider>()),
+        ),
+        ChangeNotifierProvider<TripProvider>(
+          create: (context) =>
+              TripProvider(authProvider: context.read<AuthProvider>()),
+        ),
+        ChangeNotifierProvider<LocationProvider>(
+          create: (_) => LocationProvider(),
+        ),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'BeluCar',
+        theme: AppTheme.theme,
+        initialRoute: '/splash',
+        routes: {
+          '/splash': (_) => const SplashScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/home': (_) => const HomeScreen(),
+        },
+      ),
     );
   }
 }

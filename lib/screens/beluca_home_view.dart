@@ -5,12 +5,14 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../app_theme.dart';
+import '../models/booking_model.dart';
 import '../models/deposit_model.dart';
 import '../providers/home_provider.dart';
 import '../widgets/brand_logo_badge.dart';
 import 'activity_screen.dart';
 import 'booking/booking1_screen.dart';
 import 'chat_to_order/chat_screen.dart';
+import 'concert/concert_booking_screen.dart';
 import 'profile_screen.dart';
 
 class HomeView extends StatefulWidget {
@@ -29,6 +31,7 @@ class _HomeViewState extends State<HomeView> {
       GlobalKey<ActivityScreenState>();
 
   Timer? _weatherTimer;
+  bool _showConcertBanner = true;
 
   @override
   void initState() {
@@ -41,6 +44,10 @@ class _HomeViewState extends State<HomeView> {
       const Duration(minutes: 10),
       (_) => _homeProvider.fetchWeather(),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _presentConcertBanner();
+    });
   }
 
   @override
@@ -60,6 +67,101 @@ class _HomeViewState extends State<HomeView> {
 
   Color _softTint(Color color, [double amount = 0.12]) {
     return Color.alphaBlend(color.withValues(alpha: amount), Colors.white);
+  }
+
+  Future<void> _openConcertBooking() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => BookingModel(),
+          child: const ConcertBookingScreen(),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openExistingConcertTicket() async {
+    await openConcertTickets(context, ConcertTicketData.demoExistingTickets());
+  }
+
+  Future<void> _presentConcertBanner() async {
+    if (!mounted || !_showConcertBanner) return;
+
+    final shouldOpenBooking = await showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Banner đặt xe đi concert',
+      barrierColor: Colors.black.withValues(alpha: 0.72),
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (dialogContext, animation, secondaryAnimation) {
+        return SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.78,
+                ),
+                child: AspectRatio(
+                  aspectRatio: 972 / 1627,
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(24),
+                    clipBehavior: Clip.antiAlias,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Ink.image(
+                          image: const AssetImage('lib/assets/BN_BB_CC.png'),
+                          fit: BoxFit.cover,
+                          child: InkWell(
+                            onTap: () => Navigator.pop(dialogContext, true),
+                          ),
+                        ),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: IconButton.filled(
+                            tooltip: 'Đóng banner',
+                            onPressed: () =>
+                                Navigator.pop(dialogContext, false),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.88,
+                              ),
+                              foregroundColor: AppColors.primaryGreen,
+                            ),
+                            icon: const Icon(Icons.close_rounded, size: 30),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutBack,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(scale: curved, child: child),
+        );
+      },
+    );
+
+    if (!mounted) return;
+    setState(() => _showConcertBanner = false);
+
+    if (shouldOpenBooking == true) {
+      await _openConcertBooking();
+    }
   }
 
   Future<void> _showDepositAmountDialog() async {
@@ -536,6 +638,14 @@ class _HomeViewState extends State<HomeView> {
               onTap: () => homeProvider.selectTab(1),
             ),
             _buildBottomBarItem(
+              index: -1,
+              selectedIndex: homeProvider.selectedIndex,
+              inactiveIcon: Icons.music_note_rounded,
+              activeIcon: Icons.music_note_rounded,
+              label: 'Concert',
+              onTap: _openConcertBooking,
+            ),
+            _buildBottomBarItem(
               index: 2,
               selectedIndex: homeProvider.selectedIndex,
               inactiveIcon: Icons.history_toggle_off_rounded,
@@ -816,6 +926,10 @@ class _HomeViewState extends State<HomeView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (!_showConcertBanner) ...[
+                  _buildConcertShortcut(),
+                  const SizedBox(height: 16),
+                ],
                 _buildHeroCard(homeProvider),
                 const SizedBox(height: 16),
                 _buildPrimaryActionRow(homeProvider),
@@ -830,6 +944,104 @@ class _HomeViewState extends State<HomeView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildConcertShortcut() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _softTint(AppColors.accentGold, 0.18),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.45)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.accentGold.withValues(alpha: 0.14),
+            blurRadius: 14,
+            offset: const Offset(0, 7),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.music_note_rounded,
+                  color: AppColors.accentGold,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vé xe đi concert',
+                      style: TextStyle(
+                        color: AppColors.primaryGreen,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Mua vé mới hoặc xem vé đã có',
+                      style: TextStyle(color: Color(0xFF586B64), fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _openConcertBooking,
+                  icon: const Icon(Icons.add_shopping_cart_rounded, size: 19),
+                  label: const Text('Mua vé'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: AppColors.accentGold,
+                    minimumSize: const Size(0, 46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _openExistingConcertTicket,
+                  icon: const Icon(Icons.confirmation_num_rounded, size: 19),
+                  label: const Text('Xem vé'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primaryGreen,
+                    backgroundColor: Colors.white.withValues(alpha: 0.76),
+                    side: const BorderSide(color: AppColors.primaryGreen),
+                    minimumSize: const Size(0, 46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

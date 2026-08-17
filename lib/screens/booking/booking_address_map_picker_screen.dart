@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart' as latlng;
+import 'package:provider/provider.dart';
 
 import '../../models/location_models.dart';
-import '../../services/api_service.dart';
+import '../../providers/location_provider.dart';
 
 class BookingAddressMapPickerScreen extends StatefulWidget {
   final String title;
@@ -80,17 +81,13 @@ class _BookingAddressMapPickerScreenState
 
   Future<void> _moveToPlaceId(String placeId) async {
     try {
-      final response = await ApiService.getTrackAsiaPlaceDetail(
-        placeId: placeId,
+      final result = await context.read<LocationProvider>().getPlaceDetail(
+        placeId,
       );
       if (!mounted) return;
 
-      final parsed = TrackAsiaPlaceDetailResponse.fromRawJson(response.body);
-      final detail = parsed.data;
-      if (response.statusCode >= 200 &&
-          response.statusCode < 300 &&
-          parsed.success &&
-          detail != null) {
+      final detail = result.data;
+      if (result.isSuccess && detail != null) {
         final nextCenter = latlng.LatLng(detail.lat, detail.lng);
         _mapController.move(nextCenter, 16);
         setState(() {
@@ -151,21 +148,6 @@ class _BookingAddressMapPickerScreenState
     }
   }
 
-  String _extractMessage(String raw, int statusCode) {
-    if (statusCode == 502) {
-      return 'Không thể lấy địa chỉ, vui lòng thử lại';
-    }
-
-    try {
-      final parsed = ResolvePointResponse.fromRawJson(raw);
-      if (parsed.message != null && parsed.message!.trim().isNotEmpty) {
-        return parsed.message!.trim();
-      }
-    } catch (_) {}
-
-    return 'Không xác định được địa chỉ tại vị trí này';
-  }
-
   String _coordinateKey(latlng.LatLng point) {
     return '${point.latitude.toStringAsFixed(6)},${point.longitude.toStringAsFixed(6)}';
   }
@@ -186,7 +168,7 @@ class _BookingAddressMapPickerScreenState
       _errorMessage = null;
     });
 
-    final response = await ApiService.resolveAddressPoint(
+    final result = await context.read<LocationProvider>().resolvePoint(
       lat: target.latitude,
       lng: target.longitude,
     );
@@ -194,25 +176,21 @@ class _BookingAddressMapPickerScreenState
     if (!mounted || requestId != _previewRequestId) return;
 
     try {
-      final parsed = ResolvePointResponse.fromRawJson(response.body);
-      if (response.statusCode >= 200 &&
-          response.statusCode < 300 &&
-          parsed.success &&
-          parsed.data != null) {
+      if (result.isSuccess && result.data != null) {
         setState(() {
-          _resolvedLocation = parsed.data;
+          _resolvedLocation = result.data;
           _errorMessage = null;
         });
       } else {
         setState(() {
           _resolvedLocation = null;
-          _errorMessage = _extractMessage(response.body, response.statusCode);
+          _errorMessage = result.message;
         });
       }
     } catch (_) {
       setState(() {
         _resolvedLocation = null;
-        _errorMessage = _extractMessage(response.body, response.statusCode);
+        _errorMessage = 'Không xác định được địa chỉ tại vị trí này';
       });
     } finally {
       if (mounted && requestId == _previewRequestId) {
@@ -235,7 +213,7 @@ class _BookingAddressMapPickerScreenState
       _errorMessage = null;
     });
 
-    final response = await ApiService.resolveAddressPoint(
+    final result = await context.read<LocationProvider>().resolvePoint(
       lat: _mapCenter.latitude,
       lng: _mapCenter.longitude,
     );
@@ -243,21 +221,17 @@ class _BookingAddressMapPickerScreenState
     if (!mounted) return;
 
     try {
-      final parsed = ResolvePointResponse.fromRawJson(response.body);
-      if (response.statusCode >= 200 &&
-          response.statusCode < 300 &&
-          parsed.success &&
-          parsed.data != null) {
-        Navigator.pop(context, parsed.data);
+      if (result.isSuccess && result.data != null) {
+        Navigator.pop(context, result.data);
         return;
       }
 
       setState(() {
-        _errorMessage = _extractMessage(response.body, response.statusCode);
+        _errorMessage = result.message;
       });
     } catch (_) {
       setState(() {
-        _errorMessage = _extractMessage(response.body, response.statusCode);
+        _errorMessage = 'Không xác định được địa chỉ tại vị trí này';
       });
     } finally {
       if (mounted) {

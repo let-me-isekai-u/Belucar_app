@@ -6,8 +6,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/deposit_model.dart';
 import '../services/api_service.dart';
+import 'auth_provider.dart';
 
 class HomeProvider extends ChangeNotifier {
+  HomeProvider({required AuthProvider authProvider})
+    : _authProvider = authProvider;
+
+  final AuthProvider _authProvider;
   int _selectedIndex = 0;
   String _fullName = '';
   int _userId = 0;
@@ -52,7 +57,7 @@ class HomeProvider extends ChangeNotifier {
   Future<void> loadUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     _fullName = prefs.getString('fullName') ?? '';
-    _accessToken = prefs.getString('accessToken') ?? '';
+    _accessToken = await _authProvider.requireAccessToken() ?? '';
 
     if (_accessToken.isEmpty) {
       notifyListeners();

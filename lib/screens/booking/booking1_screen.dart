@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../app_theme.dart';
 import '../../models/booking_model.dart';
+import '../../providers/booking_provider.dart';
 import '../../models/location_models.dart';
 import 'booking2_screen.dart';
 import 'booking_address_map_picker_screen.dart';
@@ -81,7 +82,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
 
   Future<void> _pickPointOnMap(
     BuildContext context,
-    BookingModel model, {
+    BookingProvider model, {
     required bool isPickup,
   }) async {
     dismissBookingKeyboard();
@@ -116,20 +117,20 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     await _maybeAutoAdvance(model);
   }
 
-  bool _canAutoAdvance(BookingModel model) {
+  bool _canAutoAdvance(BookingProvider model) {
     return model.hasPickupSelection &&
         model.hasDropSelection &&
         model.validateRouteSelection() == null;
   }
 
-  Future<void> _maybeAutoAdvance(BookingModel model) async {
+  Future<void> _maybeAutoAdvance(BookingProvider model) async {
     if (!_canAutoAdvance(model) || _isNavigatingNext || !mounted) return;
     await _goNext(model);
   }
 
   Widget _buildAddressField({
     required BuildContext context,
-    required BookingModel model,
+    required BookingProvider model,
     required bool isPickup,
     required FocusNode focusNode,
     required TextEditingController controller,
@@ -180,7 +181,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     );
   }
 
-  Widget _buildSuggestionList(BuildContext context, BookingModel model) {
+  Widget _buildSuggestionList(BuildContext context, BookingProvider model) {
     final theme = Theme.of(context);
     final suggestions = _isPickupActive
         ? model.pickupSuggestions
@@ -274,7 +275,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
 
   Widget _buildFieldActions({
     required BuildContext context,
-    required BookingModel model,
+    required BookingProvider model,
     required bool isPickup,
   }) {
     final hasSelection = isPickup
@@ -329,7 +330,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
   Widget _buildRouteCard(
     BuildContext context,
     BookingSavedRoute route,
-    BookingModel model,
+    BookingProvider model,
   ) {
     final theme = Theme.of(context);
     return Material(
@@ -435,7 +436,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
   Widget _buildSavedPlaceCard(
     BuildContext context,
     BookingSavedPlace place,
-    BookingModel model, {
+    BookingProvider model, {
     required bool isFavorite,
   }) {
     final theme = Theme.of(context);
@@ -525,7 +526,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     );
   }
 
-  Widget _buildSavedCollections(BuildContext context, BookingModel model) {
+  Widget _buildSavedCollections(BuildContext context, BookingProvider model) {
     final activeText =
         (_isPickupActive
                 ? model.pickupAddressController.text
@@ -619,7 +620,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     );
   }
 
-  bool _validate(BookingModel model) {
+  bool _validate(BookingProvider model) {
     if (!model.hasPickupSelection) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -654,7 +655,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     return true;
   }
 
-  Future<void> _goNext(BookingModel model) async {
+  Future<void> _goNext(BookingProvider model) async {
     if (_isNavigatingNext || !mounted) return;
 
     dismissBookingKeyboard();
@@ -682,7 +683,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final model = context.watch<BookingModel>();
+    final model = context.watch<BookingProvider>();
     final theme = Theme.of(context);
     final activeLoading = _isPickupActive
         ? model.loadingPickupSuggestions

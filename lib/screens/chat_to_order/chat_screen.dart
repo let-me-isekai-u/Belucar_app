@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/message_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 
 class ChatScreen extends StatelessWidget {
@@ -32,15 +32,15 @@ class _ChatScreenViewState extends State<_ChatScreenView>
   final FocusNode _focusNode = FocusNode();
 
   // ── Brand colours ──────────────────────────────────────────────────────────
-  static const Color beluDarkGreen   = Color(0xFF0A422D);
+  static const Color beluDarkGreen = Color(0xFF0A422D);
   static const Color beluMediumGreen = Color(0xFF145E44);
-  static const Color beluAccentGold  = Color(0xFFFFD700);
-  static const Color bgCanvas        = Color(0xFFF0F4F2);
+  static const Color beluAccentGold = Color(0xFFFFD700);
+  static const Color bgCanvas = Color(0xFFF0F4F2);
 
   // ── State ──────────────────────────────────────────────────────────────────
-  String _accessToken    = '';
-  bool   _isReady        = false;
-  bool   _inputFocused   = false;
+  String _accessToken = '';
+  bool _isReady = false;
+  bool _inputFocused = false;
 
   ChatProvider? _provider;
   bool _didCaptureProvider = false;
@@ -66,13 +66,12 @@ class _ChatScreenViewState extends State<_ChatScreenView>
   }
 
   Future<void> _initChatScreen() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
+    final token = await context.read<AuthProvider>().requireAccessToken() ?? '';
     if (!mounted) return;
 
     setState(() {
       _accessToken = token;
-      _isReady     = true;
+      _isReady = true;
     });
 
     if (_accessToken.isEmpty) return;
@@ -97,7 +96,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
       }
     }
 
-    final max     = _scrollController.position.maxScrollExtent;
+    final max = _scrollController.position.maxScrollExtent;
     final current = _scrollController.position.pixels;
     if ((max - current) <= 80 && _accessToken.isNotEmpty) {
       provider.markAsRead(accessToken: _accessToken, silent: true);
@@ -199,7 +198,11 @@ class _ChatScreenViewState extends State<_ChatScreenView>
         ),
       ),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+        icon: const Icon(
+          Icons.arrow_back_ios_new,
+          color: Colors.white,
+          size: 20,
+        ),
         onPressed: () => Navigator.pop(context),
       ),
       title: Row(
@@ -211,10 +214,16 @@ class _ChatScreenViewState extends State<_ChatScreenView>
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: beluAccentGold.withOpacity(0.2),
-              border: Border.all(color: beluAccentGold.withOpacity(0.6), width: 1.5),
+              border: Border.all(
+                color: beluAccentGold.withOpacity(0.6),
+                width: 1.5,
+              ),
             ),
-            child: const Icon(Icons.support_agent_rounded,
-                color: beluAccentGold, size: 20),
+            child: const Icon(
+              Icons.support_agent_rounded,
+              color: beluAccentGold,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 10),
           Column(
@@ -269,10 +278,8 @@ class _ChatScreenViewState extends State<_ChatScreenView>
     if (provider.error != null && messages.isEmpty) {
       return _ErrorState(
         message: provider.error!,
-        onRetry: () => provider.initChat(
-          accessToken: _accessToken,
-          autoMarkRead: true,
-        ),
+        onRetry: () =>
+            provider.initChat(accessToken: _accessToken, autoMarkRead: true),
       );
     }
 
@@ -299,12 +306,12 @@ class _ChatScreenViewState extends State<_ChatScreenView>
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             itemCount: messages.length,
             itemBuilder: (context, index) {
-              final msg  = messages[index];
+              final msg = messages[index];
               final prev = index > 0 ? messages[index - 1] : null;
 
               // Hiện date separator khi khác ngày với tin trước
-              final showDateSep = prev == null ||
-                  !_isSameDay(msg.createdAt, prev.createdAt);
+              final showDateSep =
+                  prev == null || !_isSameDay(msg.createdAt, prev.createdAt);
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -324,11 +331,12 @@ class _ChatScreenViewState extends State<_ChatScreenView>
   Widget _buildChatBubble(MessageModel msg, MessageModel? prev) {
     if (msg.isRideSystemMessage) return _buildRideSystemBubble(msg);
 
-    final isMe     = msg.isMe;
+    final isMe = msg.isMe;
     final isSystem = msg.isSystem;
 
     // Gộp thời gian nếu cùng phút với tin trước
-    final showTime = prev == null ||
+    final showTime =
+        prev == null ||
         msg.createdAt.difference(prev.createdAt).inMinutes >= 1 ||
         prev.isMe != isMe;
 
@@ -345,32 +353,36 @@ class _ChatScreenViewState extends State<_ChatScreenView>
       child: Padding(
         padding: EdgeInsets.only(
           bottom: showTime ? 10 : 3,
-          left:  isMe ? 60 : 0,
+          left: isMe ? 60 : 0,
           right: isMe ? 0 : 60,
         ),
         child: Align(
           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
           child: Column(
-            crossAxisAlignment:
-            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+            crossAxisAlignment: isMe
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   gradient: isMe
                       ? const LinearGradient(
-                    colors: [beluMediumGreen, beluDarkGreen],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
+                          colors: [beluMediumGreen, beluDarkGreen],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
                       : null,
                   color: isSystem
                       ? Colors.amber.shade50
                       : (isMe ? null : Colors.white),
                   borderRadius: BorderRadius.only(
-                    topLeft:     const Radius.circular(20),
-                    topRight:    const Radius.circular(20),
-                    bottomLeft:  Radius.circular(isMe ? 20 : 4),
+                    topLeft: const Radius.circular(20),
+                    topRight: const Radius.circular(20),
+                    bottomLeft: Radius.circular(isMe ? 20 : 4),
                     bottomRight: Radius.circular(isMe ? 4 : 20),
                   ),
                   boxShadow: [
@@ -385,8 +397,8 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                   border: isSystem
                       ? Border.all(color: Colors.amber.shade200)
                       : (!isMe
-                      ? Border.all(color: Colors.grey.shade100)
-                      : null),
+                            ? Border.all(color: Colors.grey.shade100)
+                            : null),
                 ),
                 child: Text(
                   msg.content,
@@ -417,8 +429,8 @@ class _ChatScreenViewState extends State<_ChatScreenView>
 
   // ── Ride system card ───────────────────────────────────────────────────────
   Widget _buildRideSystemBubble(MessageModel msg) {
-    final ride        = msg.rideMeta;
-    final isCreate    = msg.isRideCreatedMessage;
+    final ride = msg.rideMeta;
+    final isCreate = msg.isRideCreatedMessage;
     final isCancelled = ride?.status == 5;
 
     // Màu theme theo trạng thái
@@ -429,29 +441,29 @@ class _ChatScreenViewState extends State<_ChatScreenView>
     final String title;
 
     if (ride == null) {
-      headerBg    = beluDarkGreen;
+      headerBg = beluDarkGreen;
       borderColor = beluMediumGreen.withOpacity(0.3);
-      iconColor   = beluAccentGold;
-      headerIcon  = Icons.receipt_long_outlined;
-      title       = isCreate ? 'Đơn đã được tạo' : 'Đơn đã được cập nhật';
+      iconColor = beluAccentGold;
+      headerIcon = Icons.receipt_long_outlined;
+      title = isCreate ? 'Đơn đã được tạo' : 'Đơn đã được cập nhật';
     } else if (isCancelled) {
-      headerBg    = const Color(0xFFC62828);
+      headerBg = const Color(0xFFC62828);
       borderColor = Colors.red.shade200;
-      iconColor   = Colors.white;
-      headerIcon  = Icons.cancel_outlined;
-      title       = 'Đơn đã bị huỷ';
+      iconColor = Colors.white;
+      headerIcon = Icons.cancel_outlined;
+      title = 'Đơn đã bị huỷ';
     } else if (isCreate) {
-      headerBg    = beluDarkGreen;
+      headerBg = beluDarkGreen;
       borderColor = beluMediumGreen.withOpacity(0.3);
-      iconColor   = beluAccentGold;
-      headerIcon  = Icons.add_circle_outline_rounded;
-      title       = 'Đơn đã được tạo';
+      iconColor = beluAccentGold;
+      headerIcon = Icons.add_circle_outline_rounded;
+      title = 'Đơn đã được tạo';
     } else {
-      headerBg    = const Color(0xFF1565C0);
+      headerBg = const Color(0xFF1565C0);
       borderColor = Colors.blue.shade200;
-      iconColor   = Colors.white;
-      headerIcon  = Icons.sync_rounded;
-      title       = 'Đơn đã được cập nhật';
+      iconColor = Colors.white;
+      headerIcon = Icons.sync_rounded;
+      title = 'Đơn đã được cập nhật';
     }
 
     return TweenAnimationBuilder<double>(
@@ -485,8 +497,10 @@ class _ChatScreenViewState extends State<_ChatScreenView>
             children: [
               // ── Header stripe ────────────────────────────────────────────
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 color: headerBg,
                 child: Row(
                   children: [
@@ -623,14 +637,16 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                           decoration: BoxDecoration(
                             color: Colors.amber.shade50,
                             borderRadius: BorderRadius.circular(10),
-                            border:
-                            Border.all(color: Colors.amber.shade200),
+                            border: Border.all(color: Colors.amber.shade200),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.sticky_note_2_outlined,
-                                  size: 15, color: Colors.amber),
+                              const Icon(
+                                Icons.sticky_note_2_outlined,
+                                size: 15,
+                                color: Colors.amber,
+                              ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -676,8 +692,12 @@ class _ChatScreenViewState extends State<_ChatScreenView>
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String label, String value,
-      {bool highlight = false}) {
+  Widget _buildInfoChip(
+    IconData icon,
+    String label,
+    String value, {
+    bool highlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 7),
       child: Row(
@@ -689,10 +709,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
             width: 90,
             child: Text(
               label,
-              style: const TextStyle(
-                fontSize: 12.5,
-                color: Colors.black54,
-              ),
+              style: const TextStyle(fontSize: 12.5, color: Colors.black54),
             ),
           ),
           Expanded(
@@ -701,8 +718,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
               style: TextStyle(
                 fontSize: 13,
                 color: highlight ? beluDarkGreen : Colors.black87,
-                fontWeight:
-                highlight ? FontWeight.bold : FontWeight.normal,
+                fontWeight: highlight ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),
@@ -789,27 +805,22 @@ class _ChatScreenViewState extends State<_ChatScreenView>
           Expanded(
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
-                color: _inputFocused
-                    ? Colors.white
-                    : Colors.grey.shade100,
+                color: _inputFocused ? Colors.white : Colors.grey.shade100,
                 borderRadius: BorderRadius.circular(26),
                 border: Border.all(
-                  color: _inputFocused
-                      ? beluMediumGreen
-                      : Colors.grey.shade200,
+                  color: _inputFocused ? beluMediumGreen : Colors.grey.shade200,
                   width: _inputFocused ? 1.5 : 1,
                 ),
                 boxShadow: _inputFocused
                     ? [
-                  BoxShadow(
-                    color: beluDarkGreen.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ]
+                        BoxShadow(
+                          color: beluDarkGreen.withOpacity(0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
                     : [],
               ),
               child: TextField(
@@ -819,15 +830,16 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                 minLines: 1,
                 enabled: !disabled,
                 cursorColor: beluDarkGreen,
-                style:
-                const TextStyle(color: Colors.black87, fontSize: 14.5),
+                style: const TextStyle(color: Colors.black87, fontSize: 14.5),
                 onSubmitted: (_) => _handleSendMessage(),
                 decoration: InputDecoration(
                   hintText: provider.isSending
                       ? 'Đang gửi...'
                       : 'Nhập tin nhắn...',
                   hintStyle: const TextStyle(
-                      color: Colors.black38, fontSize: 14.5),
+                    color: Colors.black38,
+                    fontSize: 14.5,
+                  ),
                   border: InputBorder.none,
                   isDense: true,
                 ),
@@ -846,20 +858,20 @@ class _ChatScreenViewState extends State<_ChatScreenView>
               gradient: disabled
                   ? null
                   : const LinearGradient(
-                colors: [beluMediumGreen, beluDarkGreen],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+                      colors: [beluMediumGreen, beluDarkGreen],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
               color: disabled ? Colors.grey.shade300 : null,
               boxShadow: disabled
                   ? []
                   : [
-                BoxShadow(
-                  color: beluDarkGreen.withOpacity(0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+                      BoxShadow(
+                        color: beluDarkGreen.withOpacity(0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
             ),
             child: Material(
               color: Colors.transparent,
@@ -869,15 +881,18 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                 child: Center(
                   child: provider.isSending
                       ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                      : const Icon(Icons.send_rounded,
-                      color: Colors.white, size: 19),
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.send_rounded,
+                          color: Colors.white,
+                          size: 19,
+                        ),
                 ),
               ),
             ),
@@ -905,12 +920,18 @@ class _ChatScreenViewState extends State<_ChatScreenView>
 
   String _statusText(int status) {
     switch (status) {
-      case 1:  return 'Mới tạo';
-      case 2:  return 'Đã nhận';
-      case 3:  return 'Đang thực hiện';
-      case 4:  return 'Hoàn tất';
-      case 5:  return 'Đã huỷ';
-      default: return 'Không xác định';
+      case 1:
+        return 'Mới tạo';
+      case 2:
+        return 'Đã nhận';
+      case 3:
+        return 'Đang thực hiện';
+      case 4:
+        return 'Hoàn tất';
+      case 5:
+        return 'Đã huỷ';
+      default:
+        return 'Không xác định';
     }
   }
 }
@@ -933,8 +954,8 @@ class _FullScreenLoader extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final IconData icon;
-  final String   title;
-  final String   subtitle;
+  final String title;
+  final String subtitle;
 
   const _EmptyState({
     required this.icon,
@@ -982,7 +1003,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  final String    message;
+  final String message;
   final VoidCallback onRetry;
 
   const _ErrorState({required this.message, required this.onRetry});
@@ -1002,15 +1023,17 @@ class _ErrorState extends StatelessWidget {
                 color: Colors.red.shade50,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.wifi_off_rounded,
-                  size: 34, color: Colors.red.shade400),
+              child: Icon(
+                Icons.wifi_off_rounded,
+                size: 34,
+                color: Colors.red.shade400,
+              ),
             ),
             const SizedBox(height: 18),
             Text(
               message,
               textAlign: TextAlign.center,
-              style:
-              const TextStyle(fontSize: 14.5, color: Colors.black87),
+              style: const TextStyle(fontSize: 14.5, color: Colors.black87),
             ),
             const SizedBox(height: 18),
             TextButton.icon(
@@ -1019,12 +1042,14 @@ class _ErrorState extends StatelessWidget {
               label: const Text('Thử lại'),
               style: TextButton.styleFrom(
                 foregroundColor: const Color(0xFF0A422D),
-                backgroundColor:
-                const Color(0xFF0A422D).withOpacity(0.08),
+                backgroundColor: const Color(0xFF0A422D).withOpacity(0.08),
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 10),
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20)),
+                  borderRadius: BorderRadius.circular(20),
+                ),
               ),
             ),
           ],
@@ -1039,7 +1064,7 @@ class _DateSeparator extends StatelessWidget {
   const _DateSeparator({required this.date});
 
   String _label() {
-    final d     = date.toLocal();
+    final d = date.toLocal();
     final today = DateTime.now();
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
 
@@ -1060,7 +1085,9 @@ class _DateSeparator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         children: [
-          const Expanded(child: Divider(color: Color(0xFFD0D8D4), thickness: 1)),
+          const Expanded(
+            child: Divider(color: Color(0xFFD0D8D4), thickness: 1),
+          ),
           const SizedBox(width: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -1079,7 +1106,9 @@ class _DateSeparator extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(child: Divider(color: Color(0xFFD0D8D4), thickness: 1)),
+          const Expanded(
+            child: Divider(color: Color(0xFFD0D8D4), thickness: 1),
+          ),
         ],
       ),
     );

@@ -1,13 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app_theme.dart';
 import 'order_detail_screen.dart';
 import '../models/trip_item_model.dart';
 import '../providers/home_provider.dart';
-import '../services/api_service.dart';
+import '../providers/trip_provider.dart';
 import 'package:intl/intl.dart';
 
 class ActivityScreen extends StatefulWidget {
@@ -94,51 +92,20 @@ class ActivityScreenState extends State<ActivityScreen>
     context.read<HomeProvider>().selectTab(1);
   }
 
-  Future<String?> _getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString("accessToken");
-  }
-
   Future<List<TripItemModel>> _fetchOngoingTrips() async {
-    final token = await _getAccessToken();
-    if (token == null) return [];
-
-    try {
-      final res = await ApiService.getTripCurrent(accessToken: token);
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        final List list = body["data"] ?? [];
-        return list.map((e) => TripItemModel.fromJson(e)).toList();
-      }
-    } catch (e) {
-      debugPrint("Error fetching ongoing trips: $e");
-    }
-    return [];
+    return context.read<TripProvider>().fetchOngoingTrips();
   }
 
   Future<List<TripItemModel>> _fetchHistoryTrips() async {
-    final token = await _getAccessToken();
-    if (token == null) return [];
-
-    try {
-      final res = await ApiService.getTripHistory(accessToken: token);
-      if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        final List list = body["data"] ?? [];
-        return list.map((e) => TripItemModel.fromJson(e)).toList();
-      }
-    } catch (e) {
-      debugPrint("Error fetching history trips: $e");
-    }
-    return [];
+    return context.read<TripProvider>().fetchHistoryTrips();
   }
 
   Future<void> _callCancelTrip(int rideId) async {
-    final token = await _getAccessToken();
-    if (token == null) return;
-
     try {
-      await ApiService.cancelTrip(accessToken: token, rideId: rideId);
+      await context.read<TripProvider>().cancelTrip(
+        rideId,
+        confirmCancel: false,
+      );
       _onActionSuccess("Huỷ chuyến thành công");
     } catch (e) {
       _showErrorSnackBar(e.toString());
@@ -146,11 +113,11 @@ class ActivityScreenState extends State<ActivityScreen>
   }
 
   Future<void> _callConfirmCancelTrip(int rideId) async {
-    final token = await _getAccessToken();
-    if (token == null) return;
-
     try {
-      await ApiService.confirmCancelTrip(accessToken: token, rideId: rideId);
+      await context.read<TripProvider>().cancelTrip(
+        rideId,
+        confirmCancel: true,
+      );
       _onActionSuccess("Huỷ chuyến thành công");
     } catch (e) {
       _showErrorSnackBar(e.toString());

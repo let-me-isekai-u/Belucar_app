@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../services/api_service.dart';
+import '../providers/account_provider.dart';
 import 'account_ui.dart';
 import 'login_screen.dart';
 
@@ -62,14 +62,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isSendingCode = true);
 
     try {
-      final res = await ApiService.sendForgotPasswordOtp(email: email);
+      final result = await context
+          .read<AccountProvider>()
+          .sendForgotPasswordOtp(email);
       if (!mounted) return;
 
-      if (res.statusCode == 200) {
+      if (result.isSuccess) {
         _showSnack('Đã gửi mã xác thực!', color: Colors.blue);
         _startCountdown();
       } else {
-        _showSnack('Gửi mã thất bại');
+        _showSnack(result.message ?? 'Gửi mã thất bại');
       }
     } catch (e) {
       _showSnack('Lỗi kết nối: $e');
@@ -84,7 +86,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isResetting = true);
 
     try {
-      final res = await ApiService.resetPassword(
+      final result = await context.read<AccountProvider>().resetPassword(
         email: _emailController.text.trim(),
         otp: _codeController.text.trim(),
         newPassword: _passwordController.text.trim(),
@@ -92,21 +94,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
       if (!mounted) return;
 
-      if (res.statusCode == 200) {
+      if (result.isSuccess) {
         _showSnack('Đổi mật khẩu thành công!', color: Colors.green);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
       } else {
-        final body = res.body.isNotEmpty ? jsonDecode(res.body) : {};
-        _showSnack(body['message'] ?? 'Đổi mật khẩu thất bại');
+        _showSnack(result.message ?? 'Đổi mật khẩu thất bại');
       }
     } catch (e) {
       _showSnack('Lỗi kết nối: $e');
     } finally {
       if (mounted) setState(() => _isResetting = false);
     }
+  }
+
+  void _goBackToLogin() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 
   @override
@@ -125,6 +133,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     return AccountScaffold(
       appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Quay lại đăng nhập',
+          onPressed: _goBackToLogin,
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
         title: Text(
           'Quên mật khẩu',
           style: TextStyle(color: theme.colorScheme.secondary),

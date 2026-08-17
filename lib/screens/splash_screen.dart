@@ -1,7 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+
+import '../models/auth_models.dart';
+import '../providers/auth_provider.dart';
 import '../services/firebase_notification_service.dart';
 
 void appLog(String tag, String msg) {
@@ -76,65 +77,14 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _checkAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
-    final refreshToken = prefs.getString('refreshToken');
-
-    if (accessToken == null || accessToken.isEmpty) {
+    final result = await context.read<AuthProvider>().restoreSession();
+    if (!mounted) return;
+    if (result == AuthRestoreStatus.authenticated) {
+      await _ensureMinDisplay();
+      _goHome();
+    } else {
       _goLogin();
-      return;
     }
-
-    try {
-      final res = await ApiService.getCustomerProfile(accessToken: accessToken);
-
-      if (!mounted) return;
-
-      if (res.statusCode == 200) {
-        await prefs.setBool('showEventBanner', true);
-        await _ensureMinDisplay();
-        _goHome();
-        return;
-      }
-
-      if (res.statusCode == 401) {
-        await prefs.remove('accessToken');
-      }
-    } catch (_) {
-      await prefs.remove('accessToken');
-    }
-
-    if (refreshToken == null || refreshToken.isEmpty) {
-      _clearAndLogin();
-      return;
-    }
-
-    try {
-      final res = await ApiService.refreshToken(refreshToken: refreshToken);
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final newAccess = data['accessToken'];
-        final newRefresh = data['refreshToken'];
-
-        if (newAccess != null && newRefresh != null) {
-          await prefs.setString('accessToken', newAccess);
-          await prefs.setString('refreshToken', newRefresh);
-          await prefs.setBool('showEventBanner', true);
-          await _ensureMinDisplay();
-          _goHome();
-          return;
-        }
-      }
-    } catch (_) {}
-
-    _clearAndLogin();
-  }
-
-  Future<void> _clearAndLogin() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('accessToken');
-    await prefs.remove('refreshToken');
-    _goLogin();
   }
 
   void _goHome() {

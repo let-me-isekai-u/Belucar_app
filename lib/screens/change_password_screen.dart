@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-import '../services/api_service.dart';
+import '../providers/account_provider.dart';
 import 'account_ui.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -177,19 +177,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken');
-
-    if (token == null) {
-      if (mounted) {
-        _toast('Phiên đăng nhập hết hạn!');
-        setState(() => _isSubmitting = false);
-      }
-      return;
-    }
-
-    final res = await ApiService.changePassword(
-      accessToken: token,
+    final result = await context.read<AccountProvider>().changePassword(
       oldPassword: oldPass,
       newPassword: newPass,
     );
@@ -197,11 +185,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
-    if (res.statusCode == 200) {
+    if (result.isSuccess) {
       _toast('Đổi mật khẩu thành công!');
       Navigator.pop(context);
     } else {
-      _toast('Đổi mật khẩu thất bại\n${res.body}');
+      _toast(result.message ?? 'Đổi mật khẩu thất bại');
     }
   }
 

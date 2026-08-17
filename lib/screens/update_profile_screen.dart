@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-import '../services/api_service.dart';
+import '../providers/account_provider.dart';
 import 'account_ui.dart';
 
 class UpdateProfileScreen extends StatefulWidget {
@@ -60,19 +59,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
   Future<void> _saveProfile() async {
     setState(() => _isSaving = true);
 
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
-
-    if (accessToken == null) {
-      if (mounted) {
-        _showSnack('Phiên đăng nhập hết hạn.');
-        Navigator.pop(context);
-      }
-      return;
-    }
-
-    final res = await ApiService.updateProfile(
-      accessToken: accessToken,
+    final result = await context.read<AccountProvider>().updateProfile(
       fullName: nameController.text.trim(),
       email: emailController.text.trim(),
       avatarFilePath: _avatar?.path,
@@ -81,16 +68,11 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
     if (!mounted) return;
     setState(() => _isSaving = false);
 
-    if (res.statusCode == 200) {
+    if (result.isSuccess) {
       _showSnack('Cập nhật thành công!');
       Navigator.pop(context, true);
     } else {
-      try {
-        final data = jsonDecode(res.body);
-        _showSnack(data['message'] ?? 'Lỗi cập nhật.');
-      } catch (_) {
-        _showSnack('Cập nhật thất bại.');
-      }
+      _showSnack(result.message ?? 'Cập nhật thất bại.');
     }
   }
 

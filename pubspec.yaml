@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
   http: ^1.5.0
   shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.4
   intl: ^0.20.2
   provider: ^6.0.5
   qr_flutter: ^4.1.0
@@ -65,6 +66,8 @@ flutter:
     - lib/assets/belucar_summer_splash.png
     - lib/assets/icons/dong_duong_logo.png
     - lib/assets/summer_splash.png
+    - lib/assets/BN_BB_CC.png
+    - lib/assets/concert_bg.png
 
 flutter_launcher_icons:
   android: "launcher_icon"

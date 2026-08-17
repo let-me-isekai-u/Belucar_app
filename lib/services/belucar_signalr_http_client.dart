@@ -55,12 +55,13 @@ class BeluCarSignalRHttpClient extends SignalRHttpClient {
       headers.addMessageHeaders(request.headers);
 
       _logger?.finest(
-        "HTTP send: url '${request.url}', method: '${request.method}' content: '$requestText' content length = '${requestText.length}' headers: '$headers'",
+        "HTTP send: ${request.method} ${uri.scheme}://${uri.host}${uri.path}, content length: ${requestText.length}",
       );
 
-      final httpRespFuture = await Future.any(
-        [_sendHttpRequest(httpClient, request, uri, headers), abortFuture],
-      );
+      final httpRespFuture = await Future.any([
+        _sendHttpRequest(httpClient, request, uri, headers),
+        abortFuture,
+      ]);
       final httpResp = httpRespFuture as Response;
 
       if (request.abortSignal != null) {
@@ -69,7 +70,8 @@ class BeluCarSignalRHttpClient extends SignalRHttpClient {
 
       if (httpResp.statusCode >= 200 && httpResp.statusCode < 300) {
         final contentTypeHeader = httpResp.headers['content-type'];
-        final isJsonContent = contentTypeHeader == null ||
+        final isJsonContent =
+            contentTypeHeader == null ||
             contentTypeHeader.startsWith('application/json');
 
         final content = httpResp.body;
@@ -100,12 +102,18 @@ class BeluCarSignalRHttpClient extends SignalRHttpClient {
 
     switch (request.method!.toLowerCase()) {
       case 'post':
-        httpResponse =
-            httpClient.post(uri, body: request.content, headers: headers.asMap);
+        httpResponse = httpClient.post(
+          uri,
+          body: request.content,
+          headers: headers.asMap,
+        );
         break;
       case 'put':
-        httpResponse =
-            httpClient.put(uri, body: request.content, headers: headers.asMap);
+        httpResponse = httpClient.put(
+          uri,
+          body: request.content,
+          headers: headers.asMap,
+        );
         break;
       case 'delete':
         httpResponse = httpClient.delete(
@@ -121,8 +129,9 @@ class BeluCarSignalRHttpClient extends SignalRHttpClient {
 
     final hasTimeout = (request.timeout != null) && (request.timeout! > 0);
     if (hasTimeout) {
-      httpResponse =
-          httpResponse.timeout(Duration(milliseconds: request.timeout!));
+      httpResponse = httpResponse.timeout(
+        Duration(milliseconds: request.timeout!),
+      );
     }
 
     return httpResponse;

@@ -1,9 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
-import '../services/api_service.dart';
+import '../models/wallet_model.dart';
+import '../providers/account_provider.dart';
 import '../utils/currency_format.dart';
 import 'account_ui.dart';
 
@@ -15,7 +14,7 @@ class WalletHistoryScreen extends StatefulWidget {
 }
 
 class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
-  List<dynamic> _transactions = [];
+  List<WalletTransactionModel> _transactions = [];
   bool _isLoading = true;
   String? _errorMessage;
   num _currentBalance = 0;
@@ -33,33 +32,13 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('accessToken') ?? '';
-
-      if (token.isEmpty) {
-        setState(() {
-          _errorMessage = 'Phiên đăng nhập hết hạn.';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final profileRes = await ApiService.getCustomerProfile(
-        accessToken: token,
-      );
-      if (profileRes.statusCode == 200) {
-        final profileData = jsonDecode(profileRes.body);
-        _currentBalance = _parseAmount(profileData['wallet']);
-      }
-
-      final historyRes = await ApiService.getWalletHistory(accessToken: token);
-      if (historyRes.statusCode == 200) {
-        final Map<String, dynamic> historyData = jsonDecode(historyRes.body);
-        if (historyData['success'] == true) {
-          _transactions = historyData['data'];
-        }
+      final result = await context.read<AccountProvider>().loadWalletOverview();
+      if (!mounted) return;
+      if (result.isSuccess && result.data != null) {
+        _currentBalance = result.data!.currentBalance;
+        _transactions = result.data!.transactions;
       } else {
-        _errorMessage = 'Lỗi kết nối lịch sử (${historyRes.statusCode})';
+        _errorMessage = result.message;
       }
     } catch (e) {
       _errorMessage = 'Đã có lỗi xảy ra: $e';
@@ -159,7 +138,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
           child: Column(
             children: List.generate(_transactions.length, (index) {
               final item = _transactions[index];
-              final amount = _parseAmount(item['amount']);
+              final amount = item.amount;
               final bool isNegative = amount < 0;
               final color = isNegative ? Colors.redAccent : Colors.greenAccent;
 
@@ -197,7 +176,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            item['type'] ?? 'Giao dịch',
+                            item.type,
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
@@ -206,7 +185,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _formatDateTime(item['createdDate']),
+                            _formatDateTime(item.createdDate),
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.68),
                               fontSize: 12,
@@ -294,10 +273,5 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
     } catch (_) {
       return dateStr;
     }
-  }
-
-  num _parseAmount(dynamic value) {
-    if (value is num) return value;
-    return num.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
