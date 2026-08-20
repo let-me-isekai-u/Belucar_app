@@ -1,17 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../app_theme.dart';
-import '../../models/booking_model.dart';
-import '../../models/location_models.dart';
-import '../../services/login_credential_storage.dart';
-import '../booking/booking_address_map_picker_screen.dart';
+import '../../models/concert_models.dart';
+import '../../providers/account_provider.dart';
+import '../../providers/concert_provider.dart';
 import '../booking/booking_ui.dart';
-import '../popup/concert_round_trip_popup.dart';
-
-enum ConcertVehicleType { standard, fiveSeat, sevenSeat }
+import 'concert_library_screen.dart' show ConcertLibraryScreen;
+import 'concert_payment_screen.dart';
 
 class ConcertBookingScreen extends StatefulWidget {
   const ConcertBookingScreen({super.key, this.isGuest = false});
@@ -23,31 +22,38 @@ class ConcertBookingScreen extends StatefulWidget {
 }
 
 class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
-  static const _destination = 'Sân vận động Quốc gia Mỹ Đình';
   static final _concertDates = <DateTime>[
     DateTime(2026, 10, 24),
     DateTime(2026, 10, 25),
   ];
-  static const _departureTimes = <String>['14:00', '15:30', '17:00', '18:30'];
-  static const int _baseFare = 120000;
+  static const _fallbackDepartureTimes = <String>[
+    '14:00',
+    '15:30',
+    '17:00',
+    '18:30',
+  ];
 
-  final FocusNode _pickupFocusNode = FocusNode();
+  final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _ticketLookupPhoneController =
-      TextEditingController();
   final Set<DateTime> _selectedDates = <DateTime>{_concertDates.first};
   final Set<DateTime> _selectedReturnDates = <DateTime>{};
   String? _selectedTime;
   int _quantity = 1;
   bool _isRoundTrip = false;
   bool _isReturnOnly = false;
-  bool _isOvernightJourney = false;
   bool _wantsReturnTrip = false;
-  ConcertVehicleType _selectedVehicleType = ConcertVehicleType.standard;
-  bool _isCharter = false;
   bool _isCreatingTicket = false;
-  bool _isTicketLookupTab = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isGuest) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _prefillAccountContact();
+      });
+    }
+  }
 
   bool get _hasMatchingRoundTripDates =>
       !_isReturnOnly &&
@@ -56,71 +62,88 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
       _selectedDates.length == _selectedReturnDates.length &&
       _selectedDates.every(_selectedReturnDates.contains);
 
-  bool get _hasOvernightTwoDayJourney =>
-      !_isReturnOnly &&
-      _selectedDates.length == 2 &&
-      _selectedReturnDates.length == 1 &&
-      _selectedReturnDates.contains(_concertDates.last);
-
   List<DateTime> get _effectiveOutboundDates {
     if (_isReturnOnly) return const [];
-    if (_hasOvernightTwoDayJourney) return [_concertDates.first];
     return _selectedDates.toList()..sort();
   }
 
-  int get _vehicleCapacity => switch (_selectedVehicleType) {
-    ConcertVehicleType.fiveSeat => 5,
-    ConcertVehicleType.sevenSeat => 7,
-    ConcertVehicleType.standard => 1,
-  };
-
-  int get _chargedSeatCount => _isCharter ? _vehicleCapacity : _quantity;
-
-  int get _maxQuantity => switch (_selectedVehicleType) {
-    ConcertVehicleType.fiveSeat => 5,
-    ConcertVehicleType.sevenSeat => 7,
-    ConcertVehicleType.standard => 6,
-  };
-
-  String get _vehicleTypeLabel => switch (_selectedVehicleType) {
-    ConcertVehicleType.fiveSeat => 'Xe 5 chỗ',
-    ConcertVehicleType.sevenSeat => 'Xe 7 chỗ',
-    ConcertVehicleType.standard => 'Ghế lẻ',
-  };
-
-  int get _totalPrice {
-    final farePerSeat = _isReturnOnly
-        ? _baseFare
-        : _hasMatchingRoundTripDates
-        ? (_baseFare * 2 * 0.9).round() * _selectedDates.length
-        : _hasOvernightTwoDayJourney
-        ? _baseFare * 2
-        : _baseFare *
-              (_selectedDates.length +
-                  (_wantsReturnTrip ? _selectedReturnDates.length : 0));
-    return farePerSeat * _chargedSeatCount;
+  int get _selectedServiceCount {
+    final provider = context.read<ConcertProvider>();
+    return provider.services.where(_isServiceSelected).length;
   }
 
-  void _syncJourneyType({bool showPopup = true}) {
+  int get _maxQuantity {
+    final count = _selectedServiceCount.clamp(1, 20);
+    return (100 ~/ count).clamp(1, 50);
+  }
+
+  int get _totalPrice => context.read<ConcertProvider>().estimatedTotal.round();
+
+  List<String> get _departureTimes {
+    final provider = context.read<ConcertProvider>();
+    final selected = provider.services.where(_isServiceSelected).toList();
+    final source = selected.isEmpty ? provider.services : selected;
+    final labels = source
+        .map(_apiServiceTimeLabel)
+        .whereType<String>()
+        .toSet()
+        .toList();
+    return labels.isEmpty ? _fallbackDepartureTimes : labels;
+  }
+
+  bool get _usesFallbackDepartureTimes {
+    final provider = context.read<ConcertProvider>();
+    final selected = provider.services.where(_isServiceSelected).toList();
+    final source = selected.isEmpty ? provider.services : selected;
+    return source.every((service) => _apiServiceTimeLabel(service) == null);
+  }
+
+  String? _apiServiceTimeLabel(ConcertService service) {
+    if (service.departureAt != null) {
+      return DateFormat('HH:mm').format(service.departureAt!);
+    }
+    final note = service.meetingTimeNote?.trim();
+    return note == null || note.isEmpty ? null : note;
+  }
+
+  bool _isServiceSelected(ConcertService service) {
+    final date = service.serviceDate;
+    if (date == null) return false;
+    if (service.direction == 'OUTBOUND') {
+      return !_isReturnOnly &&
+          _effectiveOutboundDates.any(
+            (item) => DateUtils.isSameDay(item, date),
+          );
+    }
+    if (service.direction == 'RETURN') {
+      final dates = _isReturnOnly
+          ? _selectedReturnDates
+          : _wantsReturnTrip
+          ? _selectedReturnDates
+          : const <DateTime>{};
+      return dates.any((item) => DateUtils.isSameDay(item, date));
+    }
+    return false;
+  }
+
+  void _syncApiCart() {
+    final provider = context.read<ConcertProvider>();
+    final quantity = _quantity.clamp(1, _maxQuantity);
+    for (final service in provider.services) {
+      provider.setQuantity(
+        service.id,
+        _isServiceSelected(service) ? quantity : 0,
+      );
+    }
+  }
+
+  void _syncJourneyType() {
     if (_isReturnOnly) return;
     final shouldBeRoundTrip = _hasMatchingRoundTripDates;
-    final shouldBeOvernight = _hasOvernightTwoDayJourney;
-    final shouldShowPopup = showPopup && shouldBeRoundTrip && !_isRoundTrip;
-    final shouldShowOvernightPopup =
-        showPopup && shouldBeOvernight && !_isOvernightJourney;
     setState(() {
       _isRoundTrip = shouldBeRoundTrip;
-      _isOvernightJourney = shouldBeOvernight;
     });
-    if (shouldShowPopup) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) showConcertRoundTripPopup(context);
-      });
-    } else if (shouldShowOvernightPopup) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) showConcertOvernightJourneyPopup(context);
-      });
-    }
+    _syncApiCart();
   }
 
   void _selectOneWay() {
@@ -129,8 +152,8 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
       _wantsReturnTrip = false;
       _selectedReturnDates.clear();
       _isRoundTrip = false;
-      _isOvernightJourney = false;
     });
+    _syncApiCart();
   }
 
   void _selectRoundTrip() {
@@ -149,192 +172,264 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
     setState(() {
       _isReturnOnly = true;
       _isRoundTrip = false;
-      _isOvernightJourney = false;
       _wantsReturnTrip = false;
       _selectedReturnDates
         ..clear()
         ..add(firstSelectedDate);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) showConcertReturnOnlyTimePopup(context);
-    });
+    _syncApiCart();
   }
 
   Future<void> _openExistingTicket() async {
-    await openConcertTickets(context, ConcertTicketData.demoExistingTickets());
+    if (widget.isGuest) {
+      _showMessage('Vui lòng đăng nhập để xem vé đã mua.');
+      return;
+    }
+    final provider = context.read<ConcertProvider>();
+    await provider.loadLibrary();
+    if (!mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider.value(
+          value: provider,
+          child: const ConcertLibraryScreen(),
+        ),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _pickupFocusNode.dispose();
+    _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _ticketLookupPhoneController.dispose();
     super.dispose();
   }
 
-  Future<void> _lookupConcertTicket() async {
-    final phone = _ticketLookupPhoneController.text.replaceAll(
-      RegExp(r'\s+'),
-      '',
-    );
-    if (phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập số điện thoại dùng để mua vé.'),
-        ),
-      );
-      return;
+  Future<void> _prefillAccountContact() async {
+    if (widget.isGuest || !mounted) return;
+    final accountProvider = context.read<AccountProvider>();
+    var profile = accountProvider.profile;
+    if (profile == null) {
+      final result = await accountProvider.loadProfile(notify: false);
+      profile = result.data;
     }
-    if (phone != '0987654321') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Không tìm thấy vé concert với số điện thoại này.'),
-        ),
-      );
-      return;
+    if (!mounted || profile == null) return;
+    if (_fullNameController.text.trim().isEmpty) {
+      _fullNameController.text = profile.fullName.trim();
     }
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            ConcertTicketScreen(ticket: ConcertTicketData.demoLookup()),
-      ),
-    );
-  }
-
-  Future<void> _pickPickupOnMap(BookingModel model) async {
-    dismissBookingKeyboard();
-    model.closeAutocompleteSuggestions();
-
-    final location = await Navigator.push<AddressResolvedLocation>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => BookingAddressMapPickerScreen(
-          title: _isReturnOnly
-              ? 'Chọn điểm trả trên bản đồ'
-              : 'Chọn điểm đón trên bản đồ',
-          initialPoint: model.selectedPickupPoint,
-        ),
-      ),
-    );
-
-    if (location != null) {
-      model.selectPickupMapLocation(location);
+    if (_phoneController.text.trim().isEmpty) {
+      _phoneController.text = profile.phone.trim();
+    }
+    if (_emailController.text.trim().isEmpty) {
+      _emailController.text = profile.email.trim();
     }
   }
 
-  Future<void> _createDemoTicket(BookingModel model) async {
+  Future<void> _createOrder() async {
+    final provider = context.read<ConcertProvider>();
+    if (!widget.isGuest) await _prefillAccountContact();
+    if (!mounted) return;
+    final fullName = _fullNameController.text.trim();
     final email = _emailController.text.trim();
     final phone = _phoneController.text.trim();
+    final emailIsValid = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+    if (kDebugMode) {
+      debugPrint(
+        '[ConcertOrder] create tapped: mode=${widget.isGuest ? 'guest' : 'customer'}, '
+        'fullNameProvided=${fullName.isNotEmpty}, phoneProvided=${phone.isNotEmpty}, '
+        'emailProvided=${email.isNotEmpty}, emailValid=$emailIsValid, '
+        'items=${provider.cartItems.length}, quantity=${provider.totalQuantity}',
+      );
+    }
     if (widget.isGuest) {
-      final isValidEmail = RegExp(
-        r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-      ).hasMatch(email);
-      final normalizedPhone = phone.replaceAll(RegExp(r'\s+'), '');
-      final isValidPhone = RegExp(r'^0\d{9}$').hasMatch(normalizedPhone);
-
-      if (!isValidEmail) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vui lòng nhập email hợp lệ.')),
-        );
-        return;
-      }
-      if (!isValidPhone) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Số điện thoại phải gồm 10 số và bắt đầu bằng 0.'),
-          ),
-        );
+      final validationError = provider.validateContact(fullName, phone, email);
+      if (validationError != null) {
+        _showMessage(validationError);
         return;
       }
     }
-    if (!model.hasPickupSelection) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isReturnOnly
-                ? 'Vui lòng chọn điểm trả của bạn.'
-                : 'Vui lòng chọn điểm đón của bạn.',
-          ),
-        ),
-      );
-      _pickupFocusNode.requestFocus();
-      return;
-    }
-    if (!_isReturnOnly && _selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn khung giờ khởi hành.')),
-      );
+    if (provider.selectedStop == null || provider.selectedVehicleType == null) {
+      _showMessage('Vui lòng chọn đầy đủ tuyến, điểm đón/trả và loại xe.');
       return;
     }
     if ((_wantsReturnTrip || _isReturnOnly) && _selectedReturnDates.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn ít nhất một ngày về.')),
-      );
+      _showMessage('Vui lòng chọn ít nhất một ngày về.');
+      return;
+    }
+    if (!_isReturnOnly &&
+        _usesFallbackDepartureTimes &&
+        _selectedTime == null) {
+      _showMessage('Vui lòng chọn một khung giờ khởi hành.');
       return;
     }
 
     setState(() => _isCreatingTicket = true);
-    await Future<void>.delayed(const Duration(milliseconds: 650));
-    if (!mounted) return;
-
-    final selectedDates = _effectiveOutboundDates;
-    final selectedReturnDates = _selectedReturnDates.toList()..sort();
-    final codeDates = _isReturnOnly ? selectedReturnDates : selectedDates;
-    final departureTime = _isReturnOnly
-        ? 'Sau khi concert kết thúc'
-        : _selectedTime!;
-    final normalizedPhone = phone.replaceAll(RegExp(r'\s+'), '');
-    final accountSuffix = normalizedPhone.length >= 4
-        ? normalizedPhone.substring(normalizedPhone.length - 4)
-        : '0000';
-    final ticket = ConcertTicketData(
-      ticketCode:
-          'BB${codeDates.map((date) => date.day).join()}${_isReturnOnly ? 'END' : _selectedTime!.replaceAll(':', '')}${_isRoundTrip
-              ? 'R'
-              : _isReturnOnly
-              ? 'B'
-              : 'O'}${(_quantity * 37).toString().padLeft(3, '0')}',
-      pickupAddress: _isReturnOnly ? _destination : model.pickupDisplayAddress,
-      destination: _isReturnOnly ? model.pickupDisplayAddress : _destination,
-      concertDates: selectedDates,
-      returnDates: selectedReturnDates,
-      departureTime: departureTime,
-      quantity: _chargedSeatCount,
-      isRoundTrip: _isRoundTrip,
-      totalPrice: _totalPrice,
-      vehicleTypeLabel: _vehicleTypeLabel,
-      isCharter: _isCharter,
-      customerEmail: widget.isGuest ? email : null,
-      customerPhone: widget.isGuest ? normalizedPhone : null,
-      username: widget.isGuest ? 'username$accountSuffix' : null,
-      temporaryPassword: widget.isGuest ? 'BB@$accountSuffix' : null,
-    );
-
-    if (widget.isGuest) {
-      try {
-        await LoginCredentialStorage.save(
-          phone: normalizedPhone,
-          password: ticket.temporaryPassword!,
-        );
-      } catch (_) {
-        // Đây là luồng mô phỏng; vé vẫn được tạo nếu secure storage bị lỗi.
+    try {
+      _syncApiCart();
+      final quote = await provider.quoteSelection();
+      if (!mounted) return;
+      if (quote == null) {
+        _showMessage(provider.errorMessage ?? 'Không thể báo giá vé.');
+        return;
       }
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFFFFF8E7),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            'Xác nhận đặt vé',
+            style: TextStyle(
+              color: Color(0xFF202020),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          content: Text(
+            '${quote.totalQuantity} vé\nTổng thanh toán: ${_formatCurrency(quote.totalAmount)}',
+            style: const TextStyle(
+              color: Color(0xFF303030),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF8B2E2E),
+                backgroundColor: const Color(0xFFFFE3DE),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 13,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFF8B2E2E)),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accentGold,
+                foregroundColor: const Color(0xFF202020),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 13,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              child: const Text('Tạo đơn'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+      final order = await provider.createOrder(
+        contactFullName: fullName,
+        contactPhone: phone,
+        contactEmail: email,
+      );
+      if (!mounted) return;
+      if (order == null) {
+        _showMessage(provider.errorMessage ?? 'Không thể tạo đơn vé.');
+        return;
+      }
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider.value(
+            value: provider,
+            child: ConcertPaymentScreen(orderCode: order.orderCode),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isCreatingTicket = false);
     }
+  }
 
-    if (!mounted) return;
-    setState(() => _isCreatingTicket = false);
-    await Navigator.pushReplacement(
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
       context,
-      MaterialPageRoute(builder: (_) => ConcertTicketScreen(ticket: ticket)),
-    );
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _formatCurrency(num value) => NumberFormat.currency(
+    locale: 'vi_VN',
+    symbol: 'đ',
+    decimalDigits: 0,
+  ).format(value);
+
+  String get _fareSubtitle {
+    final provider = context.read<ConcertProvider>();
+    final prices = provider.services
+        .where(_isServiceSelected)
+        .map(provider.fareFor)
+        .whereType<ConcertFare>()
+        .map((fare) => fare.price)
+        .toSet();
+    if (prices.length == 1) {
+      return '${_formatCurrency(prices.first)} / khách / lượt';
+    }
+    return prices.isEmpty
+        ? 'Tổ hợp này chưa được mở bán'
+        : 'Giá từng lượt được lấy từ hệ thống';
   }
 
   @override
   Widget build(BuildContext context) {
-    final model = context.watch<BookingModel>();
+    final concert = context.watch<ConcertProvider>();
+    if (concert.catalog == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          title: Text(
+            widget.isGuest ? 'Mua vé concert - Khách mới' : 'Đặt xe đi concert',
+          ),
+          centerTitle: true,
+          backgroundColor: AppColors.primaryGreen,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: concert.loadingCatalog
+              ? const CircularProgressIndicator(color: AppColors.primaryGreen)
+              : Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        concert.errorMessage ?? 'Không tải được dữ liệu vé.',
+                        textAlign: TextAlign.center,
+                      ),
+                      TextButton(
+                        onPressed: concert.loadCatalog,
+                        child: const Text('Thử lại'),
+                      ),
+                    ],
+                  ),
+                ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -354,15 +449,6 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
               top: false,
               child: Column(
                 children: [
-                  if (widget.isGuest)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                      child: _SlidingTicketSwitch(
-                        lookupSelected: _isTicketLookupTab,
-                        onChanged: (lookupSelected) =>
-                            setState(() => _isTicketLookupTab = lookupSelected),
-                      ),
-                    ),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 320),
@@ -387,140 +473,114 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                           ),
                         );
                       },
-                      child: widget.isGuest && _isTicketLookupTab
-                          ? KeyedSubtree(
-                              key: const ValueKey('ticket-lookup-page'),
-                              child: _buildTicketLookupTab(),
-                            )
-                          : SingleChildScrollView(
-                              key: const ValueKey('ticket-buy-page'),
-                              keyboardDismissBehavior:
-                                  ScrollViewKeyboardDismissBehavior.onDrag,
-                              padding: const EdgeInsets.fromLTRB(
-                                16,
-                                16,
-                                16,
-                                24,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (widget.isGuest) ...[
-                                    _buildGuestInformationCard(),
-                                    const SizedBox(height: 20),
-                                  ] else ...[
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        onPressed: _openExistingTicket,
-                                        icon: const Icon(
-                                          Icons.confirmation_num_rounded,
-                                        ),
-                                        label: const Text('Xem vé đã có'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor:
-                                              AppColors.primaryGreen,
-                                          foregroundColor: AppColors.accentGold,
-                                          minimumSize: const Size(
-                                            double.infinity,
-                                            52,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              16,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                      child: SingleChildScrollView(
+                        key: const ValueKey('ticket-buy-page'),
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (widget.isGuest) ...[
+                              _buildContactInformationCard(),
+                              const SizedBox(height: 20),
+                            ],
+                            if (!widget.isGuest) ...[
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  onPressed: _openExistingTicket,
+                                  icon: const Icon(
+                                    Icons.confirmation_num_rounded,
+                                  ),
+                                  label: const Text('Xem vé đã có'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryGreen,
+                                    foregroundColor: AppColors.accentGold,
+                                    minimumSize: const Size(
+                                      double.infinity,
+                                      52,
                                     ),
-                                    const SizedBox(height: 20),
-                                  ],
-                                  _buildSectionTitle(
-                                    icon: _isReturnOnly
-                                        ? Icons.location_on_rounded
-                                        : Icons.trip_origin_rounded,
-                                    title: _isReturnOnly
-                                        ? 'Điểm trả'
-                                        : 'Điểm đón',
-                                    subtitle: _isReturnOnly
-                                        ? 'Chọn vị trí xe sẽ trả bạn'
-                                        : 'Chọn vị trí xe sẽ đón bạn',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildRouteCard(model),
-                                  if (model.pickupSuggestions.isNotEmpty) ...[
-                                    const SizedBox(height: 8),
-                                    _buildSuggestions(model),
-                                  ],
-                                  const SizedBox(height: 24),
-                                  _buildSectionTitle(
-                                    icon: Icons.sync_alt_rounded,
-                                    title: 'Loại hành trình',
-                                    subtitle: _isReturnOnly
-                                        ? 'Chỉ mua lượt về sau concert'
-                                        : _isRoundTrip
-                                        ? 'Ngày đi và về trùng nhau • Đã giảm 10%'
-                                        : _wantsReturnTrip
-                                        ? 'Các lượt được tính như vé thường'
-                                        : 'Chưa chọn lượt về',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildTripTypePicker(),
-                                  const SizedBox(height: 24),
-                                  _buildSectionTitle(
-                                    icon: Icons.directions_car_filled_rounded,
-                                    title: 'Loại vé',
-                                    subtitle:
-                                        'Chọn ghế lẻ hoặc loại xe phù hợp',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildVehicleTypePicker(),
-                                  if (_selectedVehicleType !=
-                                      ConcertVehicleType.standard) ...[
-                                    const SizedBox(height: 10),
-                                    _buildCharterOption(),
-                                  ],
-                                  const SizedBox(height: 24),
-                                  _buildSectionTitle(
-                                    icon: Icons.calendar_month_rounded,
-                                    title: _isReturnOnly
-                                        ? 'Chọn ngày về'
-                                        : 'Chọn ngày concert',
-                                    subtitle: _isReturnOnly
-                                        ? 'Chỉ chọn một ngày 24 hoặc 25'
-                                        : 'Có thể chọn một hoặc cả hai ngày',
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildDatePicker(),
-                                  if (!_isReturnOnly) ...[
-                                    const SizedBox(height: 8),
-                                    _buildReturnDateOption(),
-                                  ],
-                                  if (!_isReturnOnly) ...[
-                                    const SizedBox(height: 24),
-                                    _buildSectionTitle(
-                                      icon: Icons.access_time_filled_rounded,
-                                      title: 'Chọn khung giờ',
-                                      subtitle:
-                                          'Vui lòng có mặt trước giờ đi 15 phút',
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                    const SizedBox(height: 12),
-                                    _buildTimePicker(),
-                                  ],
-                                  const SizedBox(height: 24),
-                                  _buildSectionTitle(
-                                    icon: Icons
-                                        .airline_seat_recline_normal_rounded,
-                                    title: 'Số lượng vé',
-                                    subtitle: _isRoundTrip
-                                        ? '216.000đ / khách / ngày (đã giảm 10%)'
-                                        : '120.000đ / khách / lượt',
                                   ),
-                                  const SizedBox(height: 12),
-                                  _buildQuantityPicker(),
-                                ],
+                                ),
                               ),
+                              const SizedBox(height: 20),
+                            ],
+                            _buildSectionTitle(
+                              icon: _isReturnOnly
+                                  ? Icons.location_on_rounded
+                                  : Icons.trip_origin_rounded,
+                              title: _isReturnOnly ? 'Điểm trả' : 'Điểm đón',
+                              subtitle: _isReturnOnly
+                                  ? 'Chọn vị trí xe sẽ trả bạn'
+                                  : 'Chọn vị trí xe sẽ đón bạn',
                             ),
+                            const SizedBox(height: 12),
+                            _buildRouteCard(concert),
+                            const SizedBox(height: 24),
+                            _buildSectionTitle(
+                              icon: Icons.sync_alt_rounded,
+                              title: 'Loại hành trình',
+                              subtitle: _isReturnOnly
+                                  ? 'Chỉ mua lượt về sau concert'
+                                  : _isRoundTrip
+                                  ? 'Ngày đi và về trùng nhau'
+                                  : _wantsReturnTrip
+                                  ? 'Các lượt được tính như vé thường'
+                                  : 'Chưa chọn lượt về',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildTripTypePicker(),
+                            const SizedBox(height: 24),
+                            _buildSectionTitle(
+                              icon: Icons.directions_car_filled_rounded,
+                              title: 'Loại vé',
+                              subtitle: 'Chọn ghế lẻ hoặc loại xe phù hợp',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildVehicleTypePicker(concert),
+                            const SizedBox(height: 24),
+                            _buildSectionTitle(
+                              icon: Icons.calendar_month_rounded,
+                              title: _isReturnOnly
+                                  ? 'Chọn ngày về'
+                                  : 'Chọn ngày concert',
+                              subtitle: _isReturnOnly
+                                  ? 'Chỉ chọn một ngày 24 hoặc 25'
+                                  : 'Có thể chọn một hoặc cả hai ngày',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildDatePicker(),
+                            if (!_isReturnOnly) ...[
+                              const SizedBox(height: 8),
+                              _buildReturnDateOption(),
+                            ],
+                            if (!_isReturnOnly) ...[
+                              const SizedBox(height: 24),
+                              _buildSectionTitle(
+                                icon: Icons.access_time_filled_rounded,
+                                title: 'Chọn khung giờ',
+                                subtitle: _usesFallbackDepartureTimes
+                                    ? 'API chưa cấu hình giờ • Bạn tự chọn khung giờ'
+                                    : 'Khung giờ lấy từ hệ thống',
+                              ),
+                              const SizedBox(height: 12),
+                              _buildTimePicker(),
+                            ],
+                            const SizedBox(height: 24),
+                            _buildSectionTitle(
+                              icon: Icons.airline_seat_recline_normal_rounded,
+                              title: 'Số lượng vé',
+                              subtitle: _fareSubtitle,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildQuantityPicker(),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   AnimatedSwitcher(
@@ -530,12 +590,10 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                       axisAlignment: -1,
                       child: FadeTransition(opacity: animation, child: child),
                     ),
-                    child: widget.isGuest && _isTicketLookupTab
-                        ? const SizedBox.shrink()
-                        : KeyedSubtree(
-                            key: const ValueKey('concert-checkout-bar'),
-                            child: _buildCheckoutBar(model),
-                          ),
+                    child: KeyedSubtree(
+                      key: const ValueKey('concert-checkout-bar'),
+                      child: _buildCheckoutBar(),
+                    ),
                   ),
                 ],
               ),
@@ -546,87 +604,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
     );
   }
 
-  Widget _buildTicketLookupTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFAEC),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.accentGold),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Tra cứu vé xe',
-              style: TextStyle(
-                color: AppColors.primaryGreen,
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 5),
-            const Text(
-              'Nhập số điện thoại đã dùng khi mua vé để xem vé và thông tin đăng nhập.',
-              style: TextStyle(color: Color(0xFF4A5650), height: 1.4),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _ticketLookupPhoneController,
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _lookupConcertTicket(),
-              style: const TextStyle(color: Colors.black87),
-              decoration: InputDecoration(
-                labelText: 'Số điện thoại mua vé',
-                hintText: 'Nhập 0987654321 để xem vé mẫu',
-                prefixIcon: const Icon(
-                  Icons.phone_outlined,
-                  color: AppColors.primaryGreen,
-                ),
-                suffixIcon: IconButton(
-                  tooltip: 'Xoá số điện thoại',
-                  onPressed: _ticketLookupPhoneController.clear,
-                  icon: const Icon(Icons.close_rounded),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: const BorderSide(
-                    color: AppColors.accentGold,
-                    width: 2,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _lookupConcertTicket,
-                icon: const Icon(Icons.search_rounded),
-                label: const Text('TRA VÉ XE'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryGreen,
-                  foregroundColor: AppColors.accentGold,
-                  minimumSize: const Size(double.infinity, 52),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGuestInformationCard() {
+  Widget _buildContactInformationCard() {
     InputDecoration decoration({
       required String label,
       required String hint,
@@ -638,7 +616,10 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
         prefixIcon: Icon(icon, color: AppColors.primaryGreen),
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.92),
-        labelStyle: const TextStyle(color: AppColors.primaryGreen),
+        labelStyle: const TextStyle(
+          color: Color(0xFF303030),
+          fontWeight: FontWeight.w700,
+        ),
         hintStyle: const TextStyle(color: Colors.black45),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         enabledBorder: OutlineInputBorder(
@@ -663,38 +644,63 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Thông tin khách hàng',
+            'Thông tin liên hệ',
             style: TextStyle(
-              color: AppColors.primaryGreen,
+              color: Color(0xFF202020),
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 5),
-          const Text(
-            'Số điện thoại sẽ được dùng làm tài khoản đăng nhập.',
-            style: TextStyle(color: Color(0xFF404944), height: 1.35),
+          Text(
+            widget.isGuest
+                ? 'Nhập đủ thông tin để nhận và khôi phục vé.'
+                : 'Thông tin được lấy từ profile tài khoản.',
+            style: const TextStyle(color: Color(0xFF404040), height: 1.35),
           ),
           const SizedBox(height: 14),
           TextField(
+            controller: _fullNameController,
+            readOnly: !widget.isGuest,
+            textCapitalization: TextCapitalization.words,
+            maxLength: 100,
+            style: const TextStyle(color: Colors.black87),
+            decoration: decoration(
+              label: 'Họ và tên liên hệ',
+              hint: widget.isGuest
+                  ? 'Nhập họ và tên'
+                  : 'Lấy tự động từ tài khoản',
+              icon: Icons.person_outline_rounded,
+            ).copyWith(counterText: ''),
+          ),
+          const SizedBox(height: 12),
+          TextField(
             controller: _emailController,
+            readOnly: !widget.isGuest,
             keyboardType: TextInputType.emailAddress,
             autocorrect: false,
             style: const TextStyle(color: Colors.black87),
             decoration: decoration(
               label: 'Email',
-              hint: 'Nhập email của bạn',
+              hint: widget.isGuest
+                  ? 'Nhập email của bạn'
+                  : 'Lấy tự động từ tài khoản',
               icon: Icons.email_outlined,
             ),
           ),
           const SizedBox(height: 12),
           TextField(
             controller: _phoneController,
+            readOnly: !widget.isGuest,
             keyboardType: TextInputType.phone,
             style: const TextStyle(color: Colors.black87),
             decoration: decoration(
-              label: 'Số điện thoại',
-              hint: 'Ví dụ: 0912345678',
+              label: widget.isGuest
+                  ? 'Số điện thoại'
+                  : 'Số điện thoại tài khoản',
+              hint: widget.isGuest
+                  ? 'Ví dụ: 0912345678'
+                  : 'Lấy tự động từ tài khoản',
               icon: Icons.phone_outlined,
             ),
           ),
@@ -750,7 +756,11 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
     );
   }
 
-  Widget _buildRouteCard(BookingModel model) {
+  Widget _buildRouteCard(ConcertProvider provider) {
+    final routes = provider.catalog!.routes
+        .where((route) => route.selectableStops.isNotEmpty)
+        .toList();
+    final stops = provider.selectedRoute?.selectableStops ?? [];
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -760,44 +770,17 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
       ),
       child: Column(
         children: [
-          TextField(
-            controller: model.pickupAddressController,
-            focusNode: _pickupFocusNode,
-            style: const TextStyle(
-              color: AppColors.primaryGreen,
-              fontSize: 15.5,
-              fontWeight: FontWeight.w700,
-            ),
-            cursorColor: AppColors.primaryGreen,
-            onChanged: (value) =>
-                model.onAddressTextChanged(isPickup: true, query: value),
+          DropdownButtonFormField<int>(
+            initialValue: provider.routeId,
+            isExpanded: true,
+            dropdownColor: AppColors.primaryGreen,
+            iconEnabledColor: AppColors.accentGold,
             decoration: InputDecoration(
-              hintText: _isReturnOnly
-                  ? 'Nhập điểm trả của bạn'
-                  : 'Nhập điểm đón của bạn',
-              hintStyle: const TextStyle(
-                color: Color(0xFF6B7B76),
-                fontWeight: FontWeight.w500,
-              ),
+              labelText: 'Tuyến xe',
               prefixIcon: const Icon(
-                Icons.trip_origin_rounded,
+                Icons.route_rounded,
                 color: Color(0xFF3D7DFF),
               ),
-              suffixIcon: model.loadingPickupSuggestions
-                  ? const Padding(
-                      padding: EdgeInsets.all(13),
-                      child: SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : model.pickupAddressController.text.isNotEmpty
-                  ? IconButton(
-                      onPressed: model.clearPickupSelection,
-                      icon: const Icon(Icons.close_rounded),
-                    )
-                  : null,
               filled: true,
               fillColor: const Color(0xFFF6F8F5),
               border: OutlineInputBorder(
@@ -805,72 +788,74 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                 borderSide: BorderSide.none,
               ),
             ),
+            items: [
+              for (final route in routes)
+                DropdownMenuItem(
+                  value: route.id,
+                  child: Text(
+                    route.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.accentGold,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              provider.selectRoute(value);
+              _syncApiCart();
+            },
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => _pickPickupOnMap(model),
-              icon: const Icon(Icons.map_outlined, size: 18),
-              label: Text(
-                _isReturnOnly
-                    ? 'Chọn điểm trả trên bản đồ'
-                    : 'Chọn điểm đón trên bản đồ',
+          const SizedBox(height: 10),
+          DropdownButtonFormField<int>(
+            key: ValueKey(provider.routeId),
+            initialValue: provider.stopId,
+            isExpanded: true,
+            dropdownColor: AppColors.primaryGreen,
+            iconEnabledColor: AppColors.accentGold,
+            decoration: InputDecoration(
+              labelText: _isReturnOnly ? 'Điểm trả' : 'Điểm đón',
+              prefixIcon: const Icon(
+                Icons.trip_origin_rounded,
+                color: Color(0xFF3D7DFF),
+              ),
+              filled: true,
+              fillColor: const Color(0xFFF6F8F5),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
               ),
             ),
+            items: [
+              for (final stop in stops)
+                DropdownMenuItem(
+                  value: stop.id,
+                  child: Text(
+                    stop.address == null
+                        ? stop.name
+                        : '${stop.name} • ${stop.address}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.accentGold,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              provider.selectStop(value);
+              _syncApiCart();
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSuggestions(BookingModel model) {
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 260),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [BoxShadow(color: Color(0x16000000), blurRadius: 18)],
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        itemCount: model.pickupSuggestions.length,
-        separatorBuilder: (_, _) =>
-            Divider(height: 1, color: Colors.black.withValues(alpha: 0.08)),
-        itemBuilder: (context, index) {
-          final suggestion = model.pickupSuggestions[index];
-          return ListTile(
-            onTap: () {
-              model.selectPickupSuggestion(suggestion);
-              _pickupFocusNode.unfocus();
-            },
-            leading: const Icon(
-              Icons.location_on_outlined,
-              color: AppColors.accentGold,
-            ),
-            title: Text(
-              suggestion.primaryText,
-              style: const TextStyle(
-                color: AppColors.primaryGreen,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            subtitle: suggestion.secondaryText.isEmpty
-                ? null
-                : Text(
-                    suggestion.secondaryText,
-                    style: const TextStyle(
-                      color: Color(0xFF4D5E58),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildVehicleTypePicker() {
+  Widget _buildVehicleTypePicker(ConcertProvider provider) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
@@ -879,8 +864,8 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
         border: Border.all(color: AppColors.accentGold),
       ),
       child: DropdownButtonHideUnderline(
-        child: DropdownButton<ConcertVehicleType>(
-          value: _selectedVehicleType,
+        child: DropdownButton<int>(
+          value: provider.vehicleTypeId,
           isExpanded: true,
           dropdownColor: AppColors.primaryGreen,
           icon: const Icon(
@@ -892,57 +877,25 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
             fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
-          items: const [
-            DropdownMenuItem(
-              value: ConcertVehicleType.standard,
-              child: Text(
-                'Ghế lẻ',
-                style: TextStyle(color: AppColors.accentGold),
+          items: [
+            for (final vehicle in provider.catalog!.vehicleTypes)
+              DropdownMenuItem(
+                value: vehicle.id,
+                child: Text(
+                  '${vehicle.name} • ${vehicle.seatCount} chỗ',
+                  style: const TextStyle(color: AppColors.accentGold),
+                ),
               ),
-            ),
-            DropdownMenuItem(
-              value: ConcertVehicleType.fiveSeat,
-              child: Text(
-                'Xe 5 chỗ',
-                style: TextStyle(color: AppColors.accentGold),
-              ),
-            ),
-            DropdownMenuItem(
-              value: ConcertVehicleType.sevenSeat,
-              child: Text(
-                'Xe 7 chỗ',
-                style: TextStyle(color: AppColors.accentGold),
-              ),
-            ),
           ],
           onChanged: (value) {
             if (value == null) return;
-            setState(() {
-              _selectedVehicleType = value;
-              if (value == ConcertVehicleType.standard) {
-                _isCharter = false;
-              }
-              if (_quantity > _maxQuantity) _quantity = _maxQuantity;
-            });
+            provider.selectVehicleType(value);
+            if (_quantity > _maxQuantity) {
+              setState(() => _quantity = _maxQuantity);
+            }
+            _syncApiCart();
           },
         ),
-      ),
-    );
-  }
-
-  Widget _buildCharterOption() {
-    return CheckboxListTile(
-      value: _isCharter,
-      onChanged: (value) => setState(() => _isCharter = value ?? false),
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      activeColor: Colors.black,
-      checkColor: AppColors.accentGold,
-      side: const BorderSide(color: Colors.black, width: 1.8),
-      controlAffinity: ListTileControlAffinity.leading,
-      title: const Text(
-        'Bao xe',
-        style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900),
       ),
     );
   }
@@ -967,6 +920,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                       ..clear()
                       ..add(date);
                   });
+                  _syncApiCart();
                   return;
                 }
                 setState(() {
@@ -1052,9 +1006,9 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
               if (!_wantsReturnTrip) {
                 _selectedReturnDates.clear();
                 _isRoundTrip = false;
-                _isOvernightJourney = false;
               }
             });
+            _syncApiCart();
           },
           contentPadding: EdgeInsets.zero,
           dense: true,
@@ -1162,14 +1116,17 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
   }
 
   Widget _buildTimePicker() {
+    final usesFallback = _usesFallbackDepartureTimes;
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       children: _departureTimes.map((time) {
-        final selected = time == _selectedTime;
+        final selected = usesFallback ? time == _selectedTime : true;
         return ChoiceChip(
           selected: selected,
-          onSelected: (_) => setState(() => _selectedTime = time),
+          onSelected: usesFallback
+              ? (_) => setState(() => _selectedTime = time)
+              : null,
           showCheckmark: false,
           avatar: Icon(
             Icons.directions_bus_filled_rounded,
@@ -1304,30 +1261,36 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
+          const Expanded(
             child: Text(
-              _isCharter ? 'Số chỗ tính giá' : 'Hành khách',
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              'Hành khách',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
           ),
           IconButton.filledTonal(
-            onPressed: _isCharter || _quantity <= 1
+            onPressed: _quantity <= 1
                 ? null
-                : () => setState(() => _quantity--),
+                : () {
+                    setState(() => _quantity--);
+                    _syncApiCart();
+                  },
             icon: const Icon(Icons.remove_rounded),
           ),
           SizedBox(
             width: 42,
             child: Text(
-              '${_isCharter ? _vehicleCapacity : _quantity}',
+              '$_quantity',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
           ),
           IconButton.filled(
-            onPressed: _isCharter || _quantity >= _maxQuantity
+            onPressed: _quantity >= _maxQuantity
                 ? null
-                : () => setState(() => _quantity++),
+                : () {
+                    setState(() => _quantity++);
+                    _syncApiCart();
+                  },
             style: IconButton.styleFrom(
               backgroundColor: AppColors.primaryGreen,
               foregroundColor: AppColors.accentGold,
@@ -1345,7 +1308,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
     );
   }
 
-  Widget _buildCheckoutBar(BookingModel model) {
+  Widget _buildCheckoutBar() {
     final formattedPrice = NumberFormat.currency(
       locale: 'vi_VN',
       symbol: 'đ',
@@ -1380,9 +1343,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
           Expanded(
             flex: 2,
             child: ElevatedButton(
-              onPressed: _isCreatingTicket
-                  ? null
-                  : () => _createDemoTicket(model),
+              onPressed: _isCreatingTicket ? null : _createOrder,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryGreen,
                 foregroundColor: AppColors.accentGold,
@@ -1397,11 +1358,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                         color: AppColors.accentGold,
                       ),
                     )
-                  : Text(
-                      widget.isGuest
-                          ? 'Tạo vé và tài khoản'
-                          : 'Tạo vé dùng thử',
-                    ),
+                  : Text(widget.isGuest ? 'Tiếp tục thanh toán' : 'Đặt vé'),
             ),
           ),
         ],
@@ -2126,149 +2083,6 @@ class _TicketRoutePoint extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SlidingTicketSwitch extends StatefulWidget {
-  const _SlidingTicketSwitch({
-    required this.lookupSelected,
-    required this.onChanged,
-  });
-
-  final bool lookupSelected;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  State<_SlidingTicketSwitch> createState() => _SlidingTicketSwitchState();
-}
-
-class _SlidingTicketSwitchState extends State<_SlidingTicketSwitch> {
-  double? _dragProgress;
-
-  void _select(bool lookupSelected) {
-    setState(() => _dragProgress = null);
-    if (lookupSelected != widget.lookupSelected) {
-      widget.onChanged(lookupSelected);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const padding = 4.0;
-        const thumbHeight = 50.0;
-        final thumbWidth = (constraints.maxWidth - padding * 2) / 2;
-        final travel = constraints.maxWidth - thumbWidth - padding * 2;
-        final progress = _dragProgress ?? (widget.lookupSelected ? 1.0 : 0.0);
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (details) =>
-              _select(details.localPosition.dx >= constraints.maxWidth / 2),
-          onHorizontalDragStart: (_) =>
-              setState(() => _dragProgress = widget.lookupSelected ? 1.0 : 0.0),
-          onHorizontalDragUpdate: (details) {
-            if (travel <= 0) return;
-            setState(() {
-              _dragProgress = ((_dragProgress ?? 0) + details.delta.dx / travel)
-                  .clamp(0.0, 1.0);
-            });
-          },
-          onHorizontalDragEnd: (details) {
-            final velocity = details.primaryVelocity ?? 0;
-            if (velocity.abs() > 250) {
-              _select(velocity > 0);
-            } else {
-              _select((_dragProgress ?? 0) >= 0.5);
-            }
-          },
-          onHorizontalDragCancel: () => setState(() => _dragProgress = null),
-          child: Container(
-            height: 58,
-            decoration: BoxDecoration(
-              color: AppColors.primaryGreen,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: AppColors.accentGold.withValues(alpha: 0.72),
-                width: 1.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryGreen.withValues(alpha: 0.22),
-                  blurRadius: 12,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                AnimatedPositioned(
-                  duration: _dragProgress == null
-                      ? const Duration(milliseconds: 280)
-                      : Duration.zero,
-                  curve: Curves.easeOutCubic,
-                  left: padding + travel * progress,
-                  top: padding,
-                  width: thumbWidth,
-                  height: thumbHeight,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFFFFE09A), AppColors.accentGold],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.24),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Mua vé xe',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color.lerp(
-                            AppColors.primaryGreen,
-                            Colors.white,
-                            progress,
-                          ),
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Tra vé xe',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color.lerp(
-                            Colors.white,
-                            AppColors.primaryGreen,
-                            progress,
-                          ),
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

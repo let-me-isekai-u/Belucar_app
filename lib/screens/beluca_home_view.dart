@@ -7,12 +7,18 @@ import 'package:provider/provider.dart';
 import '../app_theme.dart';
 import '../models/booking_model.dart';
 import '../models/deposit_model.dart';
+import '../providers/account_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/concert_provider.dart';
 import '../providers/home_provider.dart';
+import '../services/concert_api_service.dart';
+import '../services/guest_concert_order_storage.dart';
 import '../widgets/brand_logo_badge.dart';
 import 'activity_screen.dart';
 import 'booking/booking1_screen.dart';
 import 'chat_to_order/chat_screen.dart';
 import 'concert/concert_booking_screen.dart';
+import 'concert/concert_library_screen.dart';
 import 'profile_screen.dart';
 
 class HomeView extends StatefulWidget {
@@ -72,8 +78,19 @@ class _HomeViewState extends State<HomeView> {
   Future<void> _openConcertBooking() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => BookingModel(),
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => BookingModel()),
+            ChangeNotifierProvider(
+              create: (_) => ConcertProvider(
+                authProvider: context.read<AuthProvider>(),
+                accountProvider: context.read<AccountProvider>(),
+                apiService: context.read<ConcertApiService>(),
+                guestStorage: context.read<GuestConcertOrderStorage>(),
+                guestMode: false,
+              )..loadCatalog(),
+            ),
+          ],
           child: const ConcertBookingScreen(),
         ),
       ),
@@ -81,7 +98,20 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<void> _openExistingConcertTicket() async {
-    await openConcertTickets(context, ConcertTicketData.demoExistingTickets());
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChangeNotifierProvider(
+          create: (_) => ConcertProvider(
+            authProvider: context.read<AuthProvider>(),
+            accountProvider: context.read<AccountProvider>(),
+            apiService: context.read<ConcertApiService>(),
+            guestStorage: context.read<GuestConcertOrderStorage>(),
+            guestMode: false,
+          )..loadLibrary(),
+          child: const ConcertLibraryScreen(),
+        ),
+      ),
+    );
   }
 
   Future<void> _presentConcertBanner() async {

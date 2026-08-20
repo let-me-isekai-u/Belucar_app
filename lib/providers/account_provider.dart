@@ -21,8 +21,10 @@ class AccountProvider extends ChangeNotifier {
   CustomerProfileModel? get profile => _profile;
   bool get isLoading => _isLoading;
 
-  Future<ProviderResult<CustomerProfileModel>> loadProfile() async {
-    _setLoading(true);
+  Future<ProviderResult<CustomerProfileModel>> loadProfile({
+    bool notify = true,
+  }) async {
+    if (notify) _setLoading(true);
     try {
       final response = await _authProvider.authorizedRequest(
         (token) => ApiService.getCustomerProfile(accessToken: token),
@@ -39,14 +41,15 @@ class AccountProvider extends ChangeNotifier {
       await Future.wait([
         prefs.setString('fullName', _profile!.fullName),
         prefs.setString('phone', _profile!.phone),
+        prefs.setString('email', _profile!.email),
         prefs.setInt('id', _profile!.id),
       ]);
-      notifyListeners();
+      if (notify) notifyListeners();
       return ProviderResult.success(_profile);
     } catch (error) {
       return ProviderResult.failure('Lỗi kết nối máy chủ: $error');
     } finally {
-      _setLoading(false);
+      if (notify) _setLoading(false);
     }
   }
 

@@ -32,6 +32,10 @@
 	<string>Ứng dụng cần vị trí để xác định vị trí hiện tại, hỗ trợ chọn điểm đón và điểm đến, và hiển thị thông tin bản đồ phù hợp khi sử dụng ứng dụng.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Ứng dụng cần vị trí để xác định vị trí hiện tại, hỗ trợ chọn điểm đón và điểm đến, và hiển thị thông tin bản đồ phù hợp khi sử dụng ứng dụng.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ứng dụng cần quyền lưu mã QR thanh toán vào thư viện ảnh để bạn có thể chuyển khoản dễ hơn.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần quyền truy cập thư viện ảnh để lưu mã QR thanh toán.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

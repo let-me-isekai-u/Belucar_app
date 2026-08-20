@@ -11,7 +11,9 @@ import 'providers/trip_provider.dart';
 import 'screens/beluca_home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/concert_api_service.dart';
 import 'services/firebase_notification_service.dart';
+import 'services/guest_concert_order_storage.dart';
 import 'services/token_storage.dart';
 
 void main() async {
@@ -35,6 +37,10 @@ class BelucarApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<TokenStorage>(create: (_) => TokenStorage()),
+        Provider<ConcertApiService>(create: (_) => ConcertApiService()),
+        Provider<GuestConcertOrderStorage>(
+          create: (_) => GuestConcertOrderStorage(),
+        ),
         ChangeNotifierProvider<AuthProvider>(
           create: (context) =>
               AuthProvider(tokenStorage: context.read<TokenStorage>()),

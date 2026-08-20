@@ -20,6 +20,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const _supportPhone = '0379550130';
+
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -44,7 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _openZalo() async {
-    final zaloUrl = Uri.parse('https://zalo.me/0379550130');
+    final zaloUrl = Uri.parse('https://zalo.me/$_supportPhone');
     if (await canLaunchUrl(zaloUrl)) {
       await launchUrl(zaloUrl, mode: LaunchMode.externalApplication);
     } else {
@@ -95,25 +97,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showSupportDialog(BuildContext context) {
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
       builder: (context) {
-        return Padding(
-          padding: const EdgeInsets.all(24),
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  tooltip: 'Đóng',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
                 ),
               ),
               Icon(
@@ -137,35 +137,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 24),
-              _buildSupportAction(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.green.withValues(alpha: 0.10),
-                  child: const Icon(Icons.phone, color: Colors.green),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _buildSupportAction(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.green.withValues(alpha: 0.10),
+                    child: const Icon(Icons.phone, color: Colors.green),
+                  ),
+                  title: 'Gọi điện hỗ trợ',
+                  subtitle: _supportPhone,
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final uri = Uri.parse('tel:$_supportPhone');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
                 ),
-                title: 'Gọi điện hỗ trợ',
-                subtitle: '08 2341 6820',
-                onTap: () async {
-                  Navigator.pop(context);
-                  final uri = Uri.parse('tel:0823416820');
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  }
-                },
               ),
               const SizedBox(height: 12),
-              _buildSupportAction(
-                leading: Image.asset(
-                  'lib/assets/icons/icons8-zalo-100.png',
-                  width: 40,
-                  height: 40,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: _buildSupportAction(
+                  leading: Image.asset(
+                    'lib/assets/icons/icons8-zalo-100.png',
+                    width: 40,
+                    height: 40,
+                  ),
+                  title: 'Nhắn tin Zalo',
+                  subtitle: _supportPhone,
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openZalo();
+                  },
                 ),
-                title: 'Nhắn tin Zalo',
-                subtitle: 'Phản hồi nhanh chóng',
-                onTap: () {
-                  Navigator.pop(context);
-                  _openZalo();
-                },
               ),
+              const SizedBox(height: 24),
             ],
           ),
         );

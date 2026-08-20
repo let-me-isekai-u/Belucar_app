@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/booking_model.dart';
+import '../providers/account_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/concert_provider.dart';
 import '../screens/beluca_home_screen.dart';
+import '../services/concert_api_service.dart';
 import '../services/firebase_notification_service.dart';
+import '../services/guest_concert_order_storage.dart';
 import '../services/login_credential_storage.dart';
 import 'auth_ui.dart';
 import 'concert/concert_booking_screen.dart';
@@ -20,6 +25,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
+  static const _supportPhone = '0379550130';
+
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
@@ -47,6 +54,18 @@ class _LoginScreenState extends State<LoginScreen>
       if (passwordController.text.isEmpty) {
         passwordController.text = credentials.password;
       }
+    } catch (_) {
+      // Secure storage không khả dụng thì người dùng vẫn có thể nhập thủ công.
+    }
+  }
+
+  Future<void> _reloadSavedCredentials() async {
+    try {
+      final credentials = await LoginCredentialStorage.read();
+      if (!mounted || credentials == null) return;
+      phoneController.text = credentials.phone;
+      passwordController.text = credentials.password;
+      setState(() {});
     } catch (_) {
       // Secure storage không khả dụng thì người dùng vẫn có thể nhập thủ công.
     }
@@ -136,9 +155,167 @@ class _LoginScreenState extends State<LoginScreen>
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ChangeNotifierProvider(
-          create: (_) => BookingModel(),
+        builder: (_) => MultiProvider(
+          providers: [
+            ChangeNotifierProvider(create: (_) => BookingModel()),
+            ChangeNotifierProvider(
+              create: (_) => ConcertProvider(
+                authProvider: context.read<AuthProvider>(),
+                accountProvider: context.read<AccountProvider>(),
+                apiService: context.read<ConcertApiService>(),
+                guestStorage: context.read<GuestConcertOrderStorage>(),
+                guestMode: true,
+              )..loadCatalog(),
+            ),
+          ],
           child: const ConcertBookingScreen(isGuest: true),
+        ),
+      ),
+    );
+    await _reloadSavedCredentials();
+  }
+
+  Future<void> _openZaloSupport() async {
+    final uri = Uri.parse('https://zalo.me/$_supportPhone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      _showSnack('Không thể mở Zalo');
+    }
+  }
+
+  Future<void> _callSupport() async {
+    final uri = Uri.parse('tel:$_supportPhone');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      _showSnack('Không thể gọi CSKH');
+    }
+  }
+
+  void _showSupportDialog() {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.topRight,
+              child: IconButton(
+                tooltip: 'Đóng',
+                onPressed: () => Navigator.pop(dialogContext),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+            Icon(
+              Icons.headset_mic_rounded,
+              size: 48,
+              color: theme.colorScheme.secondary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Chăm sóc khách hàng',
+              style: TextStyle(
+                color: theme.colorScheme.secondary,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                'Chọn phương thức liên hệ để được hỗ trợ nhanh nhất.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFF303030), height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _buildSupportAction(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.green.withValues(alpha: 0.10),
+                  child: const Icon(Icons.phone, color: Colors.green),
+                ),
+                title: 'Gọi điện hỗ trợ',
+                subtitle: _supportPhone,
+                onTap: () {
+                  Navigator.pop(dialogContext);
+                  _callSupport();
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _buildSupportAction(
+                leading: Image.asset(
+                  'lib/assets/icons/icons8-zalo-100.png',
+                  width: 40,
+                  height: 40,
+                ),
+                title: 'Nhắn tin Zalo',
+                subtitle: _supportPhone,
+                onTap: () {
+                  Navigator.pop(dialogContext);
+                  _openZaloSupport();
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupportAction({
+    required Widget leading,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Row(
+          children: [
+            leading,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Color(0xFF202020),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF505050),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ],
         ),
       ),
     );
@@ -307,6 +484,23 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 6),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _showSupportDialog,
+                    icon: Icon(
+                      Icons.headset_mic_rounded,
+                      color: theme.colorScheme.secondary,
+                    ),
+                    label: Text(
+                      'Chăm sóc khách hàng',
+                      style: TextStyle(
+                        color: theme.colorScheme.secondary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
