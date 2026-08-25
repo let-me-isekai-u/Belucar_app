@@ -40,6 +40,7 @@ class ConcertProvider extends ChangeNotifier {
   int? _routeId;
   int? _stopId;
   int? _vehicleTypeId;
+  bool _isCharter = false;
   final Map<int, int> _quantities = <int, int>{};
   bool _loadingCatalog = false;
   bool _submitting = false;
@@ -55,6 +56,7 @@ class ConcertProvider extends ChangeNotifier {
   int? get routeId => _routeId;
   int? get stopId => _stopId;
   int? get vehicleTypeId => _vehicleTypeId;
+  bool get isCharter => _isCharter;
   bool get loadingCatalog => _loadingCatalog;
   bool get submitting => _submitting;
   bool get loadingLibrary => _loadingLibrary;
@@ -110,6 +112,7 @@ class ConcertProvider extends ChangeNotifier {
             routeStopId: stopId,
             vehicleTypeId: vehicleId,
             quantity: quantityFor(service.id),
+            isCharter: _isCharter,
           ),
     ];
   }
@@ -162,7 +165,16 @@ class ConcertProvider extends ChangeNotifier {
   void selectVehicleType(int vehicleTypeId) {
     if (_vehicleTypeId == vehicleTypeId) return;
     _vehicleTypeId = vehicleTypeId;
+    _isCharter = false;
     _selectionChanged();
+  }
+
+  void setCharter(bool value) {
+    if (_isCharter == value) return;
+    _isCharter = value;
+    _quote = null;
+    _errorMessage = null;
+    notifyListeners();
   }
 
   void setQuantity(int serviceId, int quantity) {
@@ -172,6 +184,21 @@ class ConcertProvider extends ChangeNotifier {
     final allowedByOrderLimit = 100 - (totalQuantity - oldQuantity);
     final normalized = quantity.clamp(0, allowedByOrderLimit.clamp(0, 50));
     _quantities[serviceId] = normalized;
+    _quote = null;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void setServiceQuantities(Map<int, int> quantities) {
+    var total = 0;
+    for (final service in services) {
+      final requested = quantities[service.id] ?? 0;
+      final normalized = fareFor(service) == null
+          ? 0
+          : requested.clamp(0, (100 - total).clamp(0, 50));
+      _quantities[service.id] = normalized;
+      total += normalized;
+    }
     _quote = null;
     _errorMessage = null;
     notifyListeners();

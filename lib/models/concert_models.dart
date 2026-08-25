@@ -226,18 +226,21 @@ class ConcertCartItem {
     required this.routeStopId,
     required this.vehicleTypeId,
     required this.quantity,
+    this.isCharter = false,
   });
 
   final int serviceId;
   final int routeStopId;
   final int vehicleTypeId;
   final int quantity;
+  final bool isCharter;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'serviceId': serviceId,
     'routeStopId': routeStopId,
     'vehicleTypeId': vehicleTypeId,
     'quantity': quantity,
+    'isCharter': isCharter,
   };
 }
 

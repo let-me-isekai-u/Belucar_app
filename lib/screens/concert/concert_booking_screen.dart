@@ -43,6 +43,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
   bool _isRoundTrip = false;
   bool _isReturnOnly = false;
   bool _wantsReturnTrip = false;
+  bool _isCharter = false;
   bool _isCreatingTicket = false;
 
   @override
@@ -78,6 +79,14 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
   }
 
   int get _totalPrice => context.read<ConcertProvider>().estimatedTotal.round();
+
+  bool get _canCharterSelectedVehicle {
+    final seatCount = context
+        .read<ConcertProvider>()
+        .selectedVehicleType
+        ?.seatCount;
+    return seatCount == 4 || seatCount == 7;
+  }
 
   List<String> get _departureTimes {
     final provider = context.read<ConcertProvider>();
@@ -128,13 +137,17 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
 
   void _syncApiCart() {
     final provider = context.read<ConcertProvider>();
-    final quantity = _quantity.clamp(1, _maxQuantity);
-    for (final service in provider.services) {
-      provider.setQuantity(
-        service.id,
-        _isServiceSelected(service) ? quantity : 0,
-      );
-    }
+    final seatCount = provider.selectedVehicleType?.seatCount;
+    final requestedQuantity = _isCharter && (seatCount == 4 || seatCount == 7)
+        ? seatCount!
+        : _quantity;
+    final quantity = requestedQuantity.clamp(1, _maxQuantity);
+    if (_quantity != quantity) _quantity = quantity;
+    provider.setCharter(_isCharter && (seatCount == 4 || seatCount == 7));
+    provider.setServiceQuantities({
+      for (final service in provider.services)
+        service.id: _isServiceSelected(service) ? quantity : 0,
+    });
   }
 
   void _syncJourneyType() {
@@ -406,7 +419,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
           ),
           centerTitle: true,
           backgroundColor: AppColors.primaryGreen,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.accentGold,
         ),
         body: Center(
           child: concert.loadingCatalog
@@ -438,7 +451,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
         ),
         centerTitle: true,
         backgroundColor: AppColors.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.accentGold,
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -856,47 +869,82 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
   }
 
   Widget _buildVehicleTypePicker(ConcertProvider provider) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppColors.primaryGreen,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.accentGold),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<int>(
-          value: provider.vehicleTypeId,
-          isExpanded: true,
-          dropdownColor: AppColors.primaryGreen,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.accentGold,
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.primaryGreen,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppColors.accentGold),
           ),
-          style: const TextStyle(
-            color: AppColors.accentGold,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-          items: [
-            for (final vehicle in provider.catalog!.vehicleTypes)
-              DropdownMenuItem(
-                value: vehicle.id,
-                child: Text(
-                  '${vehicle.name} • ${vehicle.seatCount} chỗ',
-                  style: const TextStyle(color: AppColors.accentGold),
-                ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: provider.vehicleTypeId,
+              isExpanded: true,
+              dropdownColor: AppColors.primaryGreen,
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: AppColors.accentGold,
               ),
-          ],
-          onChanged: (value) {
-            if (value == null) return;
-            provider.selectVehicleType(value);
-            if (_quantity > _maxQuantity) {
-              setState(() => _quantity = _maxQuantity);
-            }
-            _syncApiCart();
-          },
+              style: const TextStyle(
+                color: AppColors.accentGold,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+              items: [
+                for (final vehicle in provider.catalog!.vehicleTypes)
+                  DropdownMenuItem(
+                    value: vehicle.id,
+                    child: Text(
+                      '${vehicle.name.replaceAll('chỗ', 'ghế').replaceAll('Chỗ', 'Ghế')} • ${vehicle.seatCount} ghế',
+                      style: const TextStyle(color: AppColors.accentGold),
+                    ),
+                  ),
+              ],
+              onChanged: (value) {
+                if (value == null) return;
+                provider.selectVehicleType(value);
+                setState(() {
+                  _isCharter = false;
+                  if (_quantity > _maxQuantity) _quantity = _maxQuantity;
+                });
+                _syncApiCart();
+              },
+            ),
+          ),
         ),
-      ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 180),
+          child: !_canCharterSelectedVehicle
+              ? const SizedBox.shrink()
+              : CheckboxListTile(
+                  value: _isCharter,
+                  onChanged: (value) {
+                    setState(() {
+                      _isCharter = value ?? false;
+                      if (_isCharter) {
+                        _quantity = provider.selectedVehicleType!.seatCount;
+                      }
+                    });
+                    _syncApiCart();
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  activeColor: Colors.black,
+                  checkColor: AppColors.accentGold,
+                  side: const BorderSide(color: Colors.black, width: 1.8),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text(
+                    'Bao xe',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -970,7 +1018,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                     Text(
                       date.day == 24 ? 'Thứ Bảy' : 'Chủ Nhật',
                       style: TextStyle(
-                        color: selected ? Colors.white70 : Colors.black54,
+                        color: selected ? AppColors.accentGold : Colors.black54,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -978,9 +1026,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                     Text(
                       DateFormat('dd/MM').format(date),
                       style: TextStyle(
-                        color: selected
-                            ? AppColors.accentGold
-                            : AppColors.primaryGreen,
+                        color: selected ? AppColors.accentGold : Colors.black,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
                       ),
@@ -1034,7 +1080,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                       const Text(
                         'Chọn ngày về',
                         style: TextStyle(
-                          color: AppColors.primaryGreen,
+                          color: Colors.black,
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                         ),
@@ -1088,15 +1134,15 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                     ? Colors.black26
                     : selected
                     ? AppColors.accentGold
-                    : AppColors.primaryGreen,
+                    : Colors.black,
               ),
               label: Text(DateFormat('dd/MM').format(date)),
               labelStyle: TextStyle(
                 color: !enabled
                     ? Colors.black26
                     : selected
-                    ? Colors.white
-                    : AppColors.primaryGreen,
+                    ? AppColors.accentGold
+                    : Colors.black,
                 fontWeight: FontWeight.w900,
               ),
               selectedColor: AppColors.primaryGreen,
@@ -1131,11 +1177,11 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
           avatar: Icon(
             Icons.directions_bus_filled_rounded,
             size: 18,
-            color: selected ? AppColors.accentGold : AppColors.primaryGreen,
+            color: selected ? AppColors.accentGold : Colors.black,
           ),
           label: Text(time),
           labelStyle: TextStyle(
-            color: selected ? Colors.white : AppColors.primaryGreen,
+            color: selected ? AppColors.accentGold : Colors.black,
             fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
@@ -1219,9 +1265,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
               children: [
                 Icon(
                   icon,
-                  color: selected
-                      ? AppColors.accentGold
-                      : AppColors.primaryGreen,
+                  color: selected ? AppColors.accentGold : Colors.black,
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -1229,7 +1273,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   style: TextStyle(
-                    color: selected ? Colors.white : AppColors.primaryGreen,
+                    color: selected ? AppColors.accentGold : Colors.black,
                     fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1240,7 +1284,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   style: TextStyle(
-                    color: selected ? Colors.white70 : Colors.black54,
+                    color: selected ? AppColors.accentGold : Colors.black54,
                     fontSize: 10.5,
                   ),
                 ),
@@ -1268,7 +1312,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
             ),
           ),
           IconButton.filledTonal(
-            onPressed: _quantity <= 1
+            onPressed: _isCharter || _quantity <= 1
                 ? null
                 : () {
                     setState(() => _quantity--);
@@ -1285,7 +1329,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
             ),
           ),
           IconButton.filled(
-            onPressed: _quantity >= _maxQuantity
+            onPressed: _isCharter || _quantity >= _maxQuantity
                 ? null
                 : () {
                     setState(() => _quantity++);
@@ -1332,7 +1376,7 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                 Text(
                   formattedPrice,
                   style: const TextStyle(
-                    color: AppColors.primaryGreen,
+                    color: Colors.black,
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
                   ),
@@ -1511,7 +1555,7 @@ class ConcertTicketListScreen extends StatelessWidget {
         title: const Text('Danh sách vé'),
         centerTitle: true,
         backgroundColor: AppColors.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.accentGold,
       ),
       body: SafeArea(
         child: ListView.separated(
@@ -1542,7 +1586,7 @@ class ConcertTicketListScreen extends StatelessWidget {
                           Text(
                             'Bạn đang có ${tickets.length} vé',
                             style: const TextStyle(
-                              color: AppColors.primaryGreen,
+                              color: Colors.black,
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                             ),
@@ -1550,10 +1594,7 @@ class ConcertTicketListScreen extends StatelessWidget {
                           const SizedBox(height: 3),
                           const Text(
                             'Chọn một vé để xem chi tiết và mã QR kiểm vé.',
-                            style: TextStyle(
-                              color: Color(0xFF4A5650),
-                              height: 1.35,
-                            ),
+                            style: TextStyle(color: Colors.black, height: 1.35),
                           ),
                         ],
                       ),
@@ -1606,7 +1647,7 @@ class ConcertTicketListScreen extends StatelessWidget {
                                 Text(
                                   'Vé ${index.toString().padLeft(2, '0')}',
                                   style: const TextStyle(
-                                    color: AppColors.primaryGreen,
+                                    color: Colors.black,
                                     fontSize: 17,
                                     fontWeight: FontWeight.w900,
                                   ),
@@ -1634,7 +1675,7 @@ class ConcertTicketListScreen extends StatelessWidget {
                             child: const Text(
                               'Còn hiệu lực',
                               style: TextStyle(
-                                color: Color(0xFF12653D),
+                                color: Colors.black,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -1709,12 +1750,12 @@ class _TicketListInformation extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.primaryGreen, size: 19),
+        Icon(icon, color: Colors.black, size: 19),
         const SizedBox(width: 9),
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(color: Color(0xFF4A5650), fontSize: 14),
+            style: const TextStyle(color: Colors.black, fontSize: 14),
           ),
         ),
       ],
@@ -1747,7 +1788,7 @@ class ConcertTicketScreen extends StatelessWidget {
         title: const Text('Vé xe của bạn'),
         centerTitle: true,
         backgroundColor: AppColors.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.accentGold,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -1771,7 +1812,7 @@ class ConcertTicketScreen extends StatelessWidget {
                     Text(
                       'Tạo vé mô phỏng thành công',
                       style: TextStyle(
-                        color: Color(0xFF12653D),
+                        color: Colors.black,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1788,37 +1829,14 @@ class ConcertTicketScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: AppColors.accentGold),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Vui lòng đăng nhập bằng thông tin dưới đây để xuất trình vé khi lên xe.',
-                        style: TextStyle(
-                          color: AppColors.primaryGreen,
-                          fontWeight: FontWeight.w900,
-                          height: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _LoginInformationRow(
-                        label: 'Tài khoản',
-                        value: ticket.customerPhone!,
-                      ),
-                      _LoginInformationRow(
-                        label: 'Mật khẩu',
-                        value: ticket.temporaryPassword!,
-                      ),
-                      if (ticket.username != null)
-                        _LoginInformationRow(
-                          label: 'Tên người dùng',
-                          value: ticket.username!,
-                        ),
-                      if (ticket.customerEmail != null)
-                        _LoginInformationRow(
-                          label: 'Email',
-                          value: ticket.customerEmail!,
-                        ),
-                    ],
+                  child: const Text(
+                    'Thông tin đăng nhập của tài khoản đã được gửi về email mà bạn đã đăng ký, vui lòng đăng nhập để kiểm tra vé lần sau.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.w900,
+                      height: 1.4,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -1856,7 +1874,7 @@ class ConcertTicketScreen extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             'Mã vé: ${ticket.ticketCode}',
-                            style: const TextStyle(color: Colors.white70),
+                            style: const TextStyle(color: AppColors.accentGold),
                           ),
                         ],
                       ),
@@ -1959,44 +1977,6 @@ class ConcertTicketScreen extends StatelessWidget {
   }
 }
 
-class _LoginInformationRow extends StatelessWidget {
-  const _LoginInformationRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 108,
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF404944),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: SelectableText(
-              value,
-              style: const TextStyle(
-                color: AppColors.primaryGreen,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _TicketInfoRow extends StatelessWidget {
   const _TicketInfoRow({
     required this.icon,
@@ -2028,7 +2008,7 @@ class _TicketInfoRow extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: AppColors.primaryGreen,
+              color: Colors.black,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -2074,7 +2054,7 @@ class _TicketRoutePoint extends StatelessWidget {
               Text(
                 address,
                 style: const TextStyle(
-                  color: AppColors.primaryGreen,
+                  color: Colors.black,
                   fontWeight: FontWeight.w800,
                   height: 1.35,
                 ),

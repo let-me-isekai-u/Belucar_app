@@ -102,9 +102,24 @@ class _ConcertPaymentScreenState extends State<ConcertPaymentScreen>
   }
 
   void _openTickets(ConcertOrder order) {
+    final showGuestLoginNotice = context.read<ConcertProvider>().guestMode;
+    if (order.tickets.length == 1) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ConcertTicketScreen(
+            ticket: order.tickets.single,
+            showGuestLoginNotice: showGuestLoginNotice,
+          ),
+        ),
+      );
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ConcertTicketListScreen(tickets: order.tickets),
+        builder: (_) => ConcertTicketListScreen(
+          tickets: order.tickets,
+          showGuestLoginNotice: showGuestLoginNotice,
+        ),
       ),
     );
   }
@@ -203,7 +218,7 @@ class _ConcertPaymentScreenState extends State<ConcertPaymentScreen>
         title: const Text('Thanh toán vé concert'),
         centerTitle: true,
         backgroundColor: AppColors.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.accentGold,
       ),
       body: order == null
           ? _LoadingOrder(
@@ -248,6 +263,9 @@ class _ConcertPaymentScreenState extends State<ConcertPaymentScreen>
                             ? 'TẢI LẠI VÉ'
                             : 'XEM ${order.tickets.length} VÉ',
                       ),
+                      style: ElevatedButton.styleFrom(
+                        foregroundColor: AppColors.accentGold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     TextButton.icon(
@@ -260,6 +278,9 @@ class _ConcertPaymentScreenState extends State<ConcertPaymentScreen>
                             ? 'Gửi lại sau ${_resendSeconds}s'
                             : 'Gửi lại email vé',
                       ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.black,
+                      ),
                     ),
                   ],
                   if (provider.errorMessage != null) ...[
@@ -267,7 +288,7 @@ class _ConcertPaymentScreenState extends State<ConcertPaymentScreen>
                     Text(
                       provider.errorMessage!,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.redAccent),
+                      style: const TextStyle(color: Colors.black),
                     ),
                   ],
                 ],
@@ -381,7 +402,7 @@ class _StatusCard extends StatelessWidget {
                 Text(
                   concertOrderStatusLabel(order.status),
                   style: TextStyle(
-                    color: color,
+                    color: Colors.black,
                     fontSize: 17,
                     fontWeight: FontWeight.w900,
                   ),
@@ -417,7 +438,7 @@ class _OrderSummary extends StatelessWidget {
         const Text(
           'Thông tin đơn',
           style: TextStyle(
-            color: AppColors.primaryGreen,
+            color: Colors.black,
             fontSize: 18,
             fontWeight: FontWeight.w900,
           ),
@@ -440,7 +461,7 @@ class _OrderSummary extends StatelessWidget {
               children: [
                 const Icon(
                   Icons.directions_bus_filled_outlined,
-                  color: AppColors.primaryGreen,
+                  color: Colors.black,
                 ),
                 const SizedBox(width: 10),
                 Expanded(

@@ -6,6 +6,8 @@ import 'package:belucar_app/providers/account_provider.dart';
 import 'package:belucar_app/providers/auth_provider.dart';
 import 'package:belucar_app/providers/concert_provider.dart';
 import 'package:belucar_app/screens/concert/concert_booking_screen.dart';
+import 'package:belucar_app/screens/concert/concert_library_screen.dart'
+    as concert_library;
 import 'package:belucar_app/services/concert_api_service.dart';
 import 'package:belucar_app/services/guest_concert_order_storage.dart';
 import 'package:belucar_app/services/token_storage.dart';
@@ -91,6 +93,7 @@ void main() {
         final item = (body['items'] as List).single as Map<String, dynamic>;
         expect(item['quantity'], 2);
         expect(item['serviceId'], 1);
+        expect(item['isCharter'], isFalse);
         return http.Response(
           jsonEncode({
             'success': true,
@@ -324,10 +327,170 @@ void main() {
           .toList();
       expect(visibleTexts, contains('Loại hành trình'));
       expect(find.text('Họ và tên liên hệ'), findsOneWidget);
+      expect(find.text('Bao xe'), findsOneWidget);
+      expect(find.textContaining('4 ghế'), findsOneWidget);
       expect(find.text('14:00'), findsOneWidget);
       expect(find.textContaining('100.000'), findsWidgets);
+
+      await tester.ensureVisible(find.text('Bao xe'));
+      await tester.tap(find.text('Bao xe'));
+      await tester.pumpAndSettle();
+      expect(concertProvider.totalQuantity, 4);
+      expect(concertProvider.cartItems.single.isCharter, isTrue);
     },
   );
+
+  testWidgets('booking UI allows return-only ticket without outbound service', (
+    tester,
+  ) async {
+    final secrets = _MemorySecretStorage();
+    final apiService = ConcertApiService(
+      baseUrl: 'https://example.test',
+      client: MockClient(
+        (_) async => http.Response(
+          jsonEncode({
+            'success': true,
+            'data': {
+              'eventId': 1,
+              'eventCode': 'BIGBANG_MYDINH_2026',
+              'eventName': 'BIGBANG Concert Mỹ Đình 2026',
+              'venueName': 'Sân vận động Quốc gia Mỹ Đình',
+              'status': 'OPEN',
+              'routes': [
+                {
+                  'id': 1,
+                  'code': 'EAST',
+                  'name': 'EAST / Phía Đông',
+                  'sequence': 1,
+                  'stops': [
+                    {
+                      'id': 1,
+                      'code': '1.1',
+                      'name': 'Ocean Park 1',
+                      'sequence': 1,
+                      'isTerminal': false,
+                      'isSelectable': true,
+                    },
+                  ],
+                },
+              ],
+              'vehicleTypes': [
+                {'id': 4, 'code': 'CAR4', 'name': 'Xe 4 ghế', 'seatCount': 4},
+              ],
+              'services': [
+                {
+                  'id': 1,
+                  'code': '20261024_OUTBOUND',
+                  'name': 'Chiều đi ngày 24/10/2026',
+                  'serviceDate': '2026-10-24T00:00:00',
+                  'direction': 'OUTBOUND',
+                  'departureAt': null,
+                  'meetingTimeNote': null,
+                  'saleStatus': 'OPEN',
+                },
+                {
+                  'id': 2,
+                  'code': '20261024_RETURN',
+                  'name': 'Chiều về ngày 24/10/2026',
+                  'serviceDate': '2026-10-24T00:00:00',
+                  'direction': 'RETURN',
+                  'departureAt': null,
+                  'meetingTimeNote': 'Sau khi concert kết thúc',
+                  'saleStatus': 'OPEN',
+                },
+              ],
+              'fares': [
+                {
+                  'id': 1,
+                  'serviceId': 1,
+                  'routeStopId': 1,
+                  'vehicleTypeId': 4,
+                  'price': 100000,
+                },
+                {
+                  'id': 2,
+                  'serviceId': 2,
+                  'routeStopId': 1,
+                  'vehicleTypeId': 4,
+                  'price': 100000,
+                },
+              ],
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json; charset=utf-8'},
+        ),
+      ),
+    );
+    final authProvider = AuthProvider(
+      tokenStorage: TokenStorage(storage: secrets),
+    );
+    final accountProvider = AccountProvider(authProvider: authProvider);
+    final concertProvider = ConcertProvider(
+      authProvider: authProvider,
+      accountProvider: accountProvider,
+      apiService: apiService,
+      guestStorage: GuestConcertOrderStorage(storage: secrets),
+      guestMode: true,
+    );
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => BookingModel()),
+          ChangeNotifierProvider.value(value: concertProvider),
+        ],
+        child: const MaterialApp(home: ConcertBookingScreen(isGuest: true)),
+      ),
+    );
+    await concertProvider.loadCatalog();
+    await tester.pumpAndSettle();
+
+    expect(concertProvider.cartItems.single.serviceId, 1);
+
+    await tester.ensureVisible(find.text('Vé lượt về'));
+    await tester.tap(find.text('Vé lượt về'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chọn ngày về'), findsOneWidget);
+    expect(concertProvider.cartItems, hasLength(1));
+    expect(concertProvider.cartItems.single.serviceId, 2);
+  });
+
+  testWidgets('guest ticket only shows the email login notice', (tester) async {
+    const ticket = ConcertTicket(
+      ticketCode: 'BBT-001',
+      status: 'ISSUED',
+      serviceName: 'Chiều đi ngày 24/10/2026',
+      serviceDate: null,
+      direction: 'OUTBOUND',
+      routeName: 'Tuyến 1',
+      stopName: 'Ocean Park',
+      vehicleTypeName: 'Xe 4 ghế',
+      issuedAt: null,
+      usedAt: null,
+      qrPayload: null,
+      qrImageBase64: null,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: concert_library.ConcertTicketScreen(
+          ticket: ticket,
+          showGuestLoginNotice: true,
+        ),
+      ),
+    );
+
+    expect(
+      find.textContaining(
+        'Thông tin đăng nhập của tài khoản đã được gửi về email',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Tài khoản'), findsNothing);
+    expect(find.text('Mật khẩu'), findsNothing);
+  });
 }
 
 class _MemorySecretStorage implements SecretStorage {

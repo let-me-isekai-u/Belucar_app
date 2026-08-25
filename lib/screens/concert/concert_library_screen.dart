@@ -77,7 +77,7 @@ class _ConcertLibraryScreenState extends State<ConcertLibraryScreen> {
         title: const Text('Vé xe concert'),
         centerTitle: true,
         backgroundColor: AppColors.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.accentGold,
       ),
       body: Column(
         children: [
@@ -90,10 +90,8 @@ class _ConcertLibraryScreenState extends State<ConcertLibraryScreen> {
                       ? AppColors.accentGold
                       : Colors.white;
                 }),
-                foregroundColor: const WidgetStatePropertyAll(
-                  AppColors.primaryGreen,
-                ),
-                iconColor: const WidgetStatePropertyAll(AppColors.primaryGreen),
+                foregroundColor: const WidgetStatePropertyAll(Colors.black),
+                iconColor: const WidgetStatePropertyAll(Colors.black),
                 textStyle: const WidgetStatePropertyAll(
                   TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
                 ),
@@ -178,7 +176,7 @@ class _ConcertLibraryScreenState extends State<ConcertLibraryScreen> {
               child: Text(
                 provider.errorMessage!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.redAccent),
+                style: const TextStyle(color: Colors.black),
               ),
             ),
         ],
@@ -226,7 +224,7 @@ class _OrderList extends StatelessWidget {
                         child: Text(
                           order.orderCode,
                           style: const TextStyle(
-                            color: AppColors.primaryGreen,
+                            color: Colors.black,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -330,7 +328,7 @@ class _TicketCard extends StatelessWidget {
                     Text(
                       ticket.ticketCode,
                       style: const TextStyle(
-                        color: AppColors.primaryGreen,
+                        color: Colors.black,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -360,9 +358,14 @@ class _TicketCard extends StatelessWidget {
 }
 
 class ConcertTicketListScreen extends StatelessWidget {
-  const ConcertTicketListScreen({super.key, required this.tickets});
+  const ConcertTicketListScreen({
+    super.key,
+    required this.tickets,
+    this.showGuestLoginNotice = false,
+  });
 
   final List<ConcertTicket> tickets;
+  final bool showGuestLoginNotice;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -370,22 +373,32 @@ class ConcertTicketListScreen extends StatelessWidget {
     appBar: AppBar(
       title: Text('${tickets.length} vé đã phát hành'),
       backgroundColor: AppColors.primaryGreen,
-      foregroundColor: Colors.white,
+      foregroundColor: AppColors.accentGold,
     ),
     body: _TicketList(
       tickets: tickets,
       emptyMessage: 'Vé đang được phát hành. Vui lòng tải lại đơn.',
       onOpen: (ticket) => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => ConcertTicketScreen(ticket: ticket)),
+        MaterialPageRoute(
+          builder: (_) => ConcertTicketScreen(
+            ticket: ticket,
+            showGuestLoginNotice: showGuestLoginNotice,
+          ),
+        ),
       ),
     ),
   );
 }
 
 class ConcertTicketScreen extends StatelessWidget {
-  const ConcertTicketScreen({super.key, required this.ticket});
+  const ConcertTicketScreen({
+    super.key,
+    required this.ticket,
+    this.showGuestLoginNotice = false,
+  });
 
   final ConcertTicket ticket;
+  final bool showGuestLoginNotice;
 
   @override
   Widget build(BuildContext context) {
@@ -397,7 +410,7 @@ class ConcertTicketScreen extends StatelessWidget {
         title: const Text('Chi tiết vé'),
         centerTitle: true,
         backgroundColor: AppColors.primaryGreen,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.accentGold,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -413,6 +426,27 @@ class ConcertTicketScreen extends StatelessWidget {
             ),
             child: Column(
               children: [
+                if (showGuestLoginNotice) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7DA),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.accentGold),
+                    ),
+                    child: const Text(
+                      'Thông tin đăng nhập của tài khoản đã được gửi về email mà bạn đã đăng ký, vui lòng đăng nhập để kiểm tra vé lần sau.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.w800,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
@@ -434,7 +468,7 @@ class ConcertTicketScreen extends StatelessWidget {
                       const SizedBox(height: 5),
                       SelectableText(
                         ticket.ticketCode,
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: AppColors.accentGold),
                       ),
                     ],
                   ),
@@ -520,7 +554,7 @@ class _InfoRow extends StatelessWidget {
             value,
             textAlign: TextAlign.right,
             style: const TextStyle(
-              color: AppColors.primaryGreen,
+              color: Colors.black,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -553,7 +587,7 @@ class _FilterChip extends StatelessWidget {
       label: Text(
         label,
         style: TextStyle(
-          color: selected ? AppColors.accentGold : AppColors.primaryGreen,
+          color: selected ? AppColors.accentGold : Colors.black,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -576,7 +610,11 @@ class _StatusPill extends StatelessWidget {
     ),
     child: Text(
       text,
-      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800),
+      style: const TextStyle(
+        color: Colors.black,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+      ),
     ),
   );
 }
@@ -601,7 +639,7 @@ class _EmptyList extends StatelessWidget {
         message,
         textAlign: TextAlign.center,
         style: const TextStyle(
-          color: AppColors.primaryGreen,
+          color: Colors.black,
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
