@@ -26,19 +26,11 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
     DateTime(2026, 10, 24),
     DateTime(2026, 10, 25),
   ];
-  static const _fallbackDepartureTimes = <String>[
-    '14:00',
-    '15:30',
-    '17:00',
-    '18:30',
-  ];
-
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final Set<DateTime> _selectedDates = <DateTime>{_concertDates.first};
   final Set<DateTime> _selectedReturnDates = <DateTime>{};
-  String? _selectedTime;
   int _quantity = 1;
   bool _isRoundTrip = false;
   bool _isReturnOnly = false;
@@ -86,33 +78,6 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
         .selectedVehicleType
         ?.seatCount;
     return seatCount == 4 || seatCount == 7;
-  }
-
-  List<String> get _departureTimes {
-    final provider = context.read<ConcertProvider>();
-    final selected = provider.services.where(_isServiceSelected).toList();
-    final source = selected.isEmpty ? provider.services : selected;
-    final labels = source
-        .map(_apiServiceTimeLabel)
-        .whereType<String>()
-        .toSet()
-        .toList();
-    return labels.isEmpty ? _fallbackDepartureTimes : labels;
-  }
-
-  bool get _usesFallbackDepartureTimes {
-    final provider = context.read<ConcertProvider>();
-    final selected = provider.services.where(_isServiceSelected).toList();
-    final source = selected.isEmpty ? provider.services : selected;
-    return source.every((service) => _apiServiceTimeLabel(service) == null);
-  }
-
-  String? _apiServiceTimeLabel(ConcertService service) {
-    if (service.departureAt != null) {
-      return DateFormat('HH:mm').format(service.departureAt!);
-    }
-    final note = service.meetingTimeNote?.trim();
-    return note == null || note.isEmpty ? null : note;
   }
 
   bool _isServiceSelected(ConcertService service) {
@@ -270,13 +235,6 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
       _showMessage('Vui lòng chọn ít nhất một ngày về.');
       return;
     }
-    if (!_isReturnOnly &&
-        _usesFallbackDepartureTimes &&
-        _selectedTime == null) {
-      _showMessage('Vui lòng chọn một khung giờ khởi hành.');
-      return;
-    }
-
     setState(() => _isCreatingTicket = true);
     try {
       _syncApiCart();
@@ -570,18 +528,6 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
                             if (!_isReturnOnly) ...[
                               const SizedBox(height: 8),
                               _buildReturnDateOption(),
-                            ],
-                            if (!_isReturnOnly) ...[
-                              const SizedBox(height: 24),
-                              _buildSectionTitle(
-                                icon: Icons.access_time_filled_rounded,
-                                title: 'Chọn khung giờ',
-                                subtitle: _usesFallbackDepartureTimes
-                                    ? 'API chưa cấu hình giờ • Bạn tự chọn khung giờ'
-                                    : 'Khung giờ lấy từ hệ thống',
-                              ),
-                              const SizedBox(height: 12),
-                              _buildTimePicker(),
                             ],
                             const SizedBox(height: 24),
                             _buildSectionTitle(
@@ -1156,43 +1102,6 @@ class _ConcertBookingScreenState extends State<ConcertBookingScreen> {
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildTimePicker() {
-    final usesFallback = _usesFallbackDepartureTimes;
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _departureTimes.map((time) {
-        final selected = usesFallback ? time == _selectedTime : true;
-        return ChoiceChip(
-          selected: selected,
-          onSelected: usesFallback
-              ? (_) => setState(() => _selectedTime = time)
-              : null,
-          showCheckmark: false,
-          avatar: Icon(
-            Icons.directions_bus_filled_rounded,
-            size: 18,
-            color: selected ? AppColors.accentGold : Colors.black,
-          ),
-          label: Text(time),
-          labelStyle: TextStyle(
-            color: selected ? AppColors.accentGold : Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-          selectedColor: AppColors.primaryGreen,
-          backgroundColor: Colors.white,
-          side: BorderSide(
-            color: selected
-                ? AppColors.accentGold
-                : Colors.black.withValues(alpha: 0.08),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         );
       }).toList(),
     );

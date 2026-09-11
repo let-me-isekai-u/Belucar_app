@@ -227,7 +227,7 @@ void main() {
   });
 
   testWidgets(
-    'old booking UI shows API fare and fallback times when API has no time',
+    'booking UI shows API fare and lets the customer choose by date',
     (tester) async {
       final secrets = _MemorySecretStorage();
       final apiService = ConcertApiService(
@@ -329,7 +329,8 @@ void main() {
       expect(find.text('Họ và tên liên hệ'), findsOneWidget);
       expect(find.text('Bao xe'), findsOneWidget);
       expect(find.textContaining('4 ghế'), findsOneWidget);
-      expect(find.text('14:00'), findsOneWidget);
+      expect(find.text('Chọn khung giờ'), findsNothing);
+      expect(find.text('14:00'), findsNothing);
       expect(find.textContaining('100.000'), findsWidgets);
 
       await tester.ensureVisible(find.text('Bao xe'));
