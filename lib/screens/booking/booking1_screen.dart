@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app_theme.dart';
+import '../../features/carrier/carrier_screens.dart';
 import '../../models/booking_model.dart';
 import '../../models/location_models.dart';
 import 'booking2_screen.dart';
@@ -712,6 +713,38 @@ class _Booking1ScreenState extends State<Booking1Screen> {
             ),
           ),
         ],
+        // 3 lựa chọn dịch vụ: Xe ghép (luồng hiện tại) / Xe limousine / Xe khách (nhà xe đối tác).
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: Row(
+              children: [
+                for (final (label, category) in const [
+                  ('Xe ghép', null),
+                  ('Xe limousine', 'LIMOUSINE'),
+                  ('Xe khách', 'COACH'),
+                ])
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ChoiceChip(
+                        label: SizedBox(width: double.infinity, child: Text(label, textAlign: TextAlign.center)),
+                        selected: category == null,
+                        showCheckmark: false,
+                        onSelected: category == null
+                            ? (_) {}
+                            : (_) => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => CarrierSearchScreen(category: category)),
+                                ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
       body: BookingKeyboardDismissArea(
         child: Container(
