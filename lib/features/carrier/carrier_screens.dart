@@ -11,7 +11,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'carrier_api.dart';
 
-const _navy = Color(0xFF041565);
+const _navy = Color(0xFF041565); // chỉ dùng cho marker xe trên nền bản đồ sáng
+const _muted = Colors.grey; // đọc được trên cả nền sáng và nền xanh đậm của app
 final _money = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ', decimalDigits: 0);
 String _vnd(dynamic v) => v == null ? '—' : _money.format(v as num);
 String _time(dynamic iso) => iso == null ? '—' : DateFormat('HH:mm').format(DateTime.parse('$iso').toLocal());
@@ -34,7 +35,7 @@ const _bookingStatus = {
 void _toast(BuildContext c, String m) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
 
 AppBar _bar(String title, {List<Widget>? actions}) =>
-    AppBar(title: Text(title), backgroundColor: _navy, foregroundColor: Colors.white, actions: actions);
+    AppBar(title: Text(title), actions: actions);
 
 /// Ô chọn địa chỉ: gõ → gợi ý TrackAsia → chọn (chỉ địa chỉ chọn từ gợi ý mới hợp lệ).
 class _PlaceField extends StatefulWidget {
@@ -105,7 +106,7 @@ class CarrierSearchScreen extends StatefulWidget {
 class _CarrierSearchScreenState extends State<CarrierSearchScreen> {
   late String _category = widget.category;
   Map<String, String>? _from, _to;
-  DateTime _date = DateTime.now().add(const Duration(days: 1));
+  DateTime _date = DateUtils.dateOnly(DateTime.now());
   int _pax = 1;
   String _sort = 'nearest';
   bool _loading = false;
@@ -159,7 +160,7 @@ class _CarrierSearchScreenState extends State<CarrierSearchScreen> {
               icon: const Icon(Icons.calendar_today),
               label: Text(DateFormat('dd/MM/yyyy').format(_date)),
               onPressed: () async {
-                final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 45)));
+                final d = await showDatePicker(context: context, initialDate: _date, firstDate: DateUtils.dateOnly(DateTime.now()), lastDate: DateUtils.dateOnly(DateTime.now()).add(const Duration(days: 45)));
                 if (d != null) setState(() => _date = d);
               },
             ),
@@ -170,14 +171,14 @@ class _CarrierSearchScreenState extends State<CarrierSearchScreen> {
           IconButton(onPressed: _pax < 10 ? () => setState(() => _pax++) : null, icon: const Icon(Icons.add_circle_outline)),
         ]),
         const SizedBox(height: 12),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(backgroundColor: _navy, minimumSize: const Size.fromHeight(48)),
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           onPressed: _loading ? null : _search,
-          icon: _loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.search),
+          icon: _loading ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.search),
           label: const Text('Tìm chuyến'),
         ),
         const SizedBox(height: 8),
-        const Text('Không cần chọn ghế — nhà xe đối tác đảm bảo chỗ theo hợp đồng.', textAlign: TextAlign.center, style: TextStyle(color: Colors.black54, fontSize: 12)),
+        const Text('Không cần chọn ghế — nhà xe đối tác đảm bảo chỗ theo hợp đồng.', textAlign: TextAlign.center, style: TextStyle(color: _muted, fontSize: 12)),
         if (_result != null) ...[
           const SizedBox(height: 16),
           Row(children: [
@@ -221,15 +222,15 @@ class _ResultCard extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Expanded(child: Text('${item['carrierName']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-              Text(_vnd(item['totalPrice']), style: const TextStyle(fontWeight: FontWeight.bold, color: _navy, fontSize: 16)),
+              Text(_vnd(item['totalPrice']), style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary, fontSize: 16)),
             ]),
-            Text('${categoryLabel[item['vehicleCategory']]} · ${item['routeName']}', style: const TextStyle(color: Colors.black54)),
+            Text('${categoryLabel[item['vehicleCategory']]} · ${item['routeName']}', style: const TextStyle(color: _muted)),
             const Divider(),
             Text('${_time(p['pickupAt'])}  ${p['name']}', style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text('Cách bạn ${dist(p)} · ${p['address']}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            Text('Cách bạn ${dist(p)} · ${p['address']}', style: const TextStyle(fontSize: 12, color: _muted)),
             const SizedBox(height: 6),
             Text('${_time(d['arriveAt'])}  ${d['name']}', style: const TextStyle(fontWeight: FontWeight.w600)),
-            Text('Cách điểm đến ${dist(d)} · ${d['address']}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            Text('Cách điểm đến ${dist(d)} · ${d['address']}', style: const TextStyle(fontSize: 12, color: _muted)),
             const SizedBox(height: 6),
             Text('${_vnd(item['unitPrice'])}/người · ${item['availabilityLabel']}', style: const TextStyle(fontSize: 12)),
           ]),
@@ -304,6 +305,9 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CarrierTicketScreen(code: '${b['code']}')));
     } on CarrierApiException catch (e) {
+      // 4xx khác 409 = server đã từ chối dứt điểm (không tạo vé) → lần bấm sau là ý định mới, dùng key mới.
+      // Lỗi mạng/5xx/409 có thể đã được tiếp nhận → giữ key để retry không tạo vé trùng.
+      if (e.status >= 400 && e.status < 500 && e.status != 409) _key = CarrierApi.newIdempotencyKey();
       if (mounted) _toast(context, e.needsLogin ? 'Vui lòng đăng nhập tài khoản khách để đặt vé.' : e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -364,8 +368,8 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
             ),
           ),
         const SizedBox(height: 8),
-        FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: _navy, minimumSize: const Size.fromHeight(48)),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           onPressed: _quote == null || _busy ? null : _book,
           child: Text(_busy ? 'Đang đặt...' : 'Đặt vé & thanh toán'),
         ),
@@ -448,8 +452,8 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
 
   Widget _copyRow(String label, String value, {String? raw}) => ListTile(
         dense: true,
-        title: Text(label, style: const TextStyle(color: Colors.black54)),
-        subtitle: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black)),
+        title: Text(label, style: const TextStyle(color: _muted)),
+        subtitle: Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         trailing: raw == null ? null : IconButton(icon: const Icon(Icons.copy), onPressed: () { Clipboard.setData(ClipboardData(text: raw)); _toast(context, 'Đã sao chép.'); }),
       );
 
@@ -473,7 +477,7 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
             _copyRow('Nội dung chuyển khoản', '${pay['transferContent'] ?? pay['paymentCode']}', raw: '${pay['transferContent'] ?? pay['paymentCode']}'),
             _copyRow('Số tài khoản', '${pay['accountNumber']} (${pay['bankCode']})', raw: '${pay['accountNumber']}'),
             _copyRow('Chủ tài khoản', '${pay['accountName']}'),
-            const Text('Chuyển đúng số tiền và nội dung. Vé tự xác nhận khi ngân hàng báo có.', style: TextStyle(fontSize: 12, color: Colors.black54)),
+            const Text('Chuyển đúng số tiền và nội dung. Vé tự xác nhận khi ngân hàng báo có.', style: TextStyle(fontSize: 12, color: _muted)),
             TextButton(onPressed: _cancel, child: const Text('Hủy đơn', style: TextStyle(color: Colors.red))),
           ],
           if (b['status'] == 'PAYMENT_REVIEW') const Text('Đã nhận giao dịch nhưng cần đối soát; bộ phận hỗ trợ sẽ liên hệ xác nhận hoặc hoàn tiền.', style: TextStyle(color: Colors.orange)),
@@ -482,18 +486,23 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
           Text('${run['routeName']}'),
           const SizedBox(height: 8),
           Text('Đón: ${_dayTime(pickup['pickupAt'])} · ${pickup['name']}', style: const TextStyle(fontWeight: FontWeight.w600)),
-          Text('${pickup['address']}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          Text('${pickup['address']}', style: const TextStyle(fontSize: 12, color: _muted)),
           Text('Trả: ${_dayTime(dropoff['arriveAt'])} · ${dropoff['name']}', style: const TextStyle(fontWeight: FontWeight.w600)),
           Text('${b['passengerCount']} người · ${_vnd(b['totalAmount'])}'),
           if (run['vehiclePlate'] != null) Text('Biển số xe: ${run['vehiclePlate']}', style: const TextStyle(fontWeight: FontWeight.w600)),
           if (run['carrierPhone'] != null)
             Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(onPressed: () => launchUrl(Uri.parse('tel:${run['carrierPhone']}')), icon: const Icon(Icons.phone), label: Text('Gọi nhà xe ${run['carrierPhone']}')),
+              child: TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.secondary),
+                onPressed: () => launchUrl(Uri.parse('tel:${run['carrierPhone']}')),
+                icon: const Icon(Icons.phone),
+                label: Text('Gọi nhà xe ${run['carrierPhone']}'),
+              ),
             ),
           if (_track != null) _TrackingView(track: _track!, pickupId: pickup['id'] as int, dropoffId: dropoff['id'] as int),
           if (_track == null && (b['status'] == 'CONFIRMED' || b['status'] == 'BOARDED'))
-            const Padding(padding: EdgeInsets.only(top: 12), child: Text('Theo dõi vị trí xe mở 60 phút trước giờ đón.', style: TextStyle(color: Colors.black54))),
+            const Padding(padding: EdgeInsets.only(top: 12), child: Text('Theo dõi vị trí xe mở 60 phút trước giờ đón.', style: TextStyle(color: _muted))),
         ]),
       ),
     );
@@ -521,10 +530,10 @@ class _TrackingView extends StatelessWidget {
         const Spacer(),
         Chip(
           backgroundColor: signal == 'LIVE' ? Colors.green.shade100 : Colors.orange.shade100,
-          label: Text(signal == 'LIVE' ? 'Trực tuyến' : signal == 'STALE' ? 'Mất tín hiệu' : 'Chưa có tín hiệu'),
+          label: Text(signal == 'LIVE' ? 'Trực tuyến' : signal == 'STALE' ? 'Mất tín hiệu' : 'Chưa có tín hiệu', style: const TextStyle(color: Colors.black87)),
         ),
       ]),
-      if (loc != null) Text('Cập nhật ${loc['ageSeconds']} giây trước', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+      if (loc != null) Text('Cập nhật ${loc['ageSeconds']} giây trước', style: const TextStyle(fontSize: 12, color: _muted)),
       if (((track['delayMinutes'] as num?) ?? 0) > 0) Text('Xe trễ khoảng ${track['delayMinutes']} phút so với lịch.', style: const TextStyle(color: Colors.orange)),
       const SizedBox(height: 8),
       SizedBox(
@@ -558,7 +567,7 @@ class _TrackingView extends StatelessWidget {
                 ? 'Đã đến ${_time(s['actualArrivalAt'])}'
                 : 'Dự kiến ${_time(s['estimatedArrivalAt'] ?? s['plannedArrivalAt'])} (lịch ${_time(s['plannedArrivalAt'])})'),
           )),
-      const Text('Giờ dự kiến theo lịch chạy và độ trễ thực tế, chưa tính giao thông.', style: TextStyle(fontSize: 11, color: Colors.black54)),
+      const Text('Giờ dự kiến theo lịch chạy và độ trễ thực tế, chưa tính giao thông.', style: TextStyle(fontSize: 11, color: _muted)),
     ]);
   }
 }

@@ -4,4 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Debug only: allow http:// to a local backend (API_ORIGIN, adb reverse). Release keeps HTTPS-only. -->
+    <application android:usesCleartextTraffic="true"/>
 </manifest>

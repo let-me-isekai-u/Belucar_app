@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../config/api_config.dart';
 import '../../services/api_service.dart';
 
 class CarrierApiException implements Exception {
@@ -18,7 +19,7 @@ class CarrierApiException implements Exception {
 }
 
 class CarrierApi {
-  static const String base = 'https://xeghepdongduong.com/api/carrier';
+  static const String base = '$apiOrigin/api/carrier';
 
   /// Khóa chống trùng cho lệnh tạo vé: bấm lại/mạng chập chờn sẽ nhận lại đúng kết quả cũ.
   static String newIdempotencyKey() {

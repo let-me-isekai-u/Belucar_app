@@ -729,7 +729,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: ChoiceChip(
-                        label: SizedBox(width: double.infinity, child: Text(label, textAlign: TextAlign.center)),
+                        label: SizedBox(width: double.infinity, child: FittedBox(fit: BoxFit.scaleDown, child: Text(label, maxLines: 1))),
                         selected: category == null,
                         showCheckmark: false,
                         onSelected: category == null

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/trip_detail_model.dart';
 import '../services/api_service.dart';
@@ -14,7 +15,7 @@ class OrderDetailScreen extends StatelessWidget {
     required this.rideId,
   });
 
-  static const String _baseUrl = "https://xeghepdongduong.com";
+  static const String _baseUrl = apiOrigin;
 
   Future<String?> _getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();

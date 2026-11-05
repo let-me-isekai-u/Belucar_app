@@ -1,10 +1,11 @@
 import 'dart:convert';
+import '../config/api_config.dart';
 import 'package:http/http.dart' as http;
 import '../models/message_model.dart';
 import '../models/chat_message_page.dart';
 
 class ChatApiService {
-  static const String baseUrl = "https://xeghepdongduong.com/api/chat/customer";
+  static const String baseUrl = "$apiOrigin/api/chat/customer";
 
   static dynamic safeDecode(String? body) {
     if (body == null || body.isEmpty) return {};
