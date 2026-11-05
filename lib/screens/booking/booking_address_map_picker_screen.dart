@@ -1,3 +1,4 @@
+import '../../config/map_config.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -25,8 +26,6 @@ class BookingAddressMapPickerScreen extends StatefulWidget {
 
 class _BookingAddressMapPickerScreenState
     extends State<BookingAddressMapPickerScreen> {
-  static const String _streetTileUrl =
-      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const latlng.LatLng _defaultCenter = latlng.LatLng(
     21.028511,
     105.804817,
@@ -302,11 +301,8 @@ class _BookingAddressMapPickerScreenState
               },
             ),
             children: [
-              TileLayer(
-                urlTemplate: _streetTileUrl,
-                userAgentPackageName: 'com.belucar.app',
-                maxZoom: 19,
-              ),
+              trackAsiaTileLayer(),
+              trackAsiaAttribution(),
             ],
           ),
           IgnorePointer(

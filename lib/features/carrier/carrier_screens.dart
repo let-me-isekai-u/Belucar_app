@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../config/map_config.dart';
 import 'carrier_api.dart';
 
 const _navy = Color(0xFF041565); // chỉ dùng cho marker xe trên nền bản đồ sáng
@@ -17,6 +18,7 @@ final _money = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ', decimalDigit
 String _vnd(dynamic v) => v == null ? '—' : _money.format(v as num);
 String _time(dynamic iso) => iso == null ? '—' : DateFormat('HH:mm').format(DateTime.parse('$iso').toLocal());
 String _dayTime(dynamic iso) => iso == null ? '—' : DateFormat('HH:mm dd/MM').format(DateTime.parse('$iso').toLocal());
+String _pct(dynamic v) { final n = (v as num?) ?? 0; return n == n.roundToDouble() ? '${n.round()}%' : '$n%'; }
 String _km(dynamic m) => m == null ? '—' : (m as num) < 1000 ? '${m.round()} m' : '${(m / 1000).toStringAsFixed(1)} km';
 const categoryLabel = {'LIMOUSINE': 'Xe limousine', 'COACH': 'Xe khách'};
 const _bookingStatus = {
@@ -33,6 +35,16 @@ const _bookingStatus = {
 };
 
 void _toast(BuildContext c, String m) => ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(m)));
+
+/// "từ 24 giờ: hoàn 100% · 5–24 giờ: hoàn 90% · ..." (chính sách hoàn vé dùng chung).
+String refundPolicyText(List<Map<String, dynamic>> tiers) {
+  final t = [...tiers]..sort((a, b) => (b['minHoursBeforePickup'] as num).compareTo(a['minHoursBeforePickup'] as num));
+  String h(num v) => v == v.roundToDouble() ? '${v.round()}' : '$v';
+  return [
+    for (var i = 0; i < t.length; i++)
+      '${(t[i]['minHoursBeforePickup'] as num) == 0 ? 'dưới ${h(t[i - 1]['minHoursBeforePickup'] as num)} giờ' : i == 0 ? 'từ ${h(t[i]['minHoursBeforePickup'] as num)} giờ' : '${h(t[i]['minHoursBeforePickup'] as num)}–${h(t[i - 1]['minHoursBeforePickup'] as num)} giờ'}: hoàn ${h(t[i]['refundPercent'] as num)}%'
+  ].join(' · ');
+}
 
 AppBar _bar(String title, {List<Widget>? actions}) =>
     AppBar(title: Text(title), actions: actions);
@@ -255,10 +267,12 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
   String? _error;
   bool _busy = false;
   String _key = CarrierApi.newIdempotencyKey();
+  String? _policy;
 
   @override
   void initState() {
     super.initState();
+    CarrierApi.refundPolicy().then((t) { if (mounted && t.isNotEmpty) setState(() => _policy = refundPolicyText(t)); }).catchError((Object _) {});
     CarrierApi.run(widget.runId).then((r) {
       if (mounted) setState(() => _run = r);
       _requote();
@@ -360,6 +374,8 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
         TextField(controller: _note, decoration: const InputDecoration(labelText: 'Ghi chú cho nhà xe')),
         const SizedBox(height: 16),
         if (_error != null) Text(_error!, style: const TextStyle(color: Colors.red)),
+        if (_policy != null)
+          Padding(padding: const EdgeInsets.only(bottom: 8), child: Text('Hủy vé trước giờ đón — $_policy. Tiền hoàn vào ví Beluga.', style: const TextStyle(fontSize: 12, color: _muted))),
         if (_quote != null)
           Card(
             child: ListTile(
@@ -432,19 +448,45 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
     }
   }
 
+  Future<bool> _confirm(String title, String body, String action) async => await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            TextButton(style: TextButton.styleFrom(foregroundColor: Theme.of(c).colorScheme.onSurface), onPressed: () => Navigator.pop(c, false), child: const Text('Không')),
+            ElevatedButton(onPressed: () => Navigator.pop(c, true), child: Text(action)),
+          ],
+        ),
+      ) == true;
+
   Future<void> _cancel() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        title: const Text('Hủy đơn chưa thanh toán?'),
-        content: const Text('Đừng chuyển khoản sau khi hủy.'),
-        actions: [TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Không')), FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Hủy đơn'))],
-      ),
-    );
-    if (ok != true) return;
+    final b = _b!;
+    final refund = b['cancelRefund'] as Map?;
+    final ok = b['status'] == 'CONFIRMED' && refund != null
+        ? await _confirm('Hủy vé đã thanh toán?',
+            'Còn khoảng ${(refund['hoursBeforePickup'] as num).floor()} giờ đến giờ đón: bạn được hoàn ${_vnd(refund['refundAmount'])} (${_pct(refund['refundPercent'])}) vào ví Beluga ngay. Không thể hoàn tác.', 'Hủy vé')
+        : await _confirm('Hủy đơn chưa thanh toán?', 'Đừng chuyển khoản sau khi hủy.', 'Hủy đơn');
+    if (!ok) return;
     try {
       await CarrierApi.cancel(widget.code);
       await _load();
+      if (mounted) _toast(context, b['status'] == 'CONFIRMED' ? 'Đã hủy vé. Tiền hoàn (nếu có) đã vào ví Beluga.' : 'Đã hủy đơn.');
+    } on CarrierApiException catch (e) {
+      if (mounted) _toast(context, e.message);
+    }
+  }
+
+  Future<void> _payWallet() async {
+    final b = _b!;
+    if (!await _confirm('Thanh toán bằng ví Beluga?',
+        'Trừ ${_vnd(b['totalAmount'])} từ ví (số dư ${_vnd(b['walletBalance'])}). Vé được xác nhận ngay; đừng chuyển khoản thêm.', 'Thanh toán')) {
+      return;
+    }
+    try {
+      await CarrierApi.payWallet(widget.code);
+      await _load();
+      if (mounted) _toast(context, 'Đã thanh toán bằng ví. Vé đã được xác nhận.');
     } on CarrierApiException catch (e) {
       if (mounted) _toast(context, e.message);
     }
@@ -469,8 +511,17 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
         onRefresh: _load,
         child: ListView(padding: const EdgeInsets.all(16), children: [
           Align(alignment: Alignment.centerLeft, child: Chip(label: Text(_bookingStatus[b['status']] ?? '${b['status']}'))),
+          if (pay != null && b['walletBalance'] != null)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.account_balance_wallet_outlined),
+                title: Text('Số dư ví Beluga: ${_vnd(b['walletBalance'])}'),
+                subtitle: (b['walletBalance'] as num) < (b['totalAmount'] as num) ? const Text('Chưa đủ để trả vé — vui lòng chuyển khoản bên dưới.') : null,
+                trailing: (b['walletBalance'] as num) >= (b['totalAmount'] as num) ? ElevatedButton(onPressed: _payWallet, child: const Text('Trả bằng ví')) : null,
+              ),
+            ),
           if (pay != null) ...[
-            const Text('Chuyển khoản để xác nhận vé', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text('Hoặc chuyển khoản để xác nhận vé', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             Text('Hạn thanh toán: ${_dayTime(pay['expiresAt'])}', style: const TextStyle(color: Colors.orange)),
             if (pay['qrImageUrl'] != null) Center(child: Image.network('${pay['qrImageUrl']}', width: 240, height: 240)),
             _copyRow('Số tiền', _vnd(pay['amount']), raw: '${pay['amount']}'),
@@ -481,6 +532,21 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
             TextButton(onPressed: _cancel, child: const Text('Hủy đơn', style: TextStyle(color: Colors.red))),
           ],
           if (b['status'] == 'PAYMENT_REVIEW') const Text('Đã nhận giao dịch nhưng cần đối soát; bộ phận hỗ trợ sẽ liên hệ xác nhận hoặc hoàn tiền.', style: TextStyle(color: Colors.orange)),
+          if (b['status'] == 'CONFIRMED')
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.check_circle, color: Colors.green),
+              title: Text('Vé đã xác nhận${b['paymentMethod'] == 'WALLET' ? ' (trả bằng ví Beluga)' : ''}'),
+              trailing: b['cancelRefund'] != null ? TextButton(onPressed: _cancel, child: const Text('Hủy vé', style: TextStyle(color: Colors.red))) : null,
+            ),
+          if (b['refundAmount'] != null)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.undo),
+              title: Text((b['refundAmount'] as num) > 0
+                  ? 'Đã hoàn ${_vnd(b['refundAmount'])} (${_pct(b['refundPercent'])}) vào ví Beluga'
+                  : 'Vé hủy sát giờ đón nên không được hoàn tiền theo chính sách.'),
+            ),
           const Divider(),
           Text('${run['carrierName']} · ${categoryLabel[run['vehicleCategory']]}', style: const TextStyle(fontWeight: FontWeight.bold)),
           Text('${run['routeName']}'),
@@ -543,7 +609,7 @@ class _TrackingView extends StatelessWidget {
           child: FlutterMap(
             options: MapOptions(initialCenter: vehicle ?? at(pickup), initialZoom: 13),
             children: [
-              TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.belucar.app'),
+              trackAsiaTileLayer(),
               MarkerLayer(markers: [
                 ...stops.map((s) => Marker(
                       point: at(s),
@@ -553,6 +619,7 @@ class _TrackingView extends StatelessWidget {
                     )),
                 if (vehicle != null) Marker(point: vehicle, width: 40, height: 40, child: const Icon(Icons.directions_bus, color: _navy, size: 34)),
               ]),
+              trackAsiaAttribution(),
             ],
           ),
         ),

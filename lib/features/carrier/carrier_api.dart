@@ -115,6 +115,17 @@ class CarrierApi {
   static Future<Map<String, dynamic>> myBookings(int page) async =>
       Map<String, dynamic>.from(await _call('GET', '/bookings?page=$page', auth: true) as Map);
 
+  /// Trả vé đang chờ thanh toán bằng ví Beluga (đủ số dư, trả toàn bộ). Vé xác nhận ngay.
+  static Future<Map<String, dynamic>> payWallet(String code) async => Map<String, dynamic>.from(
+      await _call('POST', '/bookings/${Uri.encodeComponent(code)}/pay-wallet', body: {}, auth: true, idempotencyKey: newIdempotencyKey()) as Map);
+
+  /// Chính sách hoàn vé dùng chung: [{minHoursBeforePickup, refundPercent}].
+  static Future<List<Map<String, dynamic>>> refundPolicy() async {
+    final data = await _call('GET', '/refund-policy');
+    final tiers = data is Map ? data['tiers'] : null;
+    return tiers is List ? tiers.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList() : [];
+  }
+
   static Future<void> cancel(String code) =>
       _call('POST', '/bookings/${Uri.encodeComponent(code)}/cancel', body: {}, auth: true, idempotencyKey: newIdempotencyKey());
 
