@@ -1166,7 +1166,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 const SizedBox(height: 18),
                 BookingSectionCard(
                   title: 'Phương thức thanh toán',
-                  subtitle: 'Chọn hình thức thanh toán trước khi tạo đơn.',
                   icon: _getPaymentMethodIcon(model.paymentMethod),
                   child: Column(
                     children: [
@@ -1196,8 +1195,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 const SizedBox(height: 18),
                 BookingSectionCard(
                   title: 'Chi tiết giá',
-                  subtitle:
-                      'Giá sẽ tự cập nhật ngay khi thay đổi thông tin tính giá.',
                   icon: Icons.receipt_long_outlined,
                   child: model.isLoadingPrice
                       ? const Padding(
@@ -1242,7 +1239,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       : BookingInfoBanner(
                           text:
                               model.priceErrorMessage ??
-                              'Giá sẽ hiển thị ngay khi đủ điểm đón, điểm đến, ngày giờ và loại chuyến.',
+                              'Chọn đủ điểm đón, điểm đến và giờ để xem giá.',
                           icon: Icons.info_outline,
                           color: Brand.warning,
                         ),

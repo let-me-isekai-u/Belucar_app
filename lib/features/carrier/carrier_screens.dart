@@ -484,7 +484,7 @@ class _CarrierSearchScreenState extends State<CarrierSearchScreen> {
                   children: [
                     if (_result == null) ...[
                       const InfoBanner(
-                        'Không cần chọn ghế — nhà xe đối tác đảm bảo chỗ theo số khách bạn đặt.',
+                        'Không cần chọn ghế — nhà xe giữ chỗ theo số khách.',
                         tone: Tone.brand,
                         icon: Icons.event_seat_outlined,
                       ),
@@ -1289,7 +1289,7 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
               ),
             if (status == 'PAYMENT_REVIEW')
               const InfoBanner(
-                'Đã nhận giao dịch nhưng cần đối soát; bộ phận hỗ trợ sẽ liên hệ xác nhận hoặc hoàn tiền.',
+                'Giao dịch đang được đối soát, hỗ trợ sẽ liên hệ bạn.',
                 tone: Tone.warning,
               ),
             if (b['refundAmount'] != null)
@@ -1531,7 +1531,7 @@ class _TrackingView extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.only(bottom: 6),
                 child: Text(
-                  'Giờ dự kiến theo lịch chạy và độ trễ thực tế, chưa tính giao thông.',
+                  'Giờ dự kiến chưa tính kẹt xe.',
                   style: TextStyle(fontSize: 11, color: Brand.inkMuted),
                 ),
               ),

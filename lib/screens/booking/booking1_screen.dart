@@ -163,21 +163,38 @@ class _Booking1ScreenState extends State<Booking1Screen> {
         hint: hint,
         icon: icon,
         iconColor: iconColor,
-        suffixIcon: isLoading
-            ? const Padding(
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isLoading)
+              const Padding(
                 padding: EdgeInsets.all(12),
-                child: SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else if (controller.text.trim().isNotEmpty)
+              IconButton(
+                tooltip: 'Xóa',
+                onPressed: onClearSelection,
+                icon: const Icon(Icons.close_rounded, color: Brand.inkMuted, size: 20),
+              ),
+            if ((isPickup ? model.hasPickupSelection : model.hasDropSelection))
+              IconButton(
+                tooltip: 'Lưu yêu thích',
+                onPressed: () => model.toggleFavoriteForSelection(isPickup: isPickup),
+                icon: Icon(
+                  model.isCurrentSelectionFavorite(isPickup: isPickup) ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: Brand.navy,
+                  size: 20,
                 ),
               )
-            : controller.text.trim().isNotEmpty
-            ? IconButton(
-                onPressed: onClearSelection,
-                icon: const Icon(Icons.close_rounded, color: Brand.inkMuted),
-              )
-            : null,
+            else
+              IconButton(
+                tooltip: 'Chọn trên bản đồ',
+                onPressed: () => _pickPointOnMap(context, model, isPickup: isPickup),
+                icon: const Icon(Icons.map_outlined, color: Brand.navy, size: 20),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -245,64 +262,6 @@ class _Booking1ScreenState extends State<Booking1Screen> {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildMapShortcut({
-    required BuildContext context,
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        onPressed: onTap,
-        icon: Icon(icon, size: 16),
-        label: Text(label),
-        style: TextButton.styleFrom(
-          foregroundColor: Brand.navy,
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          textStyle: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFieldActions({
-    required BuildContext context,
-    required BookingModel model,
-    required bool isPickup,
-  }) {
-    final hasSelection = isPickup
-        ? model.hasPickupSelection
-        : model.hasDropSelection;
-    final isFavorite = model.isCurrentSelectionFavorite(isPickup: isPickup);
-
-    return Wrap(
-      spacing: 18,
-      runSpacing: 0,
-      children: [
-        _buildMapShortcut(
-          context: context,
-          label: 'Chọn trên bản đồ',
-          icon: Icons.map_outlined,
-          onTap: () => _pickPointOnMap(context, model, isPickup: isPickup),
-        ),
-        if (hasSelection)
-          _buildMapShortcut(
-            context: context,
-            label: isFavorite ? 'Đã lưu' : 'Lưu yêu thích',
-            icon: isFavorite
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
-            onTap: () => model.toggleFavoriteForSelection(isPickup: isPickup),
-          ),
-      ],
     );
   }
 
@@ -785,69 +744,48 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                               ),
                             ],
                           ),
-                          child: Column(
+                          child: Row(
                             children: [
-                              _buildAddressField(
-                                context: context,
-                                model: model,
-                                isPickup: true,
-                                focusNode: _pickupFocusNode,
-                                controller: model.pickupAddressController,
-                                hint: 'Điểm đón',
-                                icon: Icons.local_taxi_outlined,
-                                iconColor: Brand.navy,
-                                isLoading: _isPickupActive && activeLoading,
-                                onClearSelection: model.clearPickupSelection,
-                              ),
-                              _buildFieldActions(
-                                context: context,
-                                model: model,
-                                isPickup: true,
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 0,
-                                ),
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Material(
-                                    color: Brand.b50,
-                                    borderRadius: BorderRadius.circular(14),
-                                    child: InkWell(
-                                      onTap: () {
-                                        model.swapRoutePoints();
-                                        _maybeAutoAdvance(model);
-                                      },
-                                      borderRadius: BorderRadius.circular(14),
-                                      child: const SizedBox(
-                                        width: 36,
-                                        height: 36,
-                                        child: Icon(
-                                          Icons.swap_vert_rounded,
-                                          color: Brand.navy,
-                                          size: 20,
-                                        ),
-                                      ),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    _buildAddressField(
+                                      context: context,
+                                      model: model,
+                                      isPickup: true,
+                                      focusNode: _pickupFocusNode,
+                                      controller: model.pickupAddressController,
+                                      hint: 'Điểm đón',
+                                      icon: Icons.trip_origin_rounded,
+                                      iconColor: Brand.navy,
+                                      isLoading: _isPickupActive && activeLoading,
+                                      onClearSelection: model.clearPickupSelection,
                                     ),
-                                  ),
+                                    const SizedBox(height: 8),
+                                    _buildAddressField(
+                                      context: context,
+                                      model: model,
+                                      isPickup: false,
+                                      focusNode: _dropFocusNode,
+                                      controller: model.dropAddressController,
+                                      hint: 'Điểm đến',
+                                      icon: Icons.place_rounded,
+                                      iconColor: Brand.lane500,
+                                      isLoading: !_isPickupActive && activeLoading,
+                                      onClearSelection: model.clearDropSelection,
+                                    ),
+                                  ],
                                 ),
                               ),
-                              _buildAddressField(
-                                context: context,
-                                model: model,
-                                isPickup: false,
-                                focusNode: _dropFocusNode,
-                                controller: model.dropAddressController,
-                                hint: 'Điểm đến',
-                                icon: Icons.local_taxi_outlined,
-                                iconColor: Brand.lane500,
-                                isLoading: !_isPickupActive && activeLoading,
-                                onClearSelection: model.clearDropSelection,
-                              ),
-                              _buildFieldActions(
-                                context: context,
-                                model: model,
-                                isPickup: false,
+                              const SizedBox(width: 8),
+                              IconButton(
+                                tooltip: 'Đảo chiều',
+                                style: IconButton.styleFrom(backgroundColor: Brand.b50, fixedSize: const Size(44, 44)),
+                                onPressed: () {
+                                  model.swapRoutePoints();
+                                  _maybeAutoAdvance(model);
+                                },
+                                icon: const Icon(Icons.swap_vert_rounded, color: Brand.navy),
                               ),
                             ],
                           ),

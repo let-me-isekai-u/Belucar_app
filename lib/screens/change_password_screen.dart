@@ -68,7 +68,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Đổi mật khẩu trực tiếp trong tài khoản. Mật khẩu mới cần đủ mạnh và khác mật khẩu cũ.',
+              'Mật khẩu mới phải khác mật khẩu cũ.',
               style: TextStyle(
                 color: Brand.inkMuted,
                 height: 1.45,
@@ -77,12 +77,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: 18),
             const AccountInfoBanner(
               text:
-                  'Mật khẩu mạnh nên có chữ hoa, chữ thường, số và ký tự đặc biệt, tối thiểu 8 ký tự.',
+                  'Tối thiểu 8 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.',
             ),
             const SizedBox(height: 18),
             AccountSectionCard(
               title: 'Thông tin mật khẩu',
-              subtitle: 'Nhập đầy đủ ba trường trước khi xác nhận thay đổi.',
               icon: Icons.lock_reset_rounded,
               child: Column(
                 children: [

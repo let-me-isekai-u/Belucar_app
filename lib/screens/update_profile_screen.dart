@@ -123,7 +123,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Chỉnh lại tên, email và ảnh đại diện để thông tin hiển thị trong app nhất quán hơn.',
+              'Tên, email và ảnh đại diện.',
               style: TextStyle(
                 color: Brand.inkMuted,
                 height: 1.45,
@@ -132,7 +132,6 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             const SizedBox(height: 18),
             AccountSectionCard(
               title: 'Ảnh đại diện',
-              subtitle: 'Chạm vào ảnh để thay đổi.',
               icon: Icons.photo_camera_back_outlined,
               child: Center(
                 child: GestureDetector(
@@ -198,7 +197,6 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             const SizedBox(height: 16),
             AccountSectionCard(
               title: 'Thông tin cơ bản',
-              subtitle: 'Các trường sẽ được cập nhật trực tiếp lên hồ sơ.',
               icon: Icons.badge_outlined,
               child: Column(
                 children: [

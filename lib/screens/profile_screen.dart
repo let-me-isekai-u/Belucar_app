@@ -259,8 +259,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 18),
                     AccountSectionCard(
                       title: 'Tiện ích tài khoản',
-                      subtitle:
-                          'Các thao tác chính liên quan đến hồ sơ và hỗ trợ.',
                       icon: Icons.manage_accounts_outlined,
                       child: Column(
                         children: [
@@ -319,7 +317,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 18),
                     AccountSectionCard(
                       title: 'Thông tin bổ sung',
-                      subtitle: 'Email và mã giới thiệu gắn với tài khoản.',
                       icon: Icons.info_outline_rounded,
                       child: Column(
                         children: [
@@ -356,7 +353,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 18),
                     AccountSectionCard(
                       title: 'Bảo mật và phiên đăng nhập',
-                      subtitle: 'Các hành động nhạy cảm được tách riêng.',
                       icon: Icons.warning_amber_rounded,
                       child: _buildDangerousActions(context, theme),
                     ),

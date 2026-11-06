@@ -55,8 +55,6 @@ Email: beluga.fintech@gmail.com
           children: [
             AccountSectionCard(
               title: 'Điều khoản BeluCar',
-              subtitle:
-                  'Vui lòng đọc kỹ trước khi tiếp tục sử dụng ứng dụng và dịch vụ.',
               icon: Icons.gavel_outlined,
               child: const Text(
                 _terms,

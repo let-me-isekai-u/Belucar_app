@@ -153,8 +153,6 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
       children: [
         AccountSectionCard(
           title: 'Biến động số dư',
-          subtitle:
-              'Theo dõi các giao dịch nạp tiền, thanh toán và điều chỉnh.',
           icon: Icons.receipt_long_outlined,
           child: Column(
             children: List.generate(_transactions.length, (index) {
@@ -239,7 +237,6 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
         padding: const EdgeInsets.all(24),
         child: AccountSectionCard(
           title: 'Chưa có giao dịch',
-          subtitle: 'Khi ví phát sinh biến động, lịch sử sẽ hiển thị tại đây.',
           icon: Icons.account_balance_wallet_outlined,
           child: Column(
             children: [

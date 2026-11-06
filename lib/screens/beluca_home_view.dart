@@ -617,12 +617,7 @@ class _HomeSheet extends StatelessWidget {
                 ]),
               ),
             ),
-        ] else
-          const InfoBanner(
-            'Chạm "Bạn muốn đi đâu?" để đặt xe ghép đón tận nơi, hoặc chọn Limousine / Xe khách để mua vé nhà xe.',
-            tone: Tone.brand,
-            icon: Icons.lightbulb_outline_rounded,
-          ),
+        ],
       ],
     );
   }

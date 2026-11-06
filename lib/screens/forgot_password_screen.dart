@@ -160,7 +160,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Nhập email, lấy mã xác thực và đặt lại mật khẩu mới trong cùng một bước rõ ràng hơn.',
+                'Nhập email để nhận mã và đặt lại mật khẩu.',
                 style: TextStyle(
                   color: Brand.inkMuted,
                   height: 1.45,
@@ -169,12 +169,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 18),
               const AccountInfoBanner(
                 text:
-                    'Mã xác thực có hiệu lực ngắn. Sau khi gửi thành công, bạn có thể yêu cầu lại sau 30 giây.',
+                    'Có thể gửi lại mã sau 30 giây.',
               ),
               const SizedBox(height: 18),
               AccountSectionCard(
                 title: 'Xác thực email',
-                subtitle: 'Gửi mã OTP để xác minh trước khi đổi mật khẩu.',
                 icon: Icons.mark_email_unread_outlined,
                 child: Column(
                   children: [
@@ -251,7 +250,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 16),
               AccountSectionCard(
                 title: 'Mật khẩu mới',
-                subtitle: 'Chọn mật khẩu mạnh để bảo vệ tài khoản tốt hơn.',
                 icon: Icons.password_outlined,
                 child: Column(
                   children: [

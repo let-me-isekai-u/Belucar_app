@@ -247,7 +247,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     AuthLogoHero(
                       title: 'Tạo tài khoản mới',
                       subtitle:
-                          'Hoàn thiện thông tin một lần để dùng xuyên suốt cho đặt chuyến, ví và lịch sử hoạt động.',
+                          'Tạo tài khoản để đặt xe.',
                       assetPath: 'lib/assets/icons/dong_duong_logo.png',
                       trailing: Wrap(
                         spacing: 8,
@@ -329,7 +329,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     _buildSection(
                       title: 'Thông tin cá nhân',
                       subtitle:
-                          'Nhập chính xác để hệ thống và CSKH dễ đối chiếu.',
+                          'Nhập đúng họ tên.',
                       children: [
                         _buildTextField(
                           controller: _fullNameController,
@@ -349,7 +349,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     _buildSection(
                       title: 'Thông tin liên hệ',
                       subtitle:
-                          'Số điện thoại sẽ được dùng cho đăng nhập và liên hệ.',
+                          'Dùng để đăng nhập.',
                       children: [
                         _buildTextField(
                           controller: _phoneController,
@@ -370,7 +370,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     _buildSection(
                       title: 'Bảo mật',
                       subtitle:
-                          'Mật khẩu cần có chữ hoa, chữ thường, số và ký tự đặc biệt.',
+                          'Có chữ hoa, chữ thường, số và ký tự đặc biệt.',
                       children: [
                         _buildPasswordField(
                           controller: _passwordController,
