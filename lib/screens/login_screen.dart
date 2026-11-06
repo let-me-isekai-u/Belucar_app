@@ -138,9 +138,10 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
 
     return AuthScaffold(
-      child: Center(
+      child: Align(
+        alignment: Alignment.topCenter,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
             child: Column(
@@ -154,9 +155,8 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                   child: AuthLogoHero(
-                    title: 'Đăng nhập Đông Dương',
-                    subtitle:
-                        '',
+                    title: 'Chào mừng trở lại',
+                    subtitle: '',
                     assetPath: 'lib/assets/icons/dong_duong_logo.png',
                   ),
                 ),
@@ -165,7 +165,6 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const AuthSectionLabel('Thông tin đăng nhập'),
                       TextField(
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
@@ -236,8 +235,6 @@ class _LoginScreenState extends State<LoginScreen>
                               : const Text('ĐĂNG NHẬP'),
                         ),
                       ),
-                      const SizedBox(height: 14),
-
                     ],
                   ),
                 ),

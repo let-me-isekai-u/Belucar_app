@@ -6,8 +6,9 @@ import '../ui/ui.dart';
 /// Khung màn đăng nhập/đăng ký: dải navy phía trên có vạch đường vàng, nội dung trên nền xám sáng.
 class AuthScaffold extends StatelessWidget {
   final Widget child;
+  final double bandHeight;
 
-  const AuthScaffold({super.key, required this.child});
+  const AuthScaffold({super.key, required this.child, this.bandHeight = 320});
 
   @override
   Widget build(BuildContext context) {
@@ -17,12 +18,12 @@ class AuthScaffold extends StatelessWidget {
       backgroundColor: Brand.canvas,
       body: Stack(
         children: [
-          const Positioned(
+          Positioned(
             left: 0,
             right: 0,
             top: 0,
-            height: 320,
-            child: ColoredBox(color: Brand.navy),
+            height: bandHeight,
+            child: const ColoredBox(color: Brand.navy),
           ),
           SafeArea(child: child),
         ],
@@ -92,8 +93,10 @@ class AuthLogoHero extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         Text(title, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.3, height: 1.2)),
-        const SizedBox(height: 6),
-        Text(subtitle, style: const TextStyle(color: Brand.b100, fontSize: 14, height: 1.45)),
+        if (subtitle.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(subtitle, style: const TextStyle(color: Brand.b100, fontSize: 14, height: 1.45)),
+        ],
       ],
     );
   }

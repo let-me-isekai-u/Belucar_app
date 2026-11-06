@@ -147,38 +147,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  Widget _buildSection({
-    required String title,
-    required String subtitle,
-    required List<Widget> children,
-  }) {
-    return AuthPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: Brand.navy,
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Brand.inkMuted,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -220,247 +188,139 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    void backToLogin() => Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
 
     return AuthScaffold(
+      bandHeight: 220,
       child: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    IconButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: backToLogin,
+                          icon: const Icon(Icons.arrow_back_rounded),
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        const Expanded(
+                          child: Text(
+                            'Tạo tài khoản',
+                            style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.3),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      color: Colors.white,
-                    ),
-                    AuthLogoHero(
-                      title: 'Tạo tài khoản mới',
-                      subtitle:
-                          'Tạo tài khoản để đặt xe.',
-                      assetPath: 'lib/assets/icons/dong_duong_logo.png',
-                      trailing: Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: const [
-                          AuthInfoChip(
-                            icon: Icons.verified_user_outlined,
-                            label: 'Thông tin rõ ràng',
-                          ),
-                          AuthInfoChip(
-                            icon: Icons.support_agent_outlined,
-                            label: 'Dễ hỗ trợ',
-                          ),
-                        ],
-                      ),
+                        ),
+                        _AvatarPicker(path: _avatar?.path, onTap: _pickAvatar),
+                      ],
                     ),
                     const SizedBox(height: 20),
-                    Center(
-                      child: GestureDetector(
-                        onTap: _pickAvatar,
-                        child: Stack(
-                          children: [
-                            Container(
-                              width: 108,
-                              height: 108,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Brand.navy,
-                                  width: 2,
-                                ),
-                                image: _avatar != null
-                                    ? DecorationImage(
-                                        image: FileImage(File(_avatar!.path)),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
-                                color: Brand.b50,
-                              ),
-                              child: _avatar == null
-                                  ? const Icon(
-                                      Icons.person_outline_rounded,
-                                      size: 42,
-                                      color: Brand.inkMuted,
-                                    )
-                                  : null,
-                            ),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: Brand.navy,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt_outlined,
-                                  size: 18,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Text(
-                        'Ảnh đại diện là tuỳ chọn, chạm để thêm.',
-                        style: TextStyle(
-                          color: Brand.inkMuted,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    _buildSection(
-                      title: 'Thông tin cá nhân',
-                      subtitle:
-                          'Nhập đúng họ tên.',
-                      children: [
-                        _buildTextField(
-                          controller: _fullNameController,
-                          label: 'Họ và tên',
-                          icon: Icons.badge_outlined,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildTextField(
-                          controller: _emailController,
-                          label: 'Email',
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSection(
-                      title: 'Thông tin liên hệ',
-                      subtitle:
-                          'Dùng để đăng nhập.',
-                      children: [
-                        _buildTextField(
-                          controller: _phoneController,
-                          label: 'Số điện thoại',
-                          icon: Icons.phone_outlined,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildTextField(
-                          controller: _confirmPhoneController,
-                          label: 'Nhập lại số điện thoại',
-                          icon: Icons.verified_outlined,
-                          keyboardType: TextInputType.phone,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSection(
-                      title: 'Bảo mật',
-                      subtitle:
-                          'Có chữ hoa, chữ thường, số và ký tự đặc biệt.',
-                      children: [
-                        _buildPasswordField(
-                          controller: _passwordController,
-                          label: 'Mật khẩu',
-                          obscure: _obscurePassword,
-                          onToggle: () {
-                            setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 14),
-                        _buildPasswordField(
-                          controller: _confirmPasswordController,
-                          label: 'Nhập lại mật khẩu',
-                          obscure: _obscureConfirmPassword,
-                          onToggle: () {
-                            setState(
-                              () => _obscureConfirmPassword =
-                                  !_obscureConfirmPassword,
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSection(
-                      title: 'Mã giới thiệu',
-                      subtitle: 'Có thể bỏ qua nếu anh không có mã.',
-                      children: [
-                        _buildTextField(
-                          controller: _referralCodeController,
-                          label: 'Nhập mã giới thiệu',
-                          icon: Icons.card_giftcard_outlined,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
                     AuthPanel(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _buildTextField(
+                            controller: _fullNameController,
+                            label: 'Họ và tên',
+                            icon: Icons.badge_outlined,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTextField(
+                            controller: _emailController,
+                            label: 'Email',
+                            icon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTextField(
+                            controller: _phoneController,
+                            label: 'Số điện thoại',
+                            icon: Icons.phone_outlined,
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTextField(
+                            controller: _confirmPhoneController,
+                            label: 'Nhập lại số điện thoại',
+                            icon: Icons.verified_outlined,
+                            keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 14),
+                          _buildPasswordField(
+                            controller: _passwordController,
+                            label: 'Mật khẩu',
+                            obscure: _obscurePassword,
+                            onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(4, 6, 4, 0),
+                            child: Text(
+                              'Gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
+                              style: TextStyle(color: Brand.inkMuted, fontSize: 12),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          _buildPasswordField(
+                            controller: _confirmPasswordController,
+                            label: 'Nhập lại mật khẩu',
+                            obscure: _obscureConfirmPassword,
+                            onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                          ),
+                          const SizedBox(height: 14),
+                          _buildTextField(
+                            controller: _referralCodeController,
+                            label: 'Mã giới thiệu (nếu có)',
+                            icon: Icons.card_giftcard_outlined,
+                          ),
+                          const SizedBox(height: 10),
                           Row(
                             children: [
                               Checkbox(
                                 value: _agreeTerms,
                                 activeColor: Brand.navy,
-                                onChanged: (value) {
-                                  setState(() => _agreeTerms = value ?? false);
-                                },
+                                onChanged: (value) => setState(() => _agreeTerms = value ?? false),
                               ),
                               Expanded(
                                 child: GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const TermsScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: Text(
-                                    'Tôi đồng ý với Chính sách và Điều khoản sử dụng',
-                                    style: TextStyle(
-                                      color: Brand.navy,
-                                      fontWeight: FontWeight.w700,
-                                      decoration: TextDecoration.underline,
-                                      height: 1.35,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const TermsScreen()),
+                                  ),
+                                  child: const Text.rich(
+                                    TextSpan(
+                                      style: TextStyle(color: Brand.inkMuted, fontSize: 14, height: 1.35),
+                                      children: [
+                                        TextSpan(text: 'Tôi đồng ý với '),
+                                        TextSpan(
+                                          text: 'Điều khoản sử dụng',
+                                          style: TextStyle(color: Brand.navy, fontWeight: FontWeight.w700, decoration: TextDecoration.underline),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: _loading ? null : _handleRegister,
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 56),
-                              ),
+                              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 56)),
                               child: _loading
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                     )
                                   : const Text('ĐĂNG KÝ'),
                             ),
@@ -471,29 +331,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 14),
                     Center(
                       child: TextButton(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const LoginScreen(),
-                            ),
-                          );
-                        },
-                        child: RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              color: Brand.inkMuted,
-                              fontSize: 15,
-                            ),
+                        onPressed: backToLogin,
+                        child: const Text.rich(
+                          TextSpan(
+                            style: TextStyle(color: Brand.inkMuted, fontSize: 15),
                             children: [
-                              const TextSpan(text: 'Đã có tài khoản? '),
-                              TextSpan(
-                                text: 'Quay về đăng nhập',
-                                style: TextStyle(
-                                  color: Brand.navy,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
+                              TextSpan(text: 'Đã có tài khoản? '),
+                              TextSpan(text: 'Đăng nhập', style: TextStyle(color: Brand.navy, fontWeight: FontWeight.w800)),
                             ],
                           ),
                         ),
@@ -510,6 +354,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Ảnh đại diện tuỳ chọn, đặt góc phải header.
+class _AvatarPicker extends StatelessWidget {
+  final String? path;
+  final VoidCallback onTap;
+
+  const _AvatarPicker({required this.path, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: Stack(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white,
+                image: path != null
+                    ? DecorationImage(image: FileImage(File(path!)), fit: BoxFit.cover)
+                    : null,
+              ),
+              child: path == null ? const Icon(Icons.person_outline_rounded, size: 30, color: Brand.b500) : null,
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: Brand.lane,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Brand.navy, width: 2),
+                ),
+                child: const Icon(Icons.camera_alt_rounded, size: 12, color: Brand.navy),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
