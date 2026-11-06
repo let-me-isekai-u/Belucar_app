@@ -192,16 +192,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     return formatter.format(value);
   }
 
-  String _getPaymentMethodLabel(int paymentMethod) {
-    switch (paymentMethod) {
-      case 2:
-        return 'Thanh toán bằng ví';
-      case 3:
-        return 'Thanh toán trả sau / COD';
-      default:
-        return 'Chuyển khoản';
-    }
-  }
 
   IconData _getPaymentMethodIcon(int paymentMethod) {
     switch (paymentMethod) {
@@ -230,9 +220,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            color: isSelected
-                ? Brand.navy.withValues(alpha: 0.14)
-                : Brand.b50,
+            color: isSelected ? Brand.b50 : Colors.white,
             border: Border.all(
               color: isSelected
                   ? Brand.navy
@@ -327,105 +315,12 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Widget _buildAddressSummaryCard(BookingModel model) {
-    final preview = model.routePreview;
-
-    Widget addressLine({
-      required IconData icon,
-      required Color color,
-      required String label,
-      required String value,
-    }) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Brand.inkMuted,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Brand.ink,
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Brand.b50,
-            Brand.b50,
-          ],
-        ),
-        border: Border.all(color: Brand.line),
-      ),
-      child: Column(
-        children: [
-          addressLine(
-            icon: Icons.trip_origin_rounded,
-            color: Colors.lightBlueAccent.shade100,
-            label: 'Điểm đón',
-            value: preview?.from.formattedAddress ?? model.pickupDisplayAddress,
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              children: [
-                const SizedBox(width: 16),
-                Container(
-                  width: 1.5,
-                  height: 18,
-                  color: Brand.inkSubtle,
-                ),
-                const SizedBox(width: 16),
-                Icon(
-                  Icons.south_rounded,
-                  size: 18,
-                  color: Brand.navy,
-                ),
-              ],
-            ),
-          ),
-          addressLine(
-            icon: Icons.location_on_rounded,
-            color: Brand.success,
-            label: 'Điểm đến',
-            value: preview?.to.formattedAddress ?? model.dropDisplayAddress,
-          ),
-        ],
+    return BrandCard(
+      padding: const EdgeInsets.all(4),
+      child: RouteStops(
+        background: Colors.white,
+        from: RouteStop(label: 'Điểm đón', title: model.pickupDisplayAddress),
+        to: RouteStop(label: 'Điểm đến', title: model.dropDisplayAddress),
       ),
     );
   }
@@ -438,52 +333,28 @@ class _Booking2ScreenState extends State<Booking2Screen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: _toggleBookingForOther,
-              icon: Icon(
-                _isBookingForOther
-                    ? Icons.person_outline_rounded
-                    : Icons.swap_horiz_rounded,
-                size: 18,
-              ),
-              label: Text(
-                _isBookingForOther ? 'Đặt cho bản thân' : 'Đặt hộ',
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Brand.navy,
-                side: BorderSide(color: Brand.navy),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+          Row(
+            children: [
+              const Icon(Icons.person_outline_rounded, color: Brand.navy, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _isBookingForOther
+                      ? 'Đặt cho người khác'
+                      : (_userFullName.isNotEmpty ? _userFullName : 'Người dùng BeluCar'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
-            ),
+              TextButton.icon(
+                onPressed: _toggleBookingForOther,
+                icon: Icon(_isBookingForOther ? Icons.undo_rounded : Icons.swap_horiz_rounded, size: 18),
+                label: Text(_isBookingForOther ? 'Cho tôi' : 'Đặt hộ'),
+              ),
+            ],
           ),
-          if (!_isBookingForOther) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-              decoration: BoxDecoration(
-                color: Brand.b50,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Brand.line),
-              ),
-              child: Text(
-                _userFullName.isNotEmpty ? _userFullName : 'Người dùng BeluCar',
-                style: const TextStyle(
-                  color: Brand.ink,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-          ],
+          const SizedBox(height: 10),
           TextField(
             controller: _phoneController,
             readOnly: !_isBookingForOther,
@@ -508,7 +379,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           const SizedBox(height: 14),
           TextField(
             controller: _noteController,
-            maxLines: 4,
+            minLines: 1,
+            maxLines: 3,
             style: const TextStyle(color: Brand.ink),
             decoration: bookingInputDecoration(
               context,
@@ -539,13 +411,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           decoration: bookingInputDecoration(
             context,
             label: label,
-            hint: 'Chọn ngày đón',
+            hint: 'Chọn ngày',
             icon: Icons.event_outlined,
-            suffixIcon: Icon(
-              Icons.calendar_today_outlined,
-              color: Brand.inkMuted,
-            ),
-          ),
+          ).copyWith(floatingLabelBehavior: FloatingLabelBehavior.always),
         ),
       ),
     );
@@ -736,13 +604,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           decoration: bookingInputDecoration(
             context,
             label: 'Giờ đón',
-            hint: 'HH:MM',
+            hint: 'Chọn giờ',
             icon: Icons.access_time_rounded,
-            suffixIcon: Icon(
-              Icons.schedule_rounded,
-              color: Brand.inkMuted,
-            ),
-          ),
+          ).copyWith(floatingLabelBehavior: FloatingLabelBehavior.always),
         ),
       ),
     );
@@ -768,9 +632,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected
-                ? Brand.navy.withValues(alpha: 0.14)
-                : Brand.b50,
+            color: isSelected ? Brand.b50 : Colors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isSelected
@@ -858,39 +720,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool highlight = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: Brand.inkMuted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 3,
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: highlight ? Brand.navy : Brand.ink,
-                fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildPriceRow(
     String label,
@@ -1061,7 +890,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   @override
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
-    final theme = Theme.of(context);
     final showQuantityField = model.showQuantityField;
 
     _seedControllers(model);
@@ -1174,20 +1002,14 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                         value: 2,
                         title: 'Thanh toán bằng ví',
                         icon: Icons.wallet_outlined,
-                        subtitle: 'Thanh toán bằng số dư ví trong ứng dụng',
+                        subtitle: 'Trừ vào số dư ví',
                       ),
                       _buildPaymentOption(
                         model: model,
                         value: 3,
-                        title: 'Thanh toán trả sau / COD',
+                        title: 'Trả sau (tiền mặt)',
                         icon: Icons.payments_outlined,
-                        subtitle: 'Thanh toán khi hoàn thành chuyến đi',
-                      ),
-                      const SizedBox(height: 2),
-                      _buildInfoRow(
-                        'Đã chọn',
-                        _getPaymentMethodLabel(model.paymentMethod),
-                        highlight: true,
+                        subtitle: 'Trả khi hoàn thành chuyến',
                       ),
                     ],
                   ),
@@ -1208,12 +1030,12 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                               'Giá cước gốc',
                               formatCurrency(model.basePrice ?? 0),
                             ),
-                            _buildPriceRow(
+                            if (model.discount != 0) _buildPriceRow(
                               'Ưu đãi giảm giá',
                               formatCurrency(-(model.discount)),
                               valueColor: Brand.success,
                             ),
-                            _buildPriceRow(
+                            if (model.surcharge != 0) _buildPriceRow(
                               'Phụ phí ngày lễ',
                               formatCurrency(model.surcharge),
                               valueColor: Brand.warning,
@@ -1253,10 +1075,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withValues(alpha: 0.94),
-            border: Border(
-              top: BorderSide(color: Brand.line),
-            ),
+            color: Colors.white,
           ),
           child: SizedBox(
             height: 60,
@@ -1268,7 +1087,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'thành tiền',
+                        'Tổng tiền',
                         style: TextStyle(
                           color: Brand.inkMuted,
                           fontSize: 13,
@@ -1309,7 +1128,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('ĐẶT XE'),
+                        : const Text('Đặt xe'),
                   ),
                 ),
               ],

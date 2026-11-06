@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -188,6 +189,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
     final connected = provider.isRealtimeConnected;
 
     return AppBar(
+      systemOverlayStyle: SystemUiOverlayStyle.light,
       elevation: 0,
       centerTitle: false,
       flexibleSpace: Container(
@@ -225,7 +227,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
               Text(
                 _buildTitle(provider),
                 style: const TextStyle(
-                  color: beluAccentGold,
+                  color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                   letterSpacing: 0.2,
@@ -824,6 +826,10 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                 const TextStyle(color: Brand.ink, fontSize: 14.5),
                 onSubmitted: (_) => _handleSendMessage(),
                 decoration: InputDecoration(
+                  filled: false,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
                   hintText: provider.isSending
                       ? 'Đang gửi...'
                       : 'Nhập tin nhắn...',

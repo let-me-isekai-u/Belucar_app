@@ -246,7 +246,7 @@ class ActivityScreenState extends State<ActivityScreen>
           unselectedLabelColor: Brand.inkMuted,
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
           indicatorColor: Brand.navy,
-          indicatorWeight: 5.5,
+          indicatorWeight: 3,
           tabs: const [
             Tab(text: "Đang diễn ra"),
             Tab(text: "Lịch sử"),
