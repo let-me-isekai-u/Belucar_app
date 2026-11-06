@@ -1,12 +1,13 @@
 import 'dart:convert';
+import 'dart:ui' show PathMetric;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
 import '../services/firebase_notification_service.dart';
 import '../screens/beluca_home_screen.dart';
-import 'auth_ui.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 import '../ui/ui.dart';
@@ -18,48 +19,37 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  late final AnimationController _logoController;
-
-  @override
-  void initState() {
-    super.initState();
-    _logoController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
-  }
-
   @override
   void dispose() {
-    _logoController.dispose();
     phoneController.dispose();
     passwordController.dispose();
     super.dispose();
   }
 
-  void _showSnack(String message, {Color color = Colors.red}) {
+  void _showSnack(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Brand.ink)),
-        backgroundColor: color,
+        content: Text(message, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        backgroundColor: Brand.danger,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
 
   Future<void> _login() async {
+    FocusScope.of(context).unfocus();
     final phone = phoneController.text.trim();
     final password = passwordController.text.trim();
 
     if (phone.isEmpty || password.isEmpty) {
-      _showSnack('Vui lòng nhập đầy đủ thông tin');
+      _showSnack('Vui lòng nhập số điện thoại và mật khẩu');
       return;
     }
 
@@ -107,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen>
 
       try {
         final err = jsonDecode(res.body);
-        _showSnack(err['message'] ?? 'Sai tài khoản hoặc mật khẩu');
+        _showSnack(err['message'] ?? 'Sai số điện thoại hoặc mật khẩu');
       } catch (_) {
         _showSnack('Đăng nhập thất bại (Mã: ${res.statusCode})');
       }
@@ -136,137 +126,236 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
-    return AuthScaffold(
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ScaleTransition(
-                  scale: Tween<double>(begin: 1, end: 1.04).animate(
-                    CurvedAnimation(
-                      parent: _logoController,
-                      curve: Curves.easeInOut,
-                    ),
-                  ),
-                  child: AuthLogoHero(
-                    title: 'Chào mừng trở lại',
-                    subtitle: '',
-                    assetPath: 'lib/assets/icons/dong_duong_logo.png',
-                  ),
-                ),
-                const SizedBox(height: 22),
-                AuthPanel(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Brand.surface,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final heroHeight = (constraints.maxHeight * 0.40).clamp(260.0, 360.0);
+            return SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      TextField(
-                        controller: phoneController,
-                        keyboardType: TextInputType.phone,
-                        style: const TextStyle(color: Brand.ink),
-                        decoration: authInputDecoration(
-                          context,
-                          label: 'Số điện thoại',
-                          hint: 'Nhập số điện thoại đã đăng ký',
-                          icon: Icons.phone_outlined,
-                        ),
+                      _LoginHero(height: heroHeight),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 0),
+                        child: _buildForm(),
                       ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: passwordController,
-                        obscureText: _obscurePassword,
-                        style: const TextStyle(color: Brand.ink),
-                        decoration: authInputDecoration(
-                          context,
-                          label: 'Mật khẩu',
-                          hint: 'Nhập mật khẩu',
-                          icon: Icons.lock_outline_rounded,
-                          suffixIcon: IconButton(
-                            onPressed: () {
-                              setState(
-                                () => _obscurePassword = !_obscurePassword,
-                              );
-                            },
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                              color: Brand.navy,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _goToForgotPassword,
-                          child: Text(
-                            'Quên mật khẩu?',
-                            style: TextStyle(
-                              color: Brand.navy,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 56),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('ĐĂNG NHẬP'),
-                        ),
+                      const Spacer(),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(24, 20, 24, 12 + bottomInset),
+                        child: _buildFooter(),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
-                Center(
-                  child: TextButton(
-                    onPressed: _goToRegister,
-                    child: RichText(
-                      text: TextSpan(
-                        style: TextStyle(
-                          color: Brand.inkMuted,
-                          fontSize: 15,
-                        ),
-                        children: [
-                          const TextSpan(text: 'Chưa có tài khoản? '),
-                          TextSpan(
-                            text: 'Đăng ký ngay',
-                            style: TextStyle(
-                              color: Brand.navy,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
+
+  Widget _buildForm() {
+    return AutofillGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Đăng nhập',
+            style: TextStyle(color: Brand.ink, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.4),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Dùng số điện thoại bạn đã đăng ký',
+            style: TextStyle(color: Brand.inkMuted, fontSize: 14),
+          ),
+          const SizedBox(height: 24),
+          TextField(
+            controller: phoneController,
+            keyboardType: TextInputType.phone,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            style: const TextStyle(color: Brand.ink, fontSize: 16, fontWeight: FontWeight.w600),
+            decoration: const InputDecoration(
+              labelText: 'Số điện thoại',
+              hintText: '0912 345 678',
+              prefixIcon: Icon(Icons.phone_outlined, color: Brand.navy),
+            ),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: passwordController,
+            obscureText: _obscurePassword,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.password],
+            onSubmitted: (_) {
+              if (!_isLoading) _login();
+            },
+            style: const TextStyle(color: Brand.ink, fontSize: 16, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              labelText: 'Mật khẩu',
+              prefixIcon: const Icon(Icons.lock_outline_rounded, color: Brand.navy),
+              suffixIcon: IconButton(
+                tooltip: _obscurePassword ? 'Hiện mật khẩu' : 'Ẩn mật khẩu',
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: Brand.inkSubtle,
+                ),
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _goToForgotPassword,
+              style: TextButton.styleFrom(
+                foregroundColor: Brand.b600,
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                minimumSize: Size.zero,
+              ),
+              child: const Text('Quên mật khẩu?', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            ),
+          ),
+          const SizedBox(height: 6),
+          PrimaryCta(
+            label: 'Đăng nhập',
+            loading: _isLoading,
+            onPressed: _login,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('Chưa có tài khoản?', style: TextStyle(color: Brand.inkMuted, fontSize: 15)),
+        TextButton(
+          onPressed: _goToRegister,
+          style: TextButton.styleFrom(
+            foregroundColor: Brand.navy,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+          ),
+          child: const Text('Đăng ký', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+        ),
+      ],
+    );
+  }
+}
+
+/// Khối thương hiệu phía trên: nền navy bo góc dưới, con đường với vạch làn vàng,
+/// logo + tên thương hiệu ở giữa.
+class _LoginHero extends StatelessWidget {
+  final double height;
+
+  const _LoginHero({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+      child: SizedBox(
+        height: height,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const ColoredBox(color: Brand.navy),
+            const CustomPaint(painter: _RoadPainter()),
+            SafeArea(
+              bottom: false,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 24, offset: Offset(0, 10))],
+                    ),
+                    alignment: Alignment.center,
+                    child: const BrandMark(size: 40),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Đông Dương',
+                    style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Xe ghép · Limousine · Xe khách',
+                    style: TextStyle(color: Brand.b200, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 18),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Con đường cong mờ với vạch làn vàng nét đứt — họa tiết "làn đường" của website.
+class _RoadPainter extends CustomPainter {
+  const _RoadPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final road = Path()
+      ..moveTo(-40, h * 1.02)
+      ..cubicTo(w * 0.30, h * 0.80, w * 0.62, h * 1.04, w + 40, h * 0.80);
+
+    canvas.drawPath(
+      road,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 46
+        ..color = Colors.white.withValues(alpha: 0.06),
+    );
+
+    final lane = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..color = Brand.lane.withValues(alpha: 0.85);
+    for (final PathMetric metric in road.computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        canvas.drawPath(metric.extractPath(d, d + 14), lane);
+        d += 26;
+      }
+    }
+
+    // Vệt đường thứ hai mảnh hơn ở góc trên phải — tạo chiều sâu.
+    final road2 = Path()
+      ..moveTo(w * 0.55, -20)
+      ..quadraticBezierTo(w * 0.95, h * 0.25, w + 30, h * 0.10);
+    canvas.drawPath(
+      road2,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 22
+        ..color = Colors.white.withValues(alpha: 0.04),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RoadPainter oldDelegate) => false;
 }
