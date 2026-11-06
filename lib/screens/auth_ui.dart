@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../ui/ui.dart';
 
@@ -10,7 +11,9 @@ class AuthScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
       backgroundColor: Brand.canvas,
       body: Stack(
         children: [
@@ -19,20 +22,12 @@ class AuthScaffold extends StatelessWidget {
             right: 0,
             top: 0,
             height: 320,
-            child: ColoredBox(
-              color: Brand.navy,
-              child: Align(
-                alignment: Alignment(0, 0.62),
-                child: Opacity(
-                  opacity: 0.45,
-                  child: SizedBox(height: 3, child: DashedLine(axis: Axis.horizontal, color: Brand.lane, dash: 14, gap: 9, thickness: 3)),
-                ),
-              ),
-            ),
+            child: ColoredBox(color: Brand.navy),
           ),
           SafeArea(child: child),
         ],
       ),
+    ),
     );
   }
 }
