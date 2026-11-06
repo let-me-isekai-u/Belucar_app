@@ -283,7 +283,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     return BookingSectionCard(
       title: 'Số lượng',
       icon: Icons.groups_2_outlined,
-      accentColor: Colors.lightGreenAccent.shade100,
+      accentColor: Brand.success,
       child: Row(
         children: [
           _QuantityButton(

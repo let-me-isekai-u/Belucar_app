@@ -240,7 +240,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                     height: 7,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: connected ? Colors.greenAccent : Brand.inkSubtle,
+                      color: connected ? const Color(0xFF4ADE80) : Brand.inkSubtle,
                     ),
                   ),
                   const SizedBox(width: 5),
@@ -366,7 +366,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                   )
                       : null,
                   color: isSystem
-                      ? Colors.amber.shade50
+                      ? Brand.warning50
                       : (isMe ? null : Colors.white),
                   borderRadius: BorderRadius.only(
                     topLeft:     const Radius.circular(20),
@@ -384,7 +384,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                     ),
                   ],
                   border: isSystem
-                      ? Border.all(color: Colors.amber.shade200)
+                      ? Border.all(color: Brand.lane300)
                       : (!isMe
                       ? Border.all(color: Colors.grey.shade100)
                       : null),
@@ -622,16 +622,16 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.amber.shade50,
+                            color: Brand.warning50,
                             borderRadius: BorderRadius.circular(10),
                             border:
-                            Border.all(color: Colors.amber.shade200),
+                            Border.all(color: Brand.lane300),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Icon(Icons.sticky_note_2_outlined,
-                                  size: 15, color: Colors.amber),
+                                  size: 15, color: Brand.warning),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -727,8 +727,8 @@ class _ChatScreenViewState extends State<_ChatScreenView>
         fg = Colors.orange.shade700;
         break;
       case 3:
-        bg = Colors.teal.shade50;
-        fg = Colors.teal.shade700;
+        bg = Brand.b50;
+        fg = Brand.b600;
         break;
       case 4:
         bg = Colors.green.shade50;

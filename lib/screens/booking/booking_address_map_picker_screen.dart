@@ -458,7 +458,7 @@ class _BookingAddressMapPickerScreenState
                       Text(
                         _errorMessage!,
                         style: const TextStyle(
-                          color: Colors.redAccent,
+                          color: Brand.danger,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -471,7 +471,7 @@ class _BookingAddressMapPickerScreenState
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 52),
                           backgroundColor: Brand.navy,
-                          foregroundColor: Colors.black87,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
                           ),

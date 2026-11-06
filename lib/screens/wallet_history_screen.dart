@@ -159,7 +159,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
               final item = _transactions[index];
               final amount = _parseAmount(item['amount']);
               final bool isNegative = amount < 0;
-              final color = isNegative ? Colors.redAccent : Colors.greenAccent;
+              final color = isNegative ? Brand.danger : Brand.success;
 
               return Container(
                 margin: EdgeInsets.only(

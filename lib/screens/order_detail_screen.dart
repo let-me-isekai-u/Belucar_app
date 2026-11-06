@@ -198,8 +198,8 @@ class OrderDetailScreen extends StatelessWidget {
             _textRow("Số lượng", "x${trip.quantity}", theme),
 
             _priceRow("Giá cước gốc", trip.price, theme),
-            _priceRow("Ưu đãi", -trip.discount, theme, color: Colors.greenAccent),
-            _priceRow("Phụ phí", trip.surcharge, theme, color: Colors.orangeAccent),
+            _priceRow("Ưu đãi", -trip.discount, theme, color: Brand.success),
+            _priceRow("Phụ phí", trip.surcharge, theme, color: Brand.warning),
             Divider(height: 24, color: Brand.navy.withOpacity(0.5)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
