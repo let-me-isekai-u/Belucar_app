@@ -12,6 +12,7 @@ import 'change_password_screen.dart';
 import 'login_screen.dart';
 import 'update_profile_screen.dart';
 import 'wallet_history_screen.dart';
+import '../ui/ui.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -130,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icon(
                 Icons.headset_mic_rounded,
                 size: 50,
-                color: theme.colorScheme.secondary,
+                color: Brand.navy,
               ),
               const SizedBox(height: 16),
               Text(
@@ -138,7 +139,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.secondary,
+                  color: Brand.navy,
                 ),
               ),
               const SizedBox(height: 8),
@@ -211,7 +212,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Brand.ink,
                     ),
                   ),
                   Text(
@@ -236,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: Text(
           'Tài khoản cá nhân',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
       ),
@@ -244,7 +245,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadProfile,
-              color: theme.colorScheme.secondary,
+              color: Brand.navy,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),
@@ -267,7 +268,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _buildProfileListItem(
                             icon: Icons.edit_outlined,
                             title: 'Cập nhật thông tin cá nhân',
-                            iconColor: theme.colorScheme.secondary,
+                            iconColor: Brand.navy,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -284,7 +285,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _buildProfileListItem(
                             icon: Icons.lock_outline_rounded,
                             title: 'Đổi mật khẩu',
-                            iconColor: theme.colorScheme.secondary,
+                            iconColor: Brand.navy,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -297,13 +298,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _buildProfileListItem(
                             icon: Icons.headset_mic_outlined,
                             title: 'Liên hệ hỗ trợ',
-                            iconColor: theme.colorScheme.secondary,
+                            iconColor: Brand.navy,
                             onTap: () => _showSupportDialog(context),
                           ),
                           _buildProfileListItem(
                             icon: Icons.attach_money_outlined,
                             title: 'Lịch sử tài chính',
-                            iconColor: theme.colorScheme.secondary,
+                            iconColor: Brand.navy,
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -327,7 +328,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: Icons.email_outlined,
                             title: 'Email',
                             subtitle: _emailController.text,
-                            iconColor: theme.colorScheme.secondary,
+                            iconColor: Brand.navy,
                             showArrow: false,
                             onTap: () {},
                           ),
@@ -337,7 +338,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               icon: Icons.card_giftcard_outlined,
                               title: 'Mã giới thiệu',
                               subtitle: _referralCode!,
-                              iconColor: theme.colorScheme.secondary,
+                              iconColor: Brand.navy,
                               showArrow: false,
                               onTap: () {
                                 Clipboard.setData(
@@ -376,8 +377,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            theme.colorScheme.secondary.withValues(alpha: 0.94),
-            const Color(0xFFFFD166),
+            Brand.navy, Brand.b700,
           ],
         ),
       ),
@@ -387,12 +387,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(18),
             ),
             child: const Icon(
               Icons.account_balance_wallet_outlined,
-              color: Colors.black87,
+              color: Colors.white,
               size: 30,
             ),
           ),
@@ -404,7 +404,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Text(
                   'Số dư ví',
                   style: TextStyle(
-                    color: Colors.black54,
+                    color: Brand.b200,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -412,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   formatWalletAmount(_wallet),
                   style: const TextStyle(
-                    color: Colors.black87,
+                    color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
                   ),
@@ -429,15 +429,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Brand.b50,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: Brand.line),
       ),
       child: Column(
         children: [
           CircleAvatar(
             radius: 56,
-            backgroundColor: theme.colorScheme.secondary.withValues(
+            backgroundColor: Brand.navy.withValues(
               alpha: 0.15,
             ),
             backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
@@ -447,7 +447,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? Icon(
                     Icons.person_outline_rounded,
                     size: 60,
-                    color: theme.colorScheme.secondary,
+                    color: Brand.navy,
                   )
                 : null,
           ),
@@ -460,7 +460,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w800,
-              color: theme.colorScheme.secondary,
+              color: Brand.navy,
             ),
           ),
           const SizedBox(height: 6),
@@ -468,7 +468,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _phoneController.text.isNotEmpty
                 ? _phoneController.text
                 : 'Chưa cập nhật số điện thoại',
-            style: const TextStyle(fontSize: 16, color: Colors.white),
+            style: const TextStyle(fontSize: 16, color: Brand.ink),
           ),
         ],
       ),
@@ -526,20 +526,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      leading: Icon(icon, color: iconColor ?? Colors.white70),
+      leading: Icon(icon, color: iconColor ?? Brand.inkMuted),
       title: Text(
         title,
         style: const TextStyle(
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: Brand.ink,
           fontSize: 15,
         ),
       ),
       subtitle: subtitle != null
-          ? Text(subtitle, style: const TextStyle(color: Colors.white70))
+          ? Text(subtitle, style: const TextStyle(color: Brand.inkMuted))
           : null,
       trailing: showArrow
-          ? const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.white70)
+          ? const Icon(Icons.arrow_forward_ios, size: 18, color: Brand.inkMuted)
           : null,
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -565,7 +565,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(
               'Huỷ',
               style: TextStyle(
-                color: theme.colorScheme.secondary,
+                color: Brand.navy,
                 fontWeight: FontWeight.w600,
               ),
             ),

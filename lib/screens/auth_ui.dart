@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../app_theme.dart';
-import '../widgets/brand_logo_badge.dart';
+import '../ui/ui.dart';
 
+/// Khung màn đăng nhập/đăng ký: dải navy phía trên có vạch đường vàng, nội dung trên nền xám sáng.
 class AuthScaffold extends StatelessWidget {
   final Widget child;
 
@@ -11,43 +11,27 @@ class AuthScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.primaryGreen, AppColors.darkGreenBg],
+      backgroundColor: Brand.canvas,
+      body: Stack(
+        children: [
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: 320,
+            child: ColoredBox(
+              color: Brand.navy,
+              child: Align(
+                alignment: Alignment(0, 0.62),
+                child: Opacity(
+                  opacity: 0.45,
+                  child: SizedBox(height: 3, child: DashedLine(axis: Axis.horizontal, color: Brand.lane, dash: 14, gap: 9, thickness: 3)),
+                ),
+              ),
+            ),
           ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -120,
-              left: -40,
-              child: _Glow(
-                size: 260,
-                color: AppColors.accentGold.withValues(alpha: 0.10),
-              ),
-            ),
-            Positioned(
-              top: 180,
-              right: -70,
-              child: _Glow(
-                size: 220,
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-            ),
-            Positioned(
-              bottom: -90,
-              right: -30,
-              child: _Glow(
-                size: 260,
-                color: AppColors.surfaceGreen.withValues(alpha: 0.55),
-              ),
-            ),
-            SafeArea(child: child),
-          ],
-        ),
+          SafeArea(child: child),
+        ],
       ),
     );
   }
@@ -63,22 +47,16 @@ class AuthPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 36,
-            offset: const Offset(0, 20),
-          ),
-        ],
+        color: Brand.surface,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [BoxShadow(color: Color(0x29041565), blurRadius: 40, offset: Offset(0, 12))],
       ),
       child: child,
     );
   }
 }
 
+/// Logo + tiêu đề trên dải navy. [assetPath] giữ cho tương thích; logo dùng BrandMark của website.
 class AuthLogoHero extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -95,35 +73,32 @@ class AuthLogoHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            BrandLogoBadge(
-              assetPath: assetPath,
-              size: 82,
-              borderRadius: 24,
-              padding: 5,
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+              alignment: Alignment.center,
+              child: const BrandMark(size: 28),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: 12),
-              Expanded(child: trailing!),
-            ],
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Đông Dương', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                Text('Xe ghép · Limousine · Xe khách', style: TextStyle(color: Brand.b200, fontSize: 12, fontWeight: FontWeight.w500)),
+              ]),
+            ),
+            if (trailing != null) trailing!,
           ],
         ),
-        const SizedBox(height: 20),
-        Text(title, style: theme.textTheme.displayMedium),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: Colors.white.withValues(alpha: 0.78),
-            height: 1.45,
-          ),
-        ),
+        const SizedBox(height: 22),
+        Text(title, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.3, height: 1.2)),
+        const SizedBox(height: 6),
+        Text(subtitle, style: const TextStyle(color: Brand.b100, fontSize: 14, height: 1.45)),
       ],
     );
   }
@@ -135,19 +110,7 @@ class AuthSectionLabel extends StatelessWidget {
   const AuthSectionLabel(this.text, {super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: Theme.of(context).colorScheme.secondary,
-          fontWeight: FontWeight.w700,
-          fontSize: 14,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 10), child: FieldLabel(text, color: Brand.b500));
 }
 
 InputDecoration authInputDecoration(
@@ -157,35 +120,10 @@ InputDecoration authInputDecoration(
   Widget? suffixIcon,
   String? hint,
 }) {
-  final theme = Theme.of(context);
-  return InputDecoration(
-    labelText: label,
-    hintText: hint,
-    filled: true,
-    fillColor: Colors.white.withValues(alpha: 0.06),
-    labelStyle: const TextStyle(
-      color: Colors.white70,
-      fontWeight: FontWeight.w500,
-    ),
-    hintStyle: const TextStyle(color: Colors.white38),
-    prefixIcon: Icon(icon, color: theme.colorScheme.secondary),
-    suffixIcon: suffixIcon,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.10)),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide(color: theme.colorScheme.secondary, width: 1.6),
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-  );
+  return InputDecoration(labelText: label, hintText: hint, prefixIcon: Icon(icon, color: Brand.navy), suffixIcon: suffixIcon);
 }
 
+/// Chip thông tin nhỏ đặt trên dải navy.
 class AuthInfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -195,49 +133,13 @@ class AuthInfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Theme.of(context).colorScheme.secondary),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Glow extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _Glow({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(colors: [color, Colors.transparent]),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 16, color: Brand.lane),
+        const SizedBox(width: 6),
+        Flexible(child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13))),
+      ]),
     );
   }
 }

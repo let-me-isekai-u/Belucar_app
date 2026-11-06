@@ -9,6 +9,7 @@ import '../screens/beluca_home_screen.dart';
 import 'auth_ui.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
+import '../ui/ui.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen>
   void _showSnack(String message, {Color color = Colors.red}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Brand.ink)),
         backgroundColor: color,
       ),
     );
@@ -169,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen>
                       TextField(
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Brand.ink),
                         decoration: authInputDecoration(
                           context,
                           label: 'Số điện thoại',
@@ -181,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen>
                       TextField(
                         controller: passwordController,
                         obscureText: _obscurePassword,
-                        style: const TextStyle(color: Colors.white),
+                        style: const TextStyle(color: Brand.ink),
                         decoration: authInputDecoration(
                           context,
                           label: 'Mật khẩu',
@@ -197,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen>
                               _obscurePassword
                                   ? Icons.visibility_off_outlined
                                   : Icons.visibility_outlined,
-                              color: theme.colorScheme.secondary,
+                              color: Brand.navy,
                             ),
                           ),
                         ),
@@ -210,7 +211,7 @@ class _LoginScreenState extends State<LoginScreen>
                           child: Text(
                             'Quên mật khẩu?',
                             style: TextStyle(
-                              color: theme.colorScheme.secondary,
+                              color: Brand.navy,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -230,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen>
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.black87,
+                                    color: Colors.white,
                                   ),
                                 )
                               : const Text('ĐĂNG NHẬP'),
@@ -248,7 +249,7 @@ class _LoginScreenState extends State<LoginScreen>
                     child: RichText(
                       text: TextSpan(
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.74),
+                          color: Brand.inkMuted,
                           fontSize: 15,
                         ),
                         children: [
@@ -256,7 +257,7 @@ class _LoginScreenState extends State<LoginScreen>
                           TextSpan(
                             text: 'Đăng ký ngay',
                             style: TextStyle(
-                              color: theme.colorScheme.secondary,
+                              color: Brand.navy,
                               fontWeight: FontWeight.w800,
                             ),
                           ),

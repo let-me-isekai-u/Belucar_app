@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
 import 'account_ui.dart';
+import '../ui/ui.dart';
 
 class UpdateProfileScreen extends StatefulWidget {
   final String name;
@@ -106,10 +107,10 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
       appBar: AppBar(
         title: Text(
           'Cập nhật thông tin',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        iconTheme: IconThemeData(color: Brand.navy),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -124,7 +125,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
             Text(
               'Chỉnh lại tên, email và ảnh đại diện để thông tin hiển thị trong app nhất quán hơn.',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.74),
+                color: Brand.inkMuted,
                 height: 1.45,
               ),
             ),
@@ -144,7 +145,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: theme.colorScheme.secondary,
+                            color: Brand.navy,
                             width: 2,
                           ),
                           image: _avatar != null
@@ -159,7 +160,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                                   fit: BoxFit.cover,
                                 )
                               : null,
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: Brand.b50,
                         ),
                         child:
                             (_avatar == null &&
@@ -168,7 +169,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                             ? Icon(
                                 Icons.person_outline_rounded,
                                 size: 48,
-                                color: theme.colorScheme.secondary,
+                                color: Brand.navy,
                               )
                             : null,
                       ),
@@ -179,12 +180,12 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.secondary,
+                            color: Brand.navy,
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
                             Icons.camera_alt_outlined,
-                            color: Colors.black87,
+                            color: Colors.white,
                             size: 18,
                           ),
                         ),
@@ -203,7 +204,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                 children: [
                   TextField(
                     controller: nameController,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Brand.ink),
                     decoration: accountInputDecoration(
                       context,
                       label: 'Họ và tên',
@@ -214,7 +215,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                   TextField(
                     controller: emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: Brand.ink),
                     decoration: accountInputDecoration(
                       context,
                       label: 'Email',
@@ -247,7 +248,7 @@ class _UpdateProfileScreenState extends State<UpdateProfileScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.black87,
+                              color: Colors.white,
                             ),
                           )
                         : const Text('LƯU THAY ĐỔI'),

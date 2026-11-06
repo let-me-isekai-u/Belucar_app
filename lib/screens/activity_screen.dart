@@ -9,6 +9,7 @@ import '../models/trip_item_model.dart';
 import '../providers/home_provider.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
+import '../ui/ui.dart';
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
@@ -192,7 +193,7 @@ class ActivityScreenState extends State<ActivityScreen>
             child: Text(
               "Không",
               style: TextStyle(
-                color: Theme.of(context).colorScheme.secondary,
+                color: Brand.navy,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -229,7 +230,7 @@ class ActivityScreenState extends State<ActivityScreen>
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            color: Theme.of(context).colorScheme.secondary, // ✅ Màu vàng gold
+            color: Brand.navy, // ✅ Màu vàng gold
           ),
         ),
         centerTitle: false,
@@ -244,9 +245,9 @@ class ActivityScreenState extends State<ActivityScreen>
             fontWeight: FontWeight.bold,
             fontSize: 15,
           ),
-          unselectedLabelColor: Colors.white70,
+          unselectedLabelColor: Brand.inkMuted,
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
-          indicatorColor: Theme.of(context).colorScheme.secondary,
+          indicatorColor: Brand.navy,
           indicatorWeight: 5.5,
           tabs: const [
             Tab(text: "Đang diễn ra"),
@@ -386,7 +387,7 @@ class ActivityScreenState extends State<ActivityScreen>
                 children: [
                   Icon(
                     Icons.history,
-                    color: theme.colorScheme.secondary,
+                    color: Brand.navy,
                     size: 22,
                   ),
                   const SizedBox(width: 8),
@@ -397,7 +398,7 @@ class ActivityScreenState extends State<ActivityScreen>
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 17,
-                        color: Colors.black87,
+                        color: Brand.ink,
                       ),
                     ),
                   ),
@@ -407,7 +408,7 @@ class ActivityScreenState extends State<ActivityScreen>
               Text(
                 "Mã chuyến: ${trip.code}",
                 style: TextStyle(
-                  color: theme.colorScheme.secondary,
+                  color: Brand.navy,
                   fontWeight: FontWeight.bold,
                   fontSize: 15,
                 ),
@@ -416,7 +417,7 @@ class ActivityScreenState extends State<ActivityScreen>
               Text(
                 "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
                 maxLines: 2,
-                style: const TextStyle(color: Colors.black87, fontSize: 14),
+                style: const TextStyle(color: Brand.ink, fontSize: 14),
               ),
               const SizedBox(height: 8),
               Row(
@@ -496,14 +497,14 @@ class ActivityScreenState extends State<ActivityScreen>
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Brand.ink,
               ),
             ),
             const SizedBox(height: 10),
             Text(
               "Mã chuyến: ${trip.code}",
               style: TextStyle(
-                color: theme.colorScheme.secondary,
+                color: Brand.navy,
                 fontWeight: FontWeight.bold,
                 fontSize: 17,
               ),
@@ -512,13 +513,13 @@ class ActivityScreenState extends State<ActivityScreen>
             Text(
               "${trip.fromAddress}, ${trip.fromDistrict} → ${trip.toAddress}, ${trip.toDistrict}",
               maxLines: 2,
-              style: const TextStyle(color: Colors.black87, fontSize: 14),
+              style: const TextStyle(color: Brand.ink, fontSize: 14),
             ),
             const SizedBox(height: 8),
             Text(
               "Giá: ${formatCurrency(trip.price)}",
               style: const TextStyle(
-                color: Colors.black87,
+                color: Brand.navy,
                 fontWeight: FontWeight.w600,
                 fontSize: 15,
               ),
@@ -603,7 +604,7 @@ class ActivityScreenState extends State<ActivityScreen>
     final theme = Theme.of(context);
     final accent = isHistory
         ? const Color(0xFF56B6FF)
-        : theme.colorScheme.secondary;
+        : Brand.navy;
 
     return Center(
       child: Padding(
@@ -620,7 +621,7 @@ class ActivityScreenState extends State<ActivityScreen>
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.14),
+                color: const Color(0x1A041565),
                 blurRadius: 28,
                 offset: const Offset(0, 14),
               ),
@@ -648,7 +649,7 @@ class ActivityScreenState extends State<ActivityScreen>
                   height: 92,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.10),
+                    color: Brand.b50,
                   ),
                 ),
               ),
@@ -659,17 +660,17 @@ class ActivityScreenState extends State<ActivityScreen>
                     width: 78,
                     height: 78,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.14),
+                      color: Brand.b50,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.14),
+                        color: Brand.line,
                       ),
                     ),
                     child: Icon(
                       isHistory
                           ? Icons.history_toggle_off_rounded
                           : Icons.local_taxi_outlined,
-                      color: Colors.white,
+                      color: Brand.navy,
                       size: 34,
                     ),
                   ),
@@ -680,7 +681,7 @@ class ActivityScreenState extends State<ActivityScreen>
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color: Colors.white,
+                      color: Brand.ink,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -690,7 +691,7 @@ class ActivityScreenState extends State<ActivityScreen>
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.4,
-                      color: Colors.white.withValues(alpha: 0.76),
+                      color: Brand.inkMuted,
                     ),
                   ),
                   const SizedBox(height: 22),
@@ -703,7 +704,7 @@ class ActivityScreenState extends State<ActivityScreen>
                       style: ElevatedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 54),
                         backgroundColor: accent,
-                        foregroundColor: AppColors.primaryGreen,
+                        foregroundColor: Brand.navy,
                       ),
                     ),
                   ),

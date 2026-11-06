@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'account_ui.dart';
 import 'login_screen.dart';
+import '../ui/ui.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -45,7 +46,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   void _showSnack(String message, {Color color = Colors.red}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, style: const TextStyle(color: Colors.white)),
+        content: Text(message, style: const TextStyle(color: Brand.ink)),
         backgroundColor: color,
       ),
     );
@@ -127,10 +128,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       appBar: AppBar(
         title: Text(
           'Quên mật khẩu',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        iconTheme: IconThemeData(color: Brand.navy),
       ),
       body: Form(
         key: _formKey,
@@ -143,13 +144,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 width: 78,
                 height: 78,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.10),
+                  color: Brand.b50,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Icon(
                   Icons.lock_reset_rounded,
                   size: 38,
-                  color: theme.colorScheme.secondary,
+                  color: Brand.navy,
                 ),
               ),
               const SizedBox(height: 18),
@@ -161,7 +162,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               Text(
                 'Nhập email, lấy mã xác thực và đặt lại mật khẩu mới trong cùng một bước rõ ràng hơn.',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.74),
+                  color: Brand.inkMuted,
                   height: 1.45,
                 ),
               ),
@@ -180,7 +181,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Brand.ink),
                       decoration: accountInputDecoration(
                         context,
                         label: 'Email',
@@ -201,7 +202,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         Expanded(
                           child: TextFormField(
                             controller: _codeController,
-                            style: const TextStyle(color: Colors.white),
+                            style: const TextStyle(color: Brand.ink),
                             decoration: accountInputDecoration(
                               context,
                               label: 'Mã xác thực',
@@ -234,7 +235,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     height: 18,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.black87,
+                                      color: Colors.white,
                                     ),
                                   )
                                 : Text(
@@ -257,7 +258,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: !_showPass,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Brand.ink),
                       decoration: accountInputDecoration(
                         context,
                         label: 'Mật khẩu mới',
@@ -268,7 +269,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             _showPass
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: theme.colorScheme.secondary,
+                            color: Brand.navy,
                           ),
                           onPressed: () =>
                               setState(() => _showPass = !_showPass),
@@ -286,7 +287,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     TextFormField(
                       controller: _confirmController,
                       obscureText: !_showConfirmPass,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: Brand.ink),
                       decoration: accountInputDecoration(
                         context,
                         label: 'Nhập lại mật khẩu',
@@ -297,7 +298,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             _showConfirmPass
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: theme.colorScheme.secondary,
+                            color: Brand.navy,
                           ),
                           onPressed: () => setState(
                             () => _showConfirmPass = !_showConfirmPass,
@@ -329,7 +330,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           height: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.black87,
+                            color: Colors.white,
                           ),
                         )
                       : const Text('ĐỔI MẬT KHẨU'),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../app_theme.dart';
+import '../ui/ui.dart';
+import 'booking/booking_ui.dart' show toneForLegacyColor;
 
+/// Khung các màn tài khoản: nền xám sáng, AppBar trắng.
 class AccountScaffold extends StatelessWidget {
   final PreferredSizeWidget? appBar;
   final Widget body;
@@ -11,45 +13,9 @@ class AccountScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Brand.canvas,
       appBar: appBar,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.primaryGreen, AppColors.darkGreenBg],
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -100,
-              right: -60,
-              child: _Glow(
-                size: 240,
-                color: AppColors.accentGold.withValues(alpha: 0.10),
-              ),
-            ),
-            Positioned(
-              top: 140,
-              left: -80,
-              child: _Glow(
-                size: 220,
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-            ),
-            Positioned(
-              bottom: -90,
-              right: -60,
-              child: _Glow(
-                size: 260,
-                color: AppColors.surfaceGreen.withValues(alpha: 0.50),
-              ),
-            ),
-            SafeArea(top: false, child: body),
-          ],
-        ),
-      ),
+      body: SafeArea(top: appBar == null, child: body),
     );
   }
 }
@@ -72,61 +38,25 @@ class AccountSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return BrandCard(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.secondary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  icon,
-                  color: Theme.of(context).colorScheme.secondary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                      ),
-                    ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.68),
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (trailing != null) trailing!,
-            ],
-          ),
+          Row(children: [
+            IconTile(icon, size: 42),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle!, style: const TextStyle(color: Brand.inkMuted, fontSize: 13, height: 1.35)),
+                ],
+              ]),
+            ),
+            if (trailing != null) trailing!,
+          ]),
           const SizedBox(height: 16),
           child,
         ],
@@ -140,40 +70,10 @@ class AccountInfoBanner extends StatelessWidget {
   final IconData icon;
   final Color? color;
 
-  const AccountInfoBanner({
-    super.key,
-    required this.text,
-    this.icon = Icons.info_outline_rounded,
-    this.color,
-  });
+  const AccountInfoBanner({super.key, required this.text, this.icon = Icons.info_outline_rounded, this.color});
 
   @override
-  Widget build(BuildContext context) {
-    final bannerColor = color ?? Theme.of(context).colorScheme.secondary;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: bannerColor.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: bannerColor.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: bannerColor, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.84),
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => InfoBanner(text, tone: toneForLegacyColor(color), icon: icon);
 }
 
 InputDecoration accountInputDecoration(
@@ -183,52 +83,5 @@ InputDecoration accountInputDecoration(
   Widget? suffixIcon,
   String? hint,
 }) {
-  final theme = Theme.of(context);
-  return InputDecoration(
-    labelText: label,
-    hintText: hint,
-    filled: true,
-    fillColor: Colors.white.withValues(alpha: 0.05),
-    labelStyle: const TextStyle(
-      color: Colors.white70,
-      fontWeight: FontWeight.w500,
-    ),
-    hintStyle: const TextStyle(color: Colors.white38),
-    prefixIcon: Icon(icon, color: theme.colorScheme.secondary),
-    suffixIcon: suffixIcon,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(18),
-      borderSide: BorderSide(color: theme.colorScheme.secondary, width: 1.6),
-    ),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-  );
-}
-
-class _Glow extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _Glow({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(colors: [color, Colors.transparent]),
-        ),
-      ),
-    );
-  }
+  return InputDecoration(labelText: label, hintText: hint, prefixIcon: Icon(icon, color: Brand.navy), suffixIcon: suffixIcon);
 }

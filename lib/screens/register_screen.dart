@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import 'auth_ui.dart';
 import 'login_screen.dart';
 import 'terms_screen.dart';
+import '../ui/ui.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -158,7 +159,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Text(
             title,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.secondary,
+              color: Brand.navy,
               fontWeight: FontWeight.w800,
               fontSize: 18,
             ),
@@ -167,7 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Text(
             subtitle,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.70),
+              color: Brand.inkMuted,
               height: 1.4,
             ),
           ),
@@ -187,7 +188,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: Brand.ink),
       decoration: authInputDecoration(context, label: label, icon: icon),
     );
   }
@@ -201,7 +202,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return TextField(
       controller: controller,
       obscureText: obscure,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: Brand.ink),
       decoration: authInputDecoration(
         context,
         label: label,
@@ -210,7 +211,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           onPressed: onToggle,
           icon: Icon(
             obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-            color: Theme.of(context).colorScheme.secondary,
+            color: Brand.navy,
           ),
         ),
       ),
@@ -276,7 +277,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: theme.colorScheme.secondary,
+                                  color: Brand.navy,
                                   width: 2,
                                 ),
                                 image: _avatar != null
@@ -285,13 +286,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         fit: BoxFit.cover,
                                       )
                                     : null,
-                                color: Colors.white.withValues(alpha: 0.08),
+                                color: Brand.b50,
                               ),
                               child: _avatar == null
                                   ? const Icon(
                                       Icons.person_outline_rounded,
                                       size: 42,
-                                      color: Colors.white70,
+                                      color: Brand.inkMuted,
                                     )
                                   : null,
                             ),
@@ -302,13 +303,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 width: 34,
                                 height: 34,
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.secondary,
+                                  color: Brand.navy,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
                                   Icons.camera_alt_outlined,
                                   size: 18,
-                                  color: Colors.black87,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
@@ -321,7 +322,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       child: Text(
                         'Ảnh đại diện là tuỳ chọn, chạm để thêm.',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.68),
+                          color: Brand.inkMuted,
                         ),
                       ),
                     ),
@@ -417,7 +418,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             children: [
                               Checkbox(
                                 value: _agreeTerms,
-                                activeColor: theme.colorScheme.secondary,
+                                activeColor: Brand.navy,
                                 onChanged: (value) {
                                   setState(() => _agreeTerms = value ?? false);
                                 },
@@ -435,7 +436,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   child: Text(
                                     'Tôi đồng ý với Chính sách và Điều khoản sử dụng',
                                     style: TextStyle(
-                                      color: theme.colorScheme.secondary,
+                                      color: Brand.navy,
                                       fontWeight: FontWeight.w700,
                                       decoration: TextDecoration.underline,
                                       height: 1.35,
@@ -459,7 +460,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Colors.black87,
+                                        color: Colors.white,
                                       ),
                                     )
                                   : const Text('ĐĂNG KÝ'),
@@ -482,7 +483,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: RichText(
                           text: TextSpan(
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.72),
+                              color: Brand.inkMuted,
                               fontSize: 15,
                             ),
                             children: [
@@ -490,7 +491,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               TextSpan(
                                 text: 'Quay về đăng nhập',
                                 style: TextStyle(
-                                  color: theme.colorScheme.secondary,
+                                  color: Brand.navy,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -506,7 +507,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
           if (_loading)
             Container(
-              color: Colors.black.withValues(alpha: 0.22),
+              color: const Color(0x1A041565),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],

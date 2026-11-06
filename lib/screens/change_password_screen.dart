@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
 import 'account_ui.dart';
+import '../ui/ui.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -37,10 +38,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       appBar: AppBar(
         title: Text(
           'Đổi mật khẩu',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        iconTheme: IconThemeData(color: Brand.navy),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -51,13 +52,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               width: 78,
               height: 78,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.10),
+                color: Brand.b50,
                 borderRadius: BorderRadius.circular(24),
               ),
               child: Icon(
                 Icons.shield_outlined,
                 size: 38,
-                color: theme.colorScheme.secondary,
+                color: Brand.navy,
               ),
             ),
             const SizedBox(height: 18),
@@ -69,7 +70,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             Text(
               'Đổi mật khẩu trực tiếp trong tài khoản. Mật khẩu mới cần đủ mạnh và khác mật khẩu cũ.',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.74),
+                color: Brand.inkMuted,
                 height: 1.45,
               ),
             ),
@@ -134,7 +135,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.black87,
+                              color: Colors.white,
                             ),
                           )
                         : const Text('ĐỔI MẬT KHẨU'),
@@ -218,7 +219,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      style: const TextStyle(color: Colors.white),
+      style: const TextStyle(color: Brand.ink),
       decoration: accountInputDecoration(
         context,
         label: label,
@@ -229,7 +230,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             obscureText
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined,
-            color: Theme.of(context).colorScheme.secondary,
+            color: Brand.navy,
           ),
         ),
       ),

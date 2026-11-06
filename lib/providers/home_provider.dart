@@ -17,6 +17,8 @@ class HomeProvider extends ChangeNotifier {
   bool _isLoadingWeather = true;
 
   String? _avatarUrl;
+
+  double? _wallet;
   String _accessToken = '';
 
   int _currentBanner = 0;
@@ -37,6 +39,7 @@ class HomeProvider extends ChangeNotifier {
   String get temperature => _temperature;
   bool get isLoadingWeather => _isLoadingWeather;
   String? get avatarUrl => _avatarUrl;
+  double? get wallet => _wallet;
   int get currentBanner => _currentBanner;
   bool get isCreatingDepositRequest => _isCreatingDepositRequest;
   bool get isCancellingDepositRequest => _isCancellingDepositRequest;
@@ -67,6 +70,8 @@ class HomeProvider extends ChangeNotifier {
         final data = jsonDecode(res.body) as Map<String, dynamic>;
         _userId = data['id'] ?? 0;
         _avatarUrl = data['avatarUrl'];
+        final w = data['wallet'];
+        _wallet = w is num ? w.toDouble() : double.tryParse('${w ?? ''}');
         _fullName = (data['fullName'] ?? _fullName).toString();
         await prefs.setInt('id', _userId);
       }

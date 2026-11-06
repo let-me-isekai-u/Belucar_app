@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'account_ui.dart';
+import '../ui/ui.dart';
 
 class TermsScreen extends StatelessWidget {
   const TermsScreen({super.key});
@@ -45,7 +46,7 @@ Email: beluga.fintech@gmail.com
       appBar: AppBar(
         title: Text(
           'Điều khoản sử dụng',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
       ),
@@ -61,7 +62,7 @@ Email: beluga.fintech@gmail.com
               child: const Text(
                 _terms,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Brand.ink,
                   fontSize: 15,
                   height: 1.6,
                 ),

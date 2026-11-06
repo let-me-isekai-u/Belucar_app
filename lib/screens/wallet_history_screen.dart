@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../utils/currency_format.dart';
 import 'account_ui.dart';
+import '../ui/ui.dart';
 
 class WalletHistoryScreen extends StatefulWidget {
   const WalletHistoryScreen({super.key});
@@ -76,15 +77,15 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
       appBar: AppBar(
         title: Text(
           'Lịch sử giao dịch',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        iconTheme: IconThemeData(color: Brand.navy),
         actions: [
           IconButton(
             icon: Icon(
               Icons.refresh_rounded,
-              color: theme.colorScheme.secondary,
+              color: Brand.navy,
             ),
             onPressed: _fetchData,
           ),
@@ -118,8 +119,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            theme.colorScheme.secondary.withValues(alpha: 0.92),
-            const Color(0xFFFFD166),
+            Brand.navy, Brand.b700,
           ],
         ),
       ),
@@ -129,7 +129,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
           const Text(
             'Số dư ví hiện tại',
             style: TextStyle(
-              color: Colors.black54,
+              color: Brand.b200,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -137,7 +137,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
           Text(
             formatWalletAmount(_currentBalance),
             style: const TextStyle(
-              color: Colors.black87,
+              color: Colors.white,
               fontSize: 30,
               fontWeight: FontWeight.w800,
             ),
@@ -169,7 +169,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                 ),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: Brand.b50,
                   borderRadius: BorderRadius.circular(18),
                   border: Border.all(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.08),
@@ -200,7 +200,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                             item['type'] ?? 'Giao dịch',
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                              color: Brand.ink,
                               fontSize: 15,
                             ),
                           ),
@@ -208,7 +208,7 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
                           Text(
                             _formatDateTime(item['createdDate']),
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.68),
+                              color: Brand.inkMuted,
                               fontSize: 12,
                             ),
                           ),
@@ -246,12 +246,12 @@ class _WalletHistoryScreenState extends State<WalletHistoryScreen> {
               Icon(
                 Icons.inbox_outlined,
                 size: 72,
-                color: theme.colorScheme.secondary.withValues(alpha: 0.65),
+                color: Brand.navy.withValues(alpha: 0.65),
               ),
               const SizedBox(height: 12),
               const Text(
                 'Bạn chưa có giao dịch nào.',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+                style: TextStyle(color: Brand.inkMuted, fontSize: 16),
               ),
             ],
           ),

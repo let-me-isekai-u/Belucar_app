@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../models/message_model.dart';
 import '../../providers/chat_provider.dart';
+import '../../ui/ui.dart';
 
 class ChatScreen extends StatelessWidget {
   const ChatScreen({super.key});
@@ -32,10 +33,10 @@ class _ChatScreenViewState extends State<_ChatScreenView>
   final FocusNode _focusNode = FocusNode();
 
   // ── Brand colours ──────────────────────────────────────────────────────────
-  static const Color beluDarkGreen   = Color(0xFF0A422D);
-  static const Color beluMediumGreen = Color(0xFF145E44);
-  static const Color beluAccentGold  = Color(0xFFFFD700);
-  static const Color bgCanvas        = Color(0xFFF0F4F2);
+  static const Color beluDarkGreen   = Brand.navy;
+  static const Color beluMediumGreen = Brand.b700;
+  static const Color beluAccentGold  = Brand.lane;
+  static const Color bgCanvas        = Brand.canvas;
 
   // ── State ──────────────────────────────────────────────────────────────────
   String _accessToken    = '';
@@ -239,7 +240,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                     height: 7,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: connected ? Colors.greenAccent : Colors.white38,
+                      color: connected ? Colors.greenAccent : Brand.inkSubtle,
                     ),
                   ),
                   const SizedBox(width: 5),
@@ -377,7 +378,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                     BoxShadow(
                       color: isMe
                           ? beluDarkGreen.withOpacity(0.18)
-                          : Colors.black.withOpacity(0.06),
+                          : const Color(0x1A041565),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -472,7 +473,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
           border: Border.all(color: borderColor, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: const Color(0x1A041565),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -525,7 +526,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                         msg.content.trim(),
                         style: const TextStyle(
                           fontSize: 13.5,
-                          color: Colors.black87,
+                          color: Brand.ink,
                           height: 1.4,
                         ),
                       ),
@@ -603,7 +604,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: Colors.black87,
+                              color: Brand.ink,
                             ),
                           ),
                           Text(
@@ -637,7 +638,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                                   ride.note!.trim(),
                                   style: const TextStyle(
                                     fontSize: 13,
-                                    color: Colors.black87,
+                                    color: Brand.ink,
                                     height: 1.35,
                                   ),
                                 ),
@@ -776,7 +777,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.07),
+            color: const Color(0x1A041565),
             offset: const Offset(0, -3),
             blurRadius: 14,
           ),
@@ -820,7 +821,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
                 enabled: !disabled,
                 cursorColor: beluDarkGreen,
                 style:
-                const TextStyle(color: Colors.black87, fontSize: 14.5),
+                const TextStyle(color: Brand.ink, fontSize: 14.5),
                 onSubmitted: (_) => _handleSendMessage(),
                 decoration: InputDecoration(
                   hintText: provider.isSending
@@ -924,7 +925,7 @@ class _FullScreenLoader extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Center(
       child: CircularProgressIndicator(
-        color: Color(0xFF145E44),
+        color: Brand.b700,
         strokeWidth: 2.5,
       ),
     );
@@ -954,10 +955,10 @@ class _EmptyState extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                color: const Color(0xFF0A422D).withOpacity(0.08),
+                color: Brand.navy.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 34, color: const Color(0xFF0A422D)),
+              child: Icon(icon, size: 34, color: Brand.navy),
             ),
             const SizedBox(height: 18),
             Text(
@@ -965,7 +966,7 @@ class _EmptyState extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Brand.ink,
               ),
             ),
             const SizedBox(height: 8),
@@ -1018,9 +1019,9 @@ class _ErrorState extends StatelessWidget {
               icon: const Icon(Icons.refresh_rounded),
               label: const Text('Thử lại'),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF0A422D),
+                foregroundColor: Brand.navy,
                 backgroundColor:
-                const Color(0xFF0A422D).withOpacity(0.08),
+                Brand.navy.withOpacity(0.08),
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20, vertical: 10),
                 shape: RoundedRectangleBorder(
@@ -1060,26 +1061,26 @@ class _DateSeparator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         children: [
-          const Expanded(child: Divider(color: Color(0xFFD0D8D4), thickness: 1)),
+          const Expanded(child: Divider(color: Brand.inkMuted, thickness: 1)),
           const SizedBox(width: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF0A422D).withOpacity(0.08),
+              color: Brand.navy.withOpacity(0.08),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               _label(),
               style: const TextStyle(
                 fontSize: 11.5,
-                color: Color(0xFF0A422D),
+                color: Brand.navy,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.3,
               ),
             ),
           ),
           const SizedBox(width: 10),
-          const Expanded(child: Divider(color: Color(0xFFD0D8D4), thickness: 1)),
+          const Expanded(child: Divider(color: Brand.inkMuted, thickness: 1)),
         ],
       ),
     );
@@ -1101,7 +1102,7 @@ class _LoadingOlderBanner extends StatelessWidget {
             height: 14,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Color(0xFF145E44),
+              color: Brand.b700,
             ),
           ),
           SizedBox(width: 8),

@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart' as latlng;
 
 import '../../models/location_models.dart';
 import '../../services/api_service.dart';
+import '../../ui/ui.dart';
 
 class BookingAddressMapPickerScreen extends StatefulWidget {
   final String title;
@@ -273,10 +274,10 @@ class _BookingAddressMapPickerScreenState
       appBar: AppBar(
         title: Text(
           widget.title,
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        iconTheme: IconThemeData(color: Brand.navy),
       ),
       body: Stack(
         children: [
@@ -330,7 +331,7 @@ class _BookingAddressMapPickerScreenState
                       'Kéo bản đồ để đặt ghim',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: Brand.ink,
                       ),
                     ),
                   ),
@@ -354,7 +355,7 @@ class _BookingAddressMapPickerScreenState
                 tooltip: 'Vị trí hiện tại',
                 onPressed: _isLocating ? null : _tryMoveToCurrentLocation,
                 backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF123C2E),
+                foregroundColor: Brand.navy,
                 child: _isLocating
                     ? const SizedBox(
                         width: 18,
@@ -374,7 +375,7 @@ class _BookingAddressMapPickerScreenState
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(22),
                   boxShadow: const [
                     BoxShadow(
@@ -391,7 +392,7 @@ class _BookingAddressMapPickerScreenState
                     Text(
                       'Điểm đang chọn',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: theme.colorScheme.secondary,
+                        color: Brand.navy,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -404,7 +405,7 @@ class _BookingAddressMapPickerScreenState
                             height: 18,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.white,
+                              color: Brand.navy,
                             ),
                           ),
                           SizedBox(width: 10),
@@ -412,7 +413,7 @@ class _BookingAddressMapPickerScreenState
                             child: Text(
                               'Đang xác định địa chỉ gần vị trí ghim...',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Brand.ink,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -423,7 +424,7 @@ class _BookingAddressMapPickerScreenState
                       Text(
                         _resolvedLocation!.formattedAddress,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Brand.ink,
                           fontWeight: FontWeight.w700,
                           fontSize: 16,
                         ),
@@ -440,7 +441,7 @@ class _BookingAddressMapPickerScreenState
                       Text(
                         '${_mapCenter.latitude.toStringAsFixed(6)}, ${_mapCenter.longitude.toStringAsFixed(6)}',
                         style: const TextStyle(
-                          color: Colors.white70,
+                          color: Brand.inkMuted,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -448,7 +449,7 @@ class _BookingAddressMapPickerScreenState
                       Text(
                         '${_mapCenter.latitude.toStringAsFixed(6)}, ${_mapCenter.longitude.toStringAsFixed(6)}',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Brand.inkMuted,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -469,7 +470,7 @@ class _BookingAddressMapPickerScreenState
                         onPressed: _isResolving ? null : _confirmSelection,
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 52),
-                          backgroundColor: theme.colorScheme.secondary,
+                          backgroundColor: Brand.navy,
                           foregroundColor: Colors.black87,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
@@ -481,7 +482,7 @@ class _BookingAddressMapPickerScreenState
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Colors.black87,
+                                  color: Colors.white,
                                 ),
                               )
                             : const Text(
