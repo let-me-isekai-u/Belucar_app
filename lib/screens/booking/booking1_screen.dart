@@ -8,6 +8,7 @@ import '../../models/location_models.dart';
 import 'booking2_screen.dart';
 import 'booking_address_map_picker_screen.dart';
 import 'booking_ui.dart';
+import '../../ui/ui.dart';
 
 class Booking1Screen extends StatefulWidget {
   final Function(int) onRideBooked;
@@ -57,22 +58,22 @@ class _Booking1ScreenState extends State<Booking1Screen> {
       hintText: hint,
       filled: true,
       fillColor: Colors.white,
-      hintStyle: const TextStyle(color: Color(0xFF7D8D88)),
+      hintStyle: const TextStyle(color: Brand.inkSubtle),
       prefixIcon: Icon(icon, color: iconColor, size: 20),
       suffixIcon: suffixIcon,
       isDense: true,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+        borderSide: const BorderSide(color: Brand.line),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+        borderSide: const BorderSide(color: Brand.line),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
         borderSide: BorderSide(
-          color: Theme.of(context).colorScheme.secondary,
+          color: Brand.navy,
           width: 1.6,
         ),
       ),
@@ -152,11 +153,11 @@ class _Booking1ScreenState extends State<Booking1Screen> {
         FocusManager.instance.primaryFocus?.unfocus();
       },
       style: const TextStyle(
-        color: Color(0xFF123C2E),
+        color: Brand.navy,
         fontWeight: FontWeight.w600,
         fontSize: 15.5,
       ),
-      cursorColor: Theme.of(context).colorScheme.secondary,
+      cursorColor: Brand.navy,
       decoration: _addressFieldDecoration(
         context: context,
         hint: hint,
@@ -174,7 +175,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
             : controller.text.trim().isNotEmpty
             ? IconButton(
                 onPressed: onClearSelection,
-                icon: const Icon(Icons.close_rounded, color: Color(0xFF50635D)),
+                icon: const Icon(Icons.close_rounded, color: Brand.inkMuted),
               )
             : null,
       ),
@@ -182,7 +183,6 @@ class _Booking1ScreenState extends State<Booking1Screen> {
   }
 
   Widget _buildSuggestionList(BuildContext context, BookingModel model) {
-    final theme = Theme.of(context);
     final suggestions = _isPickupActive
         ? model.pickupSuggestions
         : model.dropSuggestions;
@@ -197,7 +197,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+        border: Border.all(color: Brand.line),
       ),
       child: ListView.separated(
         physics: const BouncingScrollPhysics(),
@@ -206,7 +206,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: suggestions.length,
         separatorBuilder: (_, _) =>
-            Divider(height: 1, color: Colors.black.withValues(alpha: 0.06)),
+            const Divider(height: 1, color: Brand.lineSoft),
         itemBuilder: (context, index) {
           final suggestion = suggestions[index];
           return ListTile(
@@ -223,12 +223,12 @@ class _Booking1ScreenState extends State<Booking1Screen> {
             },
             leading: Icon(
               Icons.location_on_outlined,
-              color: theme.colorScheme.secondary,
+              color: Brand.navy,
             ),
             title: Text(
               suggestion.primaryText,
               style: const TextStyle(
-                color: Color(0xFF123C2E),
+                color: Brand.navy,
                 fontWeight: FontWeight.w700,
                 fontSize: 15.5,
               ),
@@ -238,7 +238,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                 : Text(
                     suggestion.secondaryText,
                     style: const TextStyle(
-                      color: Color(0xFF50635D),
+                      color: Brand.inkMuted,
                       fontSize: 12.5,
                     ),
                   ),
@@ -261,7 +261,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
         icon: Icon(icon, size: 16),
         label: Text(label),
         style: TextButton.styleFrom(
-          foregroundColor: Theme.of(context).colorScheme.secondary,
+          foregroundColor: Brand.navy,
           padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           textStyle: const TextStyle(
@@ -313,12 +313,12 @@ class _Booking1ScreenState extends State<Booking1Screen> {
   }) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: Theme.of(context).colorScheme.secondary),
+        Icon(icon, size: 18, color: Brand.navy),
         const SizedBox(width: 8),
         Text(
           title,
           style: const TextStyle(
-            color: Color(0xFF123C2E),
+            color: Brand.navy,
             fontWeight: FontWeight.w800,
             fontSize: 15,
           ),
@@ -332,9 +332,8 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     BookingSavedRoute route,
     BookingModel model,
   ) {
-    final theme = Theme.of(context);
     return Material(
-      color: Colors.white.withValues(alpha: 0.92),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: () {
@@ -351,7 +350,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            border: Border.all(color: Brand.line),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,7 +361,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.secondary.withValues(
+                      color: Brand.navy.withValues(
                         alpha: 0.14,
                       ),
                       borderRadius: BorderRadius.circular(12),
@@ -370,21 +369,21 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                     child: Icon(
                       Icons.route_rounded,
                       size: 18,
-                      color: theme.colorScheme.secondary,
+                      color: Brand.navy,
                     ),
                   ),
                   const Spacer(),
                   Icon(
                     Icons.arrow_outward_rounded,
                     size: 18,
-                    color: theme.colorScheme.secondary,
+                    color: Brand.navy,
                   ),
                 ],
               ),
               const SizedBox(height: 10),
               _buildRoutePointLine(
                 icon: Icons.trip_origin_rounded,
-                color: const Color(0xFF3D7DFF),
+                color: Brand.navy,
                 text: route.pickup.title,
               ),
               const SizedBox(height: 8),
@@ -393,13 +392,13 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                 child: Container(
                   width: 1.5,
                   height: 14,
-                  color: Colors.black.withValues(alpha: 0.10),
+                  color: const Color(0x1A041565),
                 ),
               ),
               const SizedBox(height: 8),
               _buildRoutePointLine(
                 icon: Icons.location_on_rounded,
-                color: const Color(0xFF16B26A),
+                color: Brand.success,
                 text: route.drop.title,
               ),
             ],
@@ -424,7 +423,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF123C2E),
+              color: Brand.navy,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -439,9 +438,8 @@ class _Booking1ScreenState extends State<Booking1Screen> {
     BookingModel model, {
     required bool isFavorite,
   }) {
-    final theme = Theme.of(context);
     return Material(
-      color: Colors.white.withValues(alpha: 0.92),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: () {
@@ -460,7 +458,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+            border: Border.all(color: Brand.line),
           ),
           child: Row(
             children: [
@@ -468,12 +466,12 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.secondary.withValues(alpha: 0.12),
+                  color: Brand.navy.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   isFavorite ? Icons.favorite_rounded : Icons.history_rounded,
-                  color: theme.colorScheme.secondary,
+                  color: Brand.navy,
                   size: 19,
                 ),
               ),
@@ -487,7 +485,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: Color(0xFF123C2E),
+                        color: Brand.navy,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -498,7 +496,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: Color(0xFF6B7B76),
+                          color: Brand.inkMuted,
                           fontSize: 12.5,
                         ),
                       ),
@@ -515,7 +513,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                       )
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
-                  color: theme.colorScheme.secondary,
+                  color: Brand.navy,
                   size: 20,
                 ),
               ),
@@ -625,7 +623,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vui lòng chọn điểm đón'),
-          backgroundColor: Colors.red,
+          backgroundColor: Brand.danger,
         ),
       );
       return false;
@@ -635,7 +633,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vui lòng chọn điểm đến'),
-          backgroundColor: Colors.red,
+          backgroundColor: Brand.danger,
         ),
       );
       return false;
@@ -646,7 +644,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(routeValidationMessage),
-          backgroundColor: Colors.red,
+          backgroundColor: Brand.danger,
         ),
       );
       return false;
@@ -684,7 +682,6 @@ class _Booking1ScreenState extends State<Booking1Screen> {
   @override
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
-    final theme = Theme.of(context);
     final activeLoading = _isPickupActive
         ? model.loadingPickupSuggestions
         : model.loadingDropSuggestions;
@@ -693,10 +690,10 @@ class _Booking1ScreenState extends State<Booking1Screen> {
       appBar: AppBar(
         title: Text(
           'Chọn địa chỉ',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        iconTheme: IconThemeData(color: Brand.navy),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8),
@@ -705,7 +702,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
               child: Text(
                 'Tiếp theo',
                 style: TextStyle(
-                  color: theme.colorScheme.secondary,
+                  color: Brand.navy,
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                 ),
@@ -752,7 +749,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFFF7F6F1), Color(0xFFEAF1ED)],
+              colors: [Brand.canvas, Brand.canvas],
             ),
           ),
           child: SafeArea(
@@ -775,14 +772,14 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                         Container(
                           padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.82),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(
-                              color: Colors.black.withValues(alpha: 0.05),
+                              color: const Color(0x1A041565),
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
+                                color: const Color(0x1A041565),
                                 blurRadius: 18,
                                 offset: const Offset(0, 8),
                               ),
@@ -798,7 +795,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                                 controller: model.pickupAddressController,
                                 hint: 'Điểm đón',
                                 icon: Icons.local_taxi_outlined,
-                                iconColor: const Color(0xFF3D7DFF),
+                                iconColor: Brand.navy,
                                 isLoading: _isPickupActive && activeLoading,
                                 onClearSelection: model.clearPickupSelection,
                               ),
@@ -814,7 +811,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                                 child: Align(
                                   alignment: Alignment.centerRight,
                                   child: Material(
-                                    color: theme.colorScheme.secondary,
+                                    color: Brand.b50,
                                     borderRadius: BorderRadius.circular(14),
                                     child: InkWell(
                                       onTap: () {
@@ -827,7 +824,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                                         height: 36,
                                         child: Icon(
                                           Icons.swap_vert_rounded,
-                                          color: AppColors.primaryGreen,
+                                          color: Brand.navy,
                                           size: 20,
                                         ),
                                       ),
@@ -843,7 +840,7 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                                 controller: model.dropAddressController,
                                 hint: 'Điểm đến',
                                 icon: Icons.local_taxi_outlined,
-                                iconColor: const Color(0xFF16B26A),
+                                iconColor: Brand.lane500,
                                 isLoading: !_isPickupActive && activeLoading,
                                 onClearSelection: model.clearDropSelection,
                               ),

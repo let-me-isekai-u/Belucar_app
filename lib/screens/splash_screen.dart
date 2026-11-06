@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/firebase_notification_service.dart';
+import '../ui/ui.dart';
 
 void appLog(String tag, String msg) {
   debugPrint('[$tag] $msg');
@@ -149,60 +150,52 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-
     return Scaffold(
-      backgroundColor: const Color(0xFF4AB8E8),
+      backgroundColor: Brand.navy,
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Positioned.fill(
-              child: Image.asset(
-                'lib/assets/summer_splash.png',
-                fit: BoxFit.contain,
-                alignment: Alignment.center,
+            const Align(
+              alignment: Alignment(0, 0.18),
+              child: Opacity(
+                opacity: 0.35,
+                child: SizedBox(height: 3, child: DashedLine(axis: Axis.horizontal, color: Brand.lane, dash: 16, gap: 10, thickness: 3)),
               ),
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: size.height * 0.15,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.45),
-                    ],
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 112,
+                    height: 112,
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32)),
+                    alignment: Alignment.center,
+                    child: const BrandMark(size: 54),
                   ),
-                ),
+                  const SizedBox(height: 22),
+                  const Text('ĐÔNG DƯƠNG',
+                      style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 4)),
+                  const SizedBox(height: 6),
+                  const Text('Xe ghép · Limousine · Xe khách',
+                      style: TextStyle(color: Brand.b200, fontSize: 13, fontWeight: FontWeight.w500)),
+                ],
               ),
             ),
             Positioned(
               left: 0,
               right: 0,
-              bottom: 36,
+              bottom: 48,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48),
+                padding: const EdgeInsets.symmetric(horizontal: 72),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _ShimmerLoadingBar(animation: _shimmerAnimation),
                     const SizedBox(height: 10),
-                    Text(
-                      'Đang tải...',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.70),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
+                    const Text('Đang tải...', style: TextStyle(color: Brand.b200, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.6)),
                   ],
                 ),
               ),

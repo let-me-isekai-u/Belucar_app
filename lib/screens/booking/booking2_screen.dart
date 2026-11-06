@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/booking_model.dart';
 import '../../services/api_service.dart';
 import 'booking_ui.dart';
+import '../../ui/ui.dart';
 
 class Booking2Screen extends StatefulWidget {
   final Function(int) onRideBooked;
@@ -218,7 +219,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     BookingModel model,
     BookingRideTypeOption option,
   ) {
-    final theme = Theme.of(context);
     final isSelected = model.selectedRideType == option.value;
 
     return Expanded(
@@ -231,12 +231,12 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             color: isSelected
-                ? theme.colorScheme.secondary.withValues(alpha: 0.14)
-                : Colors.white.withValues(alpha: 0.04),
+                ? Brand.navy.withValues(alpha: 0.14)
+                : Brand.b50,
             border: Border.all(
               color: isSelected
-                  ? theme.colorScheme.secondary
-                  : Colors.white.withValues(alpha: 0.10),
+                  ? Brand.navy
+                  : Brand.line,
               width: isSelected ? 1.6 : 1,
             ),
           ),
@@ -249,8 +249,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 height: 36,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? theme.colorScheme.secondary.withValues(alpha: 0.18)
-                      : Colors.white.withValues(alpha: 0.08),
+                      ? Brand.b100
+                      : Brand.b50,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -259,15 +259,15 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       : Icons.airport_shuttle_outlined,
                   size: 19,
                   color: isSelected
-                      ? theme.colorScheme.secondary
-                      : Colors.white70,
+                      ? Brand.navy
+                      : Brand.inkMuted,
                 ),
               ),
               const SizedBox(height: 10),
               Text(
                 option.label,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Brand.ink,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                   fontSize: 14.5,
                 ),
@@ -298,7 +298,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: Brand.ink,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
@@ -327,7 +327,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Widget _buildAddressSummaryCard(BookingModel model) {
-    final theme = Theme.of(context);
     final preview = model.routePreview;
 
     Widget addressLine({
@@ -356,7 +355,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.66),
+                    color: Brand.inkMuted,
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -365,7 +364,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 Text(
                   value,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: Brand.ink,
                     fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                     height: 1.35,
@@ -387,11 +386,11 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withValues(alpha: 0.10),
-            Colors.white.withValues(alpha: 0.05),
+            Brand.b50,
+            Brand.b50,
           ],
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: Brand.line),
       ),
       child: Column(
         children: [
@@ -409,20 +408,20 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 Container(
                   width: 1.5,
                   height: 18,
-                  color: Colors.white.withValues(alpha: 0.24),
+                  color: Brand.inkSubtle,
                 ),
                 const SizedBox(width: 16),
                 Icon(
                   Icons.south_rounded,
                   size: 18,
-                  color: theme.colorScheme.secondary,
+                  color: Brand.navy,
                 ),
               ],
             ),
           ),
           addressLine(
             icon: Icons.location_on_rounded,
-            color: Colors.greenAccent.shade100,
+            color: Brand.success,
             label: 'Điểm đến',
             value: preview?.to.formattedAddress ?? model.dropDisplayAddress,
           ),
@@ -432,7 +431,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Widget _buildRiderContactSection(BuildContext context) {
-    final theme = Theme.of(context);
 
     return BookingSectionCard(
       title: 'Thông tin người đi',
@@ -454,8 +452,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 _isBookingForOther ? 'Đặt cho bản thân' : 'Đặt hộ',
               ),
               style: OutlinedButton.styleFrom(
-                foregroundColor: theme.colorScheme.secondary,
-                side: BorderSide(color: theme.colorScheme.secondary),
+                foregroundColor: Brand.navy,
+                side: BorderSide(color: Brand.navy),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
                   vertical: 10,
@@ -471,14 +469,14 @@ class _Booking2ScreenState extends State<Booking2Screen> {
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: Brand.b50,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                border: Border.all(color: Brand.line),
               ),
               child: Text(
                 _userFullName.isNotEmpty ? _userFullName : 'Người dùng BeluCar',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Brand.ink,
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                 ),
@@ -494,8 +492,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: TextStyle(
               color: !_isBookingForOther
-                  ? Colors.white.withValues(alpha: 0.78)
-                  : Colors.white,
+                  ? Brand.inkMuted
+                  : Brand.ink,
             ),
             decoration: bookingInputDecoration(
               context,
@@ -511,7 +509,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           TextField(
             controller: _noteController,
             maxLines: 4,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Brand.ink),
             decoration: bookingInputDecoration(
               context,
               label: 'Ghi chú',
@@ -537,7 +535,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           controller: TextEditingController(
             text: date == null ? '' : DateFormat('dd/MM/yyyy').format(date),
           ),
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Brand.ink),
           decoration: bookingInputDecoration(
             context,
             label: label,
@@ -545,7 +543,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             icon: Icons.event_outlined,
             suffixIcon: Icon(
               Icons.calendar_today_outlined,
-              color: Colors.white.withValues(alpha: 0.72),
+              color: Brand.inkMuted,
             ),
           ),
         ),
@@ -554,7 +552,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Widget _timeField({required BookingModel model}) {
-    final theme = Theme.of(context);
 
     return GestureDetector(
       onTap: () async {
@@ -591,7 +588,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                 child: Text(
                                   'Hủy',
                                   style: TextStyle(
-                                    color: theme.colorScheme.secondary,
+                                    color: Brand.navy,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -601,7 +598,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF123C2E),
+                                  color: Brand.navy,
                                 ),
                               ),
                               TextButton(
@@ -617,7 +614,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                 child: Text(
                                   'Xong',
                                   style: TextStyle(
-                                    color: theme.colorScheme.secondary,
+                                    color: Brand.navy,
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -639,11 +636,11 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                     decoration: BoxDecoration(
                                       border: Border(
                                         top: BorderSide(
-                                          color: theme.colorScheme.secondary,
+                                          color: Brand.navy,
                                           width: 1.5,
                                         ),
                                         bottom: BorderSide(
-                                          color: theme.colorScheme.secondary,
+                                          color: Brand.navy,
                                           width: 1.5,
                                         ),
                                       ),
@@ -659,7 +656,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                         style: const TextStyle(
                                           fontSize: 24,
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF123C2E),
+                                          color: Brand.navy,
                                         ),
                                       ),
                                     );
@@ -671,7 +668,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                 style: TextStyle(
                                   fontSize: 28,
                                   fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.secondary,
+                                  color: Brand.navy,
                                 ),
                               ),
                               Expanded(
@@ -684,11 +681,11 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                     decoration: BoxDecoration(
                                       border: Border(
                                         top: BorderSide(
-                                          color: theme.colorScheme.secondary,
+                                          color: Brand.navy,
                                           width: 1.5,
                                         ),
                                         bottom: BorderSide(
-                                          color: theme.colorScheme.secondary,
+                                          color: Brand.navy,
                                           width: 1.5,
                                         ),
                                       ),
@@ -704,7 +701,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                         style: const TextStyle(
                                           fontSize: 24,
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF123C2E),
+                                          color: Brand.navy,
                                         ),
                                       ),
                                     );
@@ -732,7 +729,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           ),
           textAlign: TextAlign.center,
           style: const TextStyle(
-            color: Colors.white,
+            color: Brand.ink,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
@@ -743,7 +740,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             icon: Icons.access_time_rounded,
             suffixIcon: Icon(
               Icons.schedule_rounded,
-              color: Colors.white.withValues(alpha: 0.72),
+              color: Brand.inkMuted,
             ),
           ),
         ),
@@ -758,7 +755,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     required IconData icon,
     required String subtitle,
   }) {
-    final theme = Theme.of(context);
     final isSelected = model.paymentMethod == value;
 
     return Material(
@@ -773,13 +769,13 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isSelected
-                ? theme.colorScheme.secondary.withValues(alpha: 0.14)
-                : Colors.white.withValues(alpha: 0.04),
+                ? Brand.navy.withValues(alpha: 0.14)
+                : Brand.b50,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isSelected
-                  ? theme.colorScheme.secondary
-                  : Colors.white.withValues(alpha: 0.10),
+                  ? Brand.navy
+                  : Brand.line,
               width: isSelected ? 1.5 : 1,
             ),
           ),
@@ -793,8 +789,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected
-                        ? theme.colorScheme.secondary
-                        : Colors.white54,
+                        ? Brand.navy
+                        : Brand.inkMuted,
                     width: 2,
                   ),
                 ),
@@ -806,7 +802,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isSelected
-                          ? theme.colorScheme.secondary
+                          ? Brand.navy
                           : Colors.transparent,
                     ),
                   ),
@@ -818,16 +814,16 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 margin: const EdgeInsets.only(left: 10, right: 12),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? theme.colorScheme.secondary.withValues(alpha: 0.18)
-                      : Colors.white.withValues(alpha: 0.08),
+                      ? Brand.b100
+                      : Brand.b50,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
                   size: 20,
                   color: isSelected
-                      ? theme.colorScheme.secondary
-                      : Colors.white70,
+                      ? Brand.navy
+                      : Brand.inkMuted,
                 ),
               ),
               Expanded(
@@ -838,8 +834,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       title,
                       style: TextStyle(
                         color: isSelected
-                            ? theme.colorScheme.secondary
-                            : Colors.white,
+                            ? Brand.navy
+                            : Brand.ink,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -847,7 +843,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.68),
+                        color: Brand.inkMuted,
                         height: 1.35,
                         fontSize: 12.5,
                       ),
@@ -863,7 +859,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Widget _buildInfoRow(String label, String value, {bool highlight = false}) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
@@ -874,7 +869,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             child: Text(
               label,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.68),
+                color: Brand.inkMuted,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -886,7 +881,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: highlight ? theme.colorScheme.secondary : Colors.white,
+                color: highlight ? Brand.navy : Brand.ink,
                 fontWeight: highlight ? FontWeight.w800 : FontWeight.w600,
                 height: 1.35,
               ),
@@ -903,7 +898,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     bool isTotal = false,
     Color? valueColor,
   }) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -912,7 +906,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             child: Text(
               label,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.74),
+                color: Brand.inkMuted,
                 fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
               ),
             ),
@@ -922,7 +916,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             style: TextStyle(
               color:
                   valueColor ??
-                  (isTotal ? theme.colorScheme.secondary : Colors.white),
+                  (isTotal ? Brand.navy : Brand.ink),
               fontWeight: isTotal ? FontWeight.w800 : FontWeight.w700,
               fontSize: isTotal ? 18 : 15,
             ),
@@ -937,7 +931,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vui lòng nhập số điện thoại'),
-          backgroundColor: Colors.red,
+          backgroundColor: Brand.danger,
         ),
       );
       return false;
@@ -949,7 +943,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Số lượng người phải từ 1 trở lên'),
-            backgroundColor: Colors.red,
+            backgroundColor: Brand.danger,
           ),
         );
         return false;
@@ -961,7 +955,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Vui lòng chọn ngày giờ đón'),
-          backgroundColor: Colors.red,
+          backgroundColor: Brand.danger,
         ),
       );
       return false;
@@ -998,7 +992,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             model.priceErrorMessage ??
                 'Không thể tính giá. Vui lòng kiểm tra lại thông tin.',
           ),
-          backgroundColor: Colors.red,
+          backgroundColor: Brand.danger,
         ),
       );
       return;
@@ -1041,7 +1035,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: Brand.success,
             duration: const Duration(seconds: 4),
           ),
         );
@@ -1049,13 +1043,13 @@ class _Booking2ScreenState extends State<Booking2Screen> {
         final errorMsg = result['message'] ?? 'Đặt chuyến thất bại';
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
+          SnackBar(content: Text(errorMsg), backgroundColor: Brand.danger),
         );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Lỗi: $e'), backgroundColor: Brand.danger),
       );
     } finally {
       if (mounted) {
@@ -1086,10 +1080,10 @@ class _Booking2ScreenState extends State<Booking2Screen> {
       appBar: AppBar(
         title: Text(
           'Đặt xe',
-          style: TextStyle(color: theme.colorScheme.secondary),
+          style: TextStyle(color: Brand.navy),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.secondary),
+        iconTheme: IconThemeData(color: Brand.navy),
       ),
       body: BookingKeyboardDismissArea(
         child: BookingFlowBackground(
@@ -1149,9 +1143,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                 return Theme(
                                   data: Theme.of(context).copyWith(
                                     colorScheme: ColorScheme.light(
-                                      primary: theme.colorScheme.secondary,
-                                      onPrimary: Colors.black87,
-                                      onSurface: const Color(0xFF123C2E),
+                                      primary: Brand.navy,
+                                      onPrimary: Colors.white,
+                                      onSurface: Brand.navy,
                                     ),
                                   ),
                                   child: child!,
@@ -1220,12 +1214,12 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                             _buildPriceRow(
                               'Ưu đãi giảm giá',
                               formatCurrency(-(model.discount)),
-                              valueColor: Colors.greenAccent.shade100,
+                              valueColor: Brand.success,
                             ),
                             _buildPriceRow(
                               'Phụ phí ngày lễ',
                               formatCurrency(model.surcharge),
-                              valueColor: Colors.orangeAccent.shade100,
+                              valueColor: Brand.warning,
                             ),
                             if (showQuantityField)
                               _buildPriceRow(
@@ -1234,7 +1228,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                               ),
                             Divider(
                               height: 28,
-                              color: theme.colorScheme.secondary.withValues(
+                              color: Brand.navy.withValues(
                                 alpha: 0.28,
                               ),
                             ),
@@ -1250,7 +1244,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                               model.priceErrorMessage ??
                               'Giá sẽ hiển thị ngay khi đủ điểm đón, điểm đến, ngày giờ và loại chuyến.',
                           icon: Icons.info_outline,
-                          color: Colors.orangeAccent,
+                          color: Brand.warning,
                         ),
                 ),
               ],
@@ -1264,7 +1258,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           decoration: BoxDecoration(
             color: theme.colorScheme.primary.withValues(alpha: 0.94),
             border: Border(
-              top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+              top: BorderSide(color: Brand.line),
             ),
           ),
           child: SizedBox(
@@ -1279,7 +1273,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       Text(
                         'thành tiền',
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.72),
+                          color: Brand.inkMuted,
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1292,7 +1286,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: theme.colorScheme.secondary,
+                          color: Brand.navy,
                           fontSize: 24,
                           fontWeight: FontWeight.w900,
                         ),
@@ -1315,7 +1309,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                             height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: Colors.black87,
+                              color: Colors.white,
                             ),
                           )
                         : const Text('ĐẶT XE'),
@@ -1339,7 +1333,7 @@ class _QuantityButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white.withValues(alpha: 0.08),
+      color: Brand.b50,
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1347,7 +1341,7 @@ class _QuantityButton extends StatelessWidget {
         child: SizedBox(
           width: 52,
           height: 48,
-          child: Icon(icon, color: Theme.of(context).colorScheme.secondary),
+          child: Icon(icon, color: Brand.navy),
         ),
       ),
     );

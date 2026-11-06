@@ -248,22 +248,41 @@ class DashedLine extends StatelessWidget {
   final double gap;
   final double thickness;
 
+  // CustomPaint (không dùng LayoutBuilder) để dùng được trong IntrinsicHeight/IntrinsicWidth.
   @override
-  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
-        final length = axis == Axis.vertical ? c.maxHeight : c.maxWidth;
-        if (!length.isFinite) return const SizedBox.shrink();
-        final count = (length / (dash + gap)).floor().clamp(1, 400);
-        final seg = Container(
-          width: axis == Axis.vertical ? thickness : dash,
-          height: axis == Axis.vertical ? dash : thickness,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
-        );
-        return Flex(
-          direction: axis,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(count, (_) => seg),
-        );
-      });
+  Widget build(BuildContext context) => SizedBox(
+        width: axis == Axis.vertical ? thickness : double.infinity,
+        height: axis == Axis.vertical ? double.infinity : thickness,
+        child: CustomPaint(painter: _DashPainter(axis, color, dash, gap, thickness)),
+      );
+}
+
+class _DashPainter extends CustomPainter {
+  _DashPainter(this.axis, this.color, this.dash, this.gap, this.thickness);
+  final Axis axis;
+  final Color color;
+  final double dash, gap, thickness;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final length = axis == Axis.vertical ? size.height : size.width;
+    if (!length.isFinite || length <= 0) return;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = thickness
+      ..strokeCap = StrokeCap.round;
+    final cross = (axis == Axis.vertical ? size.width : size.height) / 2;
+    for (double p = 0; p < length; p += dash + gap) {
+      final end = (p + dash).clamp(0, length).toDouble();
+      final o1 = axis == Axis.vertical ? Offset(cross, p) : Offset(p, cross);
+      final o2 = axis == Axis.vertical ? Offset(cross, end) : Offset(end, cross);
+      canvas.drawLine(o1, o2, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashPainter old) =>
+      old.color != color || old.dash != dash || old.gap != gap || old.thickness != thickness || old.axis != axis;
 }
 
 class RouteStop {

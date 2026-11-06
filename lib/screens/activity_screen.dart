@@ -209,7 +209,7 @@ class ActivityScreenState extends State<ActivityScreen>
             },
             child: const Text(
               "Huỷ chuyến",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Brand.danger, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -238,9 +238,7 @@ class ActivityScreenState extends State<ActivityScreen>
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Theme.of(
-            context,
-          ).colorScheme.secondary, // ✅ Tab được chọn màu vàng gold
+          labelColor: Brand.navy,
           labelStyle: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 15,
@@ -364,7 +362,6 @@ class ActivityScreenState extends State<ActivityScreen>
 
   // ✅ CARD CHO LỊCH SỬ
   Widget _buildHistoryCard(TripItemModel trip) {
-    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 3,
@@ -434,11 +431,11 @@ class ActivityScreenState extends State<ActivityScreen>
                     ),
                     decoration: BoxDecoration(
                       color: trip.status == 4
-                          ? Colors.green.shade50
-                          : Colors.red.shade50,
+                          ? Brand.success50
+                          : Brand.danger50,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: trip.status == 4 ? Colors.green : Colors.red,
+                        color: trip.status == 4 ? Brand.success : Brand.danger,
                         width: 1.5,
                       ),
                     ),
@@ -446,8 +443,8 @@ class ActivityScreenState extends State<ActivityScreen>
                       _getStatusText(trip.status),
                       style: TextStyle(
                         color: trip.status == 4
-                            ? Colors.green.shade800
-                            : Colors.red.shade800,
+                            ? Brand.success
+                            : Brand.danger,
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -464,7 +461,6 @@ class ActivityScreenState extends State<ActivityScreen>
 
   // ✅ CARD CHO ĐANG DIỄN RA
   Widget _buildOngoingCard(TripItemModel trip) {
-    final theme = Theme.of(context);
 
     return GestureDetector(
       onTap: () => Navigator.push(
@@ -562,11 +558,11 @@ class ActivityScreenState extends State<ActivityScreen>
                     rideId: trip.rideId,
                     isConfirmCancel: trip.status == 2,
                   ),
-                  icon: const Icon(Icons.cancel, color: Colors.red, size: 18),
+                  icon: const Icon(Icons.cancel, color: Brand.danger, size: 18),
                   label: const Text(
                     "Huỷ chuyến",
                     style: TextStyle(
-                      color: Colors.red,
+                      color: Brand.danger,
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
                     ),
@@ -581,18 +577,18 @@ class ActivityScreenState extends State<ActivityScreen>
 
   // ✅ HÀM TRẢ VỀ MÀU NỀN CHO TRẠNG THÁI
   Color _getStatusBgColor(int status) {
-    if (status == 1) return Colors.orange.shade50;
+    if (status == 1) return Brand.warning50;
     if (status == 2) return Colors.purple.shade50;
-    if (status == 3) return Colors.blue.shade50;
-    return Colors.grey.shade50;
+    if (status == 3) return Brand.info50;
+    return Brand.canvas;
   }
 
   // ✅ HÀM TRẢ VỀ MÀU VIỀN CHO TRẠNG THÁI
   Color _getStatusBorderColor(int status) {
-    if (status == 1) return Colors.orange.shade700;
+    if (status == 1) return Brand.warning;
     if (status == 2) return Colors.purple.shade700;
-    if (status == 3) return Colors.blue.shade700;
-    return Colors.grey.shade700;
+    if (status == 3) return Brand.info;
+    return Brand.inkMuted;
   }
 
   Widget _buildEmptyState({
@@ -601,116 +597,19 @@ class ActivityScreenState extends State<ActivityScreen>
     required String actionLabel,
     bool isHistory = false,
   }) {
-    final theme = Theme.of(context);
-    final accent = isHistory
-        ? const Color(0xFF56B6FF)
-        : Brand.navy;
-
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF133C30), Color(0xFF1D5A47), Color(0xFFF3F0E7)],
+      child: SingleChildScrollView(
+        child: EmptyState(
+          icon: isHistory ? Icons.history_rounded : Icons.directions_car_outlined,
+          title: title,
+          message: subtitle,
+          action: SizedBox(
+            width: 240,
+            child: ElevatedButton.icon(
+              onPressed: _openBookingTab,
+              icon: const Icon(Icons.add_rounded),
+              label: Text(actionLabel),
             ),
-            borderRadius: BorderRadius.circular(32),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0x1A041565),
-                blurRadius: 28,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: -28,
-                right: -10,
-                child: Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: accent.withValues(alpha: 0.18),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -32,
-                left: -16,
-                child: Container(
-                  width: 92,
-                  height: 92,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Brand.b50,
-                  ),
-                ),
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 78,
-                    height: 78,
-                    decoration: BoxDecoration(
-                      color: Brand.b50,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: Brand.line,
-                      ),
-                    ),
-                    child: Icon(
-                      isHistory
-                          ? Icons.history_toggle_off_rounded
-                          : Icons.local_taxi_outlined,
-                      color: Brand.navy,
-                      size: 34,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Brand.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.4,
-                      color: Brand.inkMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _openBookingTab,
-                      icon: const Icon(Icons.add_rounded),
-                      label: Text(actionLabel),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 54),
-                        backgroundColor: accent,
-                        foregroundColor: Brand.navy,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
       ),

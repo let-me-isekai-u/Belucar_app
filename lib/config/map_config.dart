@@ -16,4 +16,7 @@ TileLayer trackAsiaTileLayer() => TileLayer(
     );
 
 /// Ghi nguồn bắt buộc của TrackAsia/OpenStreetMap.
-Widget trackAsiaAttribution() => const SimpleAttributionWidget(source: Text('TrackAsia · © OpenStreetMap'));
+Widget trackAsiaAttribution() => const SimpleAttributionWidget(
+      source: Text('TrackAsia · © OpenStreetMap', style: TextStyle(fontSize: 10)),
+      backgroundColor: Color(0xB3FFFFFF),
+    );

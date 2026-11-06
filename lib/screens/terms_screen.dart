@@ -40,7 +40,6 @@ Email: beluga.fintech@gmail.com
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
 
     return AccountScaffold(
       appBar: AppBar(

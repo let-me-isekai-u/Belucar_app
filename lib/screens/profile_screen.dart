@@ -105,7 +105,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showSupportDialog(BuildContext context) {
-    final theme = Theme.of(context);
 
     showModalBottomSheet(
       context: context,
