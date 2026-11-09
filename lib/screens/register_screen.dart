@@ -1,10 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import '../services/api_service.dart';
+import '../utils/password_policy.dart';
 import 'auth_ui.dart';
 import 'login_screen.dart';
 import 'terms_screen.dart';
@@ -26,8 +30,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
   final TextEditingController _referralCodeController = TextEditingController();
+  final TextEditingController _otpController = TextEditingController();
 
   XFile? _avatar;
+  String? _challengeId;
+  Timer? _resendTimer;
 
   bool _agreeTerms = false;
   bool _loading = false;
@@ -51,41 +58,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   bool _validateForm() {
-    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-    final phoneRegex = RegExp(r'^[0-9]{9,11}$');
-    final strongPassRegex = RegExp(
-      r'''^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[~!@#$%^&*()_+=<>?:";'{}|\\[\]])[A-Za-z\d~!@#$%^&*()_+=<>?:";'{}|\\[\]]{8,32}$''',
-    );
+    final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
 
     if (_fullNameController.text.trim().isEmpty) {
       _showSnack('Họ tên không được để trống');
       return false;
     }
 
-    if (!emailRegex.hasMatch(_emailController.text.trim())) {
+    if (email.length > 50 || !RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email)) {
       _showSnack('Email không hợp lệ');
       return false;
     }
 
-    if (!phoneRegex.hasMatch(_phoneController.text.trim())) {
+    if (!RegExp(r'^\+?[0-9]{8,15}$').hasMatch(phone)) {
       _showSnack('Số điện thoại không hợp lệ');
       return false;
     }
 
-    if (_phoneController.text.trim() != _confirmPhoneController.text.trim()) {
+    if (phone != _confirmPhoneController.text.trim()) {
       _showSnack('Số điện thoại nhập lại không trùng');
       return false;
     }
 
-    if (!strongPassRegex.hasMatch(_passwordController.text.trim())) {
-      _showSnack(
-        'Mật khẩu quá yếu (phải gồm chữ hoa, chữ thường, số, ký tự đặc biệt)',
-      );
+    final passwordError = newPasswordError(password);
+    if (passwordError != null) {
+      _showSnack(passwordError);
       return false;
     }
 
-    if (_passwordController.text.trim() !=
-        _confirmPasswordController.text.trim()) {
+    if (password != _confirmPasswordController.text.trim()) {
       _showSnack('Mật khẩu nhập lại không trùng');
       return false;
     }
@@ -98,9 +101,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return true;
   }
 
-  Future<void> _handleRegister() async {
-    if (!_validateForm()) return;
+  Map<String, dynamic> _readResponse(http.Response response) {
+    try {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body is Map<String, dynamic>) return body;
+    } on FormatException {
+      // A proxy can return an HTML error page.
+    }
+    return {};
+  }
 
+  Future<void> _sendCode() async {
+    if (_loading || (_resendTimer?.isActive ?? false) || !_validateForm()) return;
+    FocusScope.of(context).unfocus();
+    setState(() => _loading = true);
+
+    final response = await ApiService.sendRegistrationCode(
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
+    );
+    if (!mounted) return;
+
+    final body = _readResponse(response);
+    final challengeId = body['challengeId'];
+    if (response.statusCode != 200 || challengeId is! String || challengeId.isEmpty) {
+      setState(() => _loading = false);
+      final message = body['message'];
+      _showSnack(message is String ? message : 'Không gửi được mã xác minh. Vui lòng thử lại.');
+      return;
+    }
+
+    _otpController.clear();
+    setState(() {
+      _loading = false;
+      _challengeId = challengeId;
+      _resendTimer = Timer(const Duration(minutes: 1), () {
+        if (mounted) setState(() => _resendTimer = null);
+      });
+    });
+  }
+
+  Future<void> _handleRegister() async {
+    final challengeId = _challengeId;
+    if (_loading || challengeId == null) return;
+
+    final otp = _otpController.text.trim();
+    if (!RegExp(r'^[0-9]{6}$').hasMatch(otp)) {
+      _showSnack('Nhập mã xác minh gồm 6 chữ số.');
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
     setState(() => _loading = true);
 
     final res = await ApiService.customerRegister(
@@ -108,35 +159,87 @@ class _RegisterScreenState extends State<RegisterScreen> {
       phone: _phoneController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
+      challengeId: challengeId,
+      otp: otp,
       avatarFilePath: _avatar?.path ?? '',
       referredByCode: _referralCodeController.text.trim(),
     );
 
     if (!mounted) return;
-    setState(() => _loading = false);
-
     if (res.statusCode == 200 || res.statusCode == 201) {
       _showSnack('Đăng ký thành công!');
-      Future.delayed(const Duration(seconds: 1), () {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
-      });
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
       return;
     }
 
-    try {
-      final json = jsonDecode(res.body);
-      _showSnack(json['message'] ?? 'Lỗi đăng ký');
-    } catch (_) {
-      _showSnack('Đăng ký thất bại (${res.statusCode})');
-    }
+    setState(() => _loading = false);
+    final message = _readResponse(res)['message'];
+    _showSnack(message is String ? message : 'Đăng ký thất bại (${res.statusCode})');
+  }
+
+  Widget _buildVerificationPanel() {
+    final canResend = !(_resendTimer?.isActive ?? false);
+    return AuthPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Xác minh email',
+            style: TextStyle(color: Brand.ink, fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Nhập mã 6 số đã gửi tới ${_emailController.text.trim()}. Mã có hiệu lực trong 10 phút.',
+            style: const TextStyle(color: Brand.inkMuted),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _otpController,
+            keyboardType: TextInputType.number,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
+            ],
+            decoration: authInputDecoration(
+              context,
+              label: 'Mã xác minh',
+              icon: Icons.verified_outlined,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _loading ? null : _handleRegister,
+            style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(56)),
+            child: const Text('ĐĂNG KÝ'),
+          ),
+          TextButton(
+            onPressed: !_loading && canResend ? _sendCode : null,
+            child: Text(canResend ? 'Gửi lại mã' : 'Có thể gửi lại sau 1 phút'),
+          ),
+          TextButton(
+            onPressed: _loading ? null : () {
+              _resendTimer?.cancel();
+              _otpController.clear();
+              setState(() {
+                _resendTimer = null;
+                _challengeId = null;
+              });
+            },
+            child: const Text('Sửa thông tin đăng ký'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
+    _otpController.dispose();
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
@@ -223,7 +326,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    AuthPanel(
+                    if (_challengeId != null)
+                      _buildVerificationPanel()
+                    else AuthPanel(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -263,7 +368,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           const Padding(
                             padding: EdgeInsets.fromLTRB(4, 6, 4, 0),
                             child: Text(
-                              'Gồm chữ hoa, chữ thường, số và ký tự đặc biệt',
+                              newPasswordHint,
                               style: TextStyle(color: Brand.inkMuted, fontSize: 12),
                             ),
                           ),
@@ -314,7 +419,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: _loading ? null : _handleRegister,
+                              onPressed: _loading ? null : _sendCode,
                               style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 56)),
                               child: _loading
                                   ? const SizedBox(
@@ -322,7 +427,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                       height: 20,
                                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                     )
-                                  : const Text('ĐĂNG KÝ'),
+                                  : const Text('GỬI MÃ XÁC MINH'),
                             ),
                           ),
                         ],

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
+import '../utils/password_policy.dart';
 import 'account_ui.dart';
 import 'login_screen.dart';
 import '../ui/ui.dart';
@@ -29,6 +30,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _showConfirmPass = false;
   int _countdown = 0;
   Timer? _timer;
+  String? _challengeId;
+  String? _challengeEmail;
 
   void _startCountdown() {
     _countdown = 30;
@@ -66,14 +69,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       final res = await ApiService.sendForgotPasswordOtp(email: email);
       if (!mounted) return;
 
-      if (res.statusCode == 200) {
-        _showSnack('Đã gửi mã xác thực!', color: Colors.blue);
+      final body = jsonDecode(utf8.decode(res.bodyBytes));
+      if (res.statusCode == 200 && body is Map && body['challengeId'] is String) {
+        _challengeId = body['challengeId'] as String;
+        _challengeEmail = email;
+        _codeController.clear();
+        _showSnack('Nếu email đã đăng ký, mã xác minh sẽ được gửi.', color: Colors.blue);
         _startCountdown();
       } else {
         _showSnack('Gửi mã thất bại');
       }
-    } catch (e) {
-      _showSnack('Lỗi kết nối: $e');
+    } catch (_) {
+      if (mounted) _showSnack('Không gửi được mã. Vui lòng thử lại.');
     } finally {
       if (mounted) setState(() => _isSendingCode = false);
     }
@@ -81,12 +88,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _resetPassword() async {
     if (!_formKey.currentState!.validate()) return;
+    final email = _emailController.text.trim();
+    final challengeId = _challengeId;
+    if (challengeId == null || _challengeEmail != email) {
+      _showSnack('Vui lòng yêu cầu mã xác minh cho email này.');
+      return;
+    }
 
     setState(() => _isResetting = true);
 
     try {
       final res = await ApiService.resetPassword(
-        email: _emailController.text.trim(),
+        email: email,
+        challengeId: challengeId,
         otp: _codeController.text.trim(),
         newPassword: _passwordController.text.trim(),
       );
@@ -220,7 +234,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         SizedBox(
                           height: 56,
                           child: ElevatedButton(
-                            onPressed: (_isSendingCode || _countdown > 0)
+                            onPressed: (_isSendingCode || _isResetting || _countdown > 0)
                                 ? null
                                 : _sendCode,
                             style: ElevatedButton.styleFrom(
@@ -260,7 +274,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       decoration: accountInputDecoration(
                         context,
                         label: 'Mật khẩu mới',
-                        hint: 'Ít nhất 6 ký tự',
+                        hint: '8 ký tự trở lên',
                         icon: Icons.lock_outline_rounded,
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -273,13 +287,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               setState(() => _showPass = !_showPass),
                         ),
                       ),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Nhập mật khẩu mới';
-                        }
-                        if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
-                        return null;
-                      },
+                      validator: (v) => newPasswordError(v?.trim() ?? ''),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: Text(newPasswordHint, style: TextStyle(color: Brand.inkMuted)),
                     ),
                     const SizedBox(height: 14),
                     TextFormField(
@@ -305,7 +317,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       validator: (v) {
                         if (v == null || v.isEmpty) return 'Nhập lại mật khẩu';
-                        if (v != _passwordController.text.trim()) {
+                        if (v.trim() != _passwordController.text.trim()) {
                           return 'Mật khẩu không khớp';
                         }
                         return null;
@@ -318,7 +330,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isResetting ? null : _resetPassword,
+                  onPressed: _isResetting || _isSendingCode ? null : _resetPassword,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                   ),

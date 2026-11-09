@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/api_service.dart';
+import '../utils/password_policy.dart';
 import 'account_ui.dart';
 import '../ui/ui.dart';
 
@@ -161,15 +162,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return _toast('Mật khẩu mới không được trùng mật khẩu cũ');
     }
 
-    final strongPassRegex = RegExp(
-      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$',
-    );
-
-    if (!strongPassRegex.hasMatch(newPass)) {
-      return _toast(
-        'Mật khẩu quá yếu (cần chữ hoa, chữ thường, số và ký tự đặc biệt, tối thiểu 8 ký tự)',
-      );
-    }
+    final passwordError = newPasswordError(newPass);
+    if (passwordError != null) return _toast(passwordError);
 
     if (newPass != confirm) {
       return _toast('Mật khẩu xác nhận không khớp');

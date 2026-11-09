@@ -105,11 +105,35 @@ class ApiService {
   // -----------------------------------------------------------
   // 3️⃣ ĐĂNG KÝ (FORM-DATA + FILE)
   // -----------------------------------------------------------
+  static Future<http.Response> sendRegistrationCode({
+    required String email,
+    required String phone,
+  }) async {
+    try {
+      return await http
+          .post(
+            Uri.parse('$apiOrigin/api/identity/challenges'),
+            headers: _defaultHeaders(),
+            body: jsonEncode({
+              'ownerType': 1,
+              'purpose': 'register',
+              'email': email,
+              'phone': phone,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+    } catch (_) {
+      return _jsonResponse({'message': 'Không thể kết nối. Vui lòng thử lại.'}, 503);
+    }
+  }
+
   static Future<http.Response> customerRegister({
     required String fullName,
     required String phone,
     required String email,
     required String password,
+    required String challengeId,
+    required String otp,
     required String avatarFilePath,
     String? referredByCode, // 👈 thêm mã giới thiệu (optional)
   }) async {
@@ -122,6 +146,8 @@ class ApiService {
       request.fields["phone"] = phone;
       request.fields["email"] = email;
       request.fields["password"] = password;
+      request.fields["challengeId"] = challengeId;
+      request.fields["otp"] = otp;
 
       if (referredByCode != null && referredByCode.isNotEmpty) {
         request.fields["referredByCode"] = referredByCode;
@@ -134,10 +160,12 @@ class ApiService {
         );
       }
 
-      final resStream = await request.send();
-      return await http.Response.fromStream(resStream);
-    } catch (e) {
-      return _errorResponse(e);
+      return await request
+          .send()
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 30));
+    } catch (_) {
+      return _jsonResponse({'message': 'Không thể kết nối. Vui lòng thử lại.'}, 503);
     }
   }
 
@@ -217,6 +245,7 @@ class ApiService {
   // -----------------------------------------------------------
   static Future<http.Response> resetPassword({
     required String email,
+    required String challengeId,
     required String otp,
     required String newPassword,
   }) async {
@@ -225,6 +254,7 @@ class ApiService {
     try {
       final body = jsonEncode({
         "email": email,
+        "challengeId": challengeId,
         "otp": otp,
         "newPassword": newPassword,
       });
