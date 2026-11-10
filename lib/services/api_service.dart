@@ -4,6 +4,7 @@
 import 'dart:convert';
 import '../config/api_config.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/deposit_model.dart';
 import '../models/location_models.dart';
@@ -185,6 +186,86 @@ class ApiService {
           .timeout(const Duration(seconds: 20));
     } catch (e) {
       return _errorResponse(e);
+    }
+  }
+
+  static Future<String?>? _refreshInFlight;
+  static (String, String)? _lastRefreshedAccess;
+  static String? _lastAttemptedRefresh;
+
+  /// A refresh token rotates on use. Share refreshes between the booking flows.
+  static Future<String?> refreshRejectedAccessToken(String rejectedToken) async {
+    final prefs = await SharedPreferences.getInstance();
+    final currentAccess = prefs.getString('accessToken');
+    if (currentAccess != rejectedToken) {
+      final last = _lastRefreshedAccess;
+      return last?.$1 == rejectedToken && last?.$2 == currentAccess
+          ? currentAccess
+          : null;
+    }
+
+    final activeRefresh = _refreshInFlight;
+    if (activeRefresh != null) {
+      await activeRefresh;
+      final last = _lastRefreshedAccess;
+      return last != null &&
+              last.$1 == rejectedToken &&
+              last.$2 == prefs.getString('accessToken')
+          ? last.$2
+          : null;
+    }
+
+    final currentRefresh = prefs.getString('refreshToken');
+    if (currentRefresh == null ||
+        currentRefresh.isEmpty ||
+        currentRefresh == _lastAttemptedRefresh) {
+      return null;
+    }
+
+    _lastAttemptedRefresh = currentRefresh;
+    final refresh = _refreshCustomerSession(prefs, rejectedToken, currentRefresh);
+    _refreshInFlight = refresh;
+    try {
+      return await refresh;
+    } finally {
+      _refreshInFlight = null;
+    }
+  }
+
+  static Future<String?> _refreshCustomerSession(
+    SharedPreferences prefs,
+    String previousAccess,
+    String previousRefresh,
+  ) async {
+    try {
+      final response = await refreshToken(refreshToken: previousRefresh);
+      if (response.statusCode != 200) return null;
+
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body is! Map<String, dynamic>) return null;
+      final nested = body['data'];
+      final data = nested is Map<String, dynamic> ? nested : body;
+      final access = data['accessToken'];
+      final refresh = data['refreshToken'];
+      if (access is! String ||
+          access.isEmpty ||
+          refresh is! String ||
+          refresh.isEmpty ||
+          prefs.getString('accessToken') != previousAccess ||
+          prefs.getString('refreshToken') != previousRefresh) {
+        return null;
+      }
+
+      if (!await prefs.setString('refreshToken', refresh)) return null;
+      if (prefs.getString('accessToken') != previousAccess ||
+          prefs.getString('refreshToken') != refresh) {
+        return null;
+      }
+      if (!await prefs.setString('accessToken', access)) return null;
+      _lastRefreshedAccess = (previousAccess, access);
+      return access;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -530,6 +611,7 @@ class ApiService {
   // 13. API TẠO CHUYẾN ĐI
   static Future<http.Response> createRide({
     required String accessToken,
+    required int tripId,
     required RidePointPayload from,
     required RidePointPayload to,
     required int type,
@@ -543,6 +625,7 @@ class ApiService {
     final url = Uri.parse("$apiOrigin/api/v2/ride/create");
 
     final body = jsonEncode({
+      "tripId": tripId,
       "from": from.toJson(),
       "to": to.toJson(),
       "type": type,
@@ -555,24 +638,24 @@ class ApiService {
       "quantity": quantity,
     });
 
-    try {
-      final response = await http
-          .post(
-            url,
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": "Bearer $accessToken",
-            },
-            body: body,
-          )
-          .timeout(const Duration(seconds: 15));
+    Future<http.Response> send(String token) => http
+        .post(url, headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        }, body: body)
+        .timeout(const Duration(seconds: 15));
 
+    try {
+      final response = await send(accessToken);
+      if (response.statusCode == 401) {
+        final renewedAccess = await refreshRejectedAccessToken(accessToken);
+        if (renewedAccess != null) return await send(renewedAccess);
+      }
       return response;
-    } catch (e) {
-      print("🔥 ERROR createRide(): $e");
+    } catch (_) {
       return _jsonResponse({
         "success": false,
-        "message": "Lỗi kết nối hệ thống: $e",
+        "message": "Chưa xác nhận được kết quả. Vui lòng kiểm tra Hoạt động trước khi đặt lại.",
       }, 500);
     }
   }

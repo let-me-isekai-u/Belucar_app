@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/chat_session.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/message_model.dart';
@@ -68,8 +68,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
   }
 
   Future<void> _initChatScreen() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('accessToken') ?? '';
+    final token = await ChatSession.accessToken();
     if (!mounted) return;
 
     setState(() {
@@ -80,10 +79,10 @@ class _ChatScreenViewState extends State<_ChatScreenView>
     if (_accessToken.isEmpty) return;
 
     final provider = _provider ?? context.read<ChatProvider>();
-    await provider.initChat(accessToken: _accessToken, autoMarkRead: true);
+    await provider.initChat(autoMarkRead: true);
     if (!mounted) return;
 
-    await provider.connectRealtime(accessToken: _accessToken);
+    await provider.connectRealtime();
     if (!mounted) return;
 
     _scrollToBottom(jump: true);
@@ -95,14 +94,14 @@ class _ChatScreenViewState extends State<_ChatScreenView>
 
     if (_scrollController.position.pixels <= 80) {
       if (!provider.isLoadingOlderMessages && provider.hasMoreMessages) {
-        provider.loadOlderMessages(accessToken: _accessToken);
+        provider.loadOlderMessages();
       }
     }
 
     final max     = _scrollController.position.maxScrollExtent;
     final current = _scrollController.position.pixels;
     if ((max - current) <= 80 && _accessToken.isNotEmpty) {
-      provider.markAsRead(accessToken: _accessToken, silent: true);
+      provider.markAsRead(silent: true);
     }
   }
 
@@ -139,14 +138,13 @@ class _ChatScreenViewState extends State<_ChatScreenView>
 
     final provider = _provider ?? context.read<ChatProvider>();
     final ok = await provider.sendMessage(
-      accessToken: _accessToken,
       content: text,
     );
 
     if (ok) {
       _controller.clear();
       _scrollToBottom();
-      await provider.markAsRead(accessToken: _accessToken, silent: true);
+      await provider.markAsRead(silent: true);
     }
   }
 
@@ -192,6 +190,14 @@ class _ChatScreenViewState extends State<_ChatScreenView>
       systemOverlayStyle: SystemUiOverlayStyle.light,
       elevation: 0,
       centerTitle: false,
+      actions: [
+        if (!connected && !provider.isRealtimeConnecting && _accessToken.isNotEmpty)
+          IconButton(
+            tooltip: 'Kết nối lại chat',
+            onPressed: _initChatScreen,
+            icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+          ),
+      ],
       flexibleSpace: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -272,10 +278,7 @@ class _ChatScreenViewState extends State<_ChatScreenView>
     if (provider.error != null && messages.isEmpty) {
       return _ErrorState(
         message: provider.error!,
-        onRetry: () => provider.initChat(
-          accessToken: _accessToken,
-          autoMarkRead: true,
-        ),
+        onRetry: _initChatScreen,
       );
     }
 

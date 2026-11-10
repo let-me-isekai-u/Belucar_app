@@ -1,6 +1,3 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
-import 'package:logging/logging.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 
 import 'belucar_signalr_http_client.dart';
@@ -8,10 +5,8 @@ import 'belucar_signalr_http_client.dart';
 class SignalRService {
   static const int _serverTimeoutInMilliseconds = 5 * 60 * 1000;
   static const int _keepAliveIntervalInMilliseconds = 15 * 1000;
-  static bool _loggingInitialized = false;
 
   HubConnection? _connection;
-  late final Logger _logger = Logger('BeluCar.SignalR');
 
   HubConnectionState? get state => _connection?.state;
   String? get connectionId => _connection?.connectionId;
@@ -20,25 +15,11 @@ class SignalRService {
       _connection?.state == HubConnectionState.Reconnecting;
   bool get isConnecting => _connection?.state == HubConnectionState.Connecting;
 
-  void _ensureLoggingInitialized() {
-    if (_loggingInitialized) return;
-
-    Logger.root.level = Level.ALL;
-    Logger.root.onRecord.listen((record) {
-      debugPrint(
-        '[SignalR][${record.level.name}][${record.loggerName}] ${record.message}',
-      );
-    });
-
-    _loggingInitialized = true;
-  }
-
   Future<void> connect({
     required String hubUrl,
-    required String accessToken,
+    required Future<String> Function() accessTokenFactory,
+    required void Function() configure,
   }) async {
-    _ensureLoggingInitialized();
-
     if (_connection?.state == HubConnectionState.Connected ||
         _connection?.state == HubConnectionState.Connecting ||
         _connection?.state == HubConnectionState.Reconnecting) {
@@ -46,39 +27,38 @@ class SignalRService {
     }
 
     _connection = HubConnectionBuilder()
-      .withUrl(
-        hubUrl,
-        options: HttpConnectionOptions(
-          accessTokenFactory: () async => accessToken,
-          // Production currently advertises LongPolling reliably for mobile.
-          transport: HttpTransportType.LongPolling,
-          httpClient: BeluCarSignalRHttpClient(_logger),
-          logger: _logger,
-          logMessageContent: true,
-          requestTimeout: 60000,
-        ),
-      )
-      .withAutomaticReconnect(
-        retryDelays: const [0, 2000, 5000, 10000, 20000],
-      )
-      .configureLogging(_logger)
-      .build();
+        .withUrl(
+          hubUrl,
+          options: HttpConnectionOptions(
+            accessTokenFactory: accessTokenFactory,
+            // Production currently advertises LongPolling reliably for mobile.
+            transport: HttpTransportType.LongPolling,
+            httpClient: BeluCarSignalRHttpClient(),
+            logMessageContent: false,
+            requestTimeout: 60000,
+          ),
+        )
+        .withAutomaticReconnect(
+          retryDelays: const [0, 2000, 5000, 10000, 20000],
+        )
+        .build();
 
     _connection!.serverTimeoutInMilliseconds = _serverTimeoutInMilliseconds;
     _connection!.keepAliveIntervalInMilliseconds =
         _keepAliveIntervalInMilliseconds;
 
+    configure();
     await _connection!.start();
   }
 
   Future<void> disconnect() async {
-    if (_connection == null) return;
+    final connection = _connection;
+    if (connection == null) return;
+    _connection = null;
 
     try {
-      await _connection!.stop();
+      await connection.stop();
     } catch (_) {}
-
-    _connection = null;
   }
 
   Future<void> invoke(String methodName, {List<Object>? args}) async {
@@ -102,7 +82,10 @@ class SignalRService {
   }
 
   void onClose(void Function({Exception? error}) handler) {
-    _connection?.onclose(handler);
+    final connection = _connection;
+    connection?.onclose(({error}) {
+      if (identical(_connection, connection)) handler(error: error);
+    });
   }
 
   void onReconnecting(void Function({Exception? error}) handler) {

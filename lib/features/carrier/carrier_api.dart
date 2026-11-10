@@ -27,25 +27,10 @@ class CarrierApi {
     return List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
   }
 
-  static Future<bool> _refresh(SharedPreferences prefs) async {
-    final refresh = prefs.getString('refreshToken');
-    if (refresh == null || refresh.isEmpty) return false;
-    final res = await ApiService.refreshToken(refreshToken: refresh);
-    if (res.statusCode != 200) return false;
-    final data = jsonDecode(res.body);
-    final access = data['accessToken'] ?? data['data']?['accessToken'];
-    final newRefresh = data['refreshToken'] ?? data['data']?['refreshToken'];
-    if (access == null || newRefresh == null) return false;
-    await prefs.setString('accessToken', access as String);
-    await prefs.setString('refreshToken', newRefresh as String);
-    return true;
-  }
-
   static Future<dynamic> _call(String method, String path, {Object? body, bool auth = false, String? idempotencyKey}) async {
     final prefs = await SharedPreferences.getInstance();
-    Future<http.Response> send() {
+    Future<http.Response> send(String? token) {
       final req = http.Request(method, Uri.parse('$base$path'))..headers['Accept'] = 'application/json';
-      final token = prefs.getString('accessToken');
       if (auth && token != null && token.isNotEmpty) req.headers['Authorization'] = 'Bearer $token';
       if (idempotencyKey != null) req.headers['Idempotency-Key'] = idempotencyKey;
       if (body != null) {
@@ -57,8 +42,12 @@ class CarrierApi {
 
     http.Response r;
     try {
-      r = await send();
-      if (auth && r.statusCode == 401 && await _refresh(prefs)) r = await send();
+      final token = prefs.getString('accessToken');
+      r = await send(token);
+      if (auth && r.statusCode == 401 && token != null) {
+        final renewedAccess = await ApiService.refreshRejectedAccessToken(token);
+        if (renewedAccess != null) r = await send(renewedAccess);
+      }
     } catch (_) {
       throw CarrierApiException('Không kết nối được máy chủ. Kiểm tra mạng và thử lại.');
     }

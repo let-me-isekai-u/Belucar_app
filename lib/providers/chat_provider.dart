@@ -1,15 +1,14 @@
-import 'package:flutter/foundation.dart';
 import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
 import '../services/chat_to_order_api_service.dart';
 import '../services/signalr_service.dart';
+import '../services/chat_session.dart';
 
 class ChatProvider extends ChangeNotifier {
-  static const String _chatHubUrl = 'https://belucar.com/hubs/chat';
   static const String _joinConversationMethod = 'JoinConversation';
   static const String _newMessageEventName = 'chat.message.created';
-  static const String _conversationChangedEventName =
-      'chat.conversation.changed';
 
   int? _conversationId;
   List<MessageModel> _messages = [];
@@ -29,8 +28,6 @@ class ChatProvider extends ChangeNotifier {
   String? _error;
 
   final SignalRService _signalRService = SignalRService();
-  bool _hasRegisteredRealtimeListeners = false;
-  bool _hasRegisteredConnectionLifecycleListeners = false;
 
   int? get conversationId => _conversationId;
   List<MessageModel> get messages => List.unmodifiable(_messages);
@@ -50,11 +47,11 @@ class ChatProvider extends ChangeNotifier {
 
   bool get isBusy =>
       _isInitializing ||
-          _isLoadingMessages ||
-          _isLoadingOlderMessages ||
-          _isSending ||
-          _isMarkingRead ||
-          _isRealtimeConnecting;
+      _isLoadingMessages ||
+      _isLoadingOlderMessages ||
+      _isSending ||
+      _isMarkingRead ||
+      _isRealtimeConnecting;
 
   String? get error => _error;
 
@@ -68,18 +65,14 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> initChat({
-    required String accessToken,
-    bool autoMarkRead = true,
-    int take = 30,
-  }) async {
+  Future<void> initChat({bool autoMarkRead = true, int take = 30}) async {
     _log('initChat start');
     _isInitializing = true;
     _error = null;
     safeNotify();
 
     try {
-      final convId = await ensureConversation(accessToken: accessToken);
+      final convId = await ensureConversation();
 
       if (convId == null) {
         _error = 'Không mở được cuộc trò chuyện.';
@@ -90,21 +83,24 @@ class ChatProvider extends ChangeNotifier {
       }
 
       final page = await ChatApiService.getMessages(
-        accessToken: accessToken,
         conversationId: convId,
         take: take,
       );
 
-      _messages = page.items;
-      _hasMoreMessages = page.hasMore;
-      _nextBeforeMessageId = page.nextBeforeMessageId;
+      if (_messages.isEmpty) {
+        _hasMoreMessages = page.hasMore;
+        _nextBeforeMessageId = page.nextBeforeMessageId;
+      }
+      mergeMessages(page.items);
 
       _isInitializing = false;
-      _log('initChat done: conversationId=$convId, messages=${_messages.length}');
+      _log(
+        'initChat done: conversationId=$convId, messages=${_messages.length}',
+      );
       safeNotify();
 
       if (autoMarkRead && _messages.isNotEmpty) {
-        await markAsRead(accessToken: accessToken, silent: true);
+        await markAsRead(silent: true);
       }
     } catch (e) {
       _error = 'Đã có lỗi xảy ra, vui lòng thử lại.';
@@ -114,9 +110,8 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<int?> ensureConversation({
-    required String accessToken,
-  }) async {
+  Future<int?> ensureConversation() async {
+    if (_isDisposed) return null;
     if (_conversationId != null) {
       _log('ensureConversation reuse: $_conversationId');
       return _conversationId;
@@ -124,9 +119,7 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       _log('ensureConversation opening...');
-      final convId = await ChatApiService.conversationOpen(
-        accessToken: accessToken,
-      );
+      final convId = await ChatApiService.conversationOpen();
 
       if (convId != null) {
         _conversationId = convId;
@@ -143,11 +136,7 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadMessages({
-    required String accessToken,
-    bool autoMarkRead = false,
-    int take = 30,
-  }) async {
+  Future<void> loadMessages({bool autoMarkRead = false, int take = 30}) async {
     if (_conversationId == null) {
       _error = 'Chưa có conversationId.';
       _log('loadMessages skipped: no conversationId');
@@ -161,21 +150,22 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final page = await ChatApiService.getMessages(
-        accessToken: accessToken,
         conversationId: _conversationId!,
         take: take,
       );
 
-      _messages = page.items;
-      _hasMoreMessages = page.hasMore;
-      _nextBeforeMessageId = page.nextBeforeMessageId;
+      if (_messages.isEmpty) {
+        _hasMoreMessages = page.hasMore;
+        _nextBeforeMessageId = page.nextBeforeMessageId;
+      }
+      mergeMessages(page.items);
 
       _isLoadingMessages = false;
       _log('loadMessages done: messages=${_messages.length}');
       safeNotify();
 
       if (autoMarkRead && _messages.isNotEmpty) {
-        await markAsRead(accessToken: accessToken, silent: true);
+        await markAsRead(silent: true);
       }
     } catch (e) {
       _error = 'Không thể tải tin nhắn.';
@@ -185,10 +175,7 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadOlderMessages({
-    required String accessToken,
-    int take = 30,
-  }) async {
+  Future<void> loadOlderMessages({int take = 30}) async {
     if (_conversationId == null) return;
     if (_isLoadingOlderMessages) return;
     if (!_hasMoreMessages) return;
@@ -200,22 +187,24 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final page = await ChatApiService.getMessages(
-        accessToken: accessToken,
         conversationId: _conversationId!,
         beforeMessageId: _nextBeforeMessageId,
         take: take,
       );
 
       final oldIds = _messages.map((e) => e.id).toSet();
-      final olderItems =
-      page.items.where((e) => !oldIds.contains(e.id)).toList();
+      final olderItems = page.items
+          .where((e) => !oldIds.contains(e.id))
+          .toList();
 
       _messages = [...olderItems, ..._messages];
       _hasMoreMessages = page.hasMore;
       _nextBeforeMessageId = page.nextBeforeMessageId;
 
       _isLoadingOlderMessages = false;
-      _log('loadOlderMessages done: added=${olderItems.length}, total=${_messages.length}');
+      _log(
+        'loadOlderMessages done: added=${olderItems.length}, total=${_messages.length}',
+      );
       safeNotify();
     } catch (e) {
       _error = 'Không thể tải thêm tin nhắn cũ.';
@@ -225,224 +214,91 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> connectRealtime({
-    required String accessToken,
-  }) async {
-    final convId = await ensureConversation(accessToken: accessToken);
-    if (convId == null) {
-      _log('connectRealtime aborted: conversationId is null');
-      return;
-    }
-
-    if (_isRealtimeConnected || _isRealtimeConnecting) {
-      _log(
-        'connectRealtime skipped: connected=$_isRealtimeConnected, connecting=$_isRealtimeConnecting',
-      );
-      return;
-    }
+  Future<void> connectRealtime() async {
+    if (_isDisposed || _isRealtimeConnected || _isRealtimeConnecting) return;
 
     _isRealtimeConnecting = true;
     safeNotify();
-
     try {
-      _log('SignalR connecting to $_chatHubUrl ...');
+      final convId = await ensureConversation();
+      if (_isDisposed || convId == null) return;
+
       await _signalRService.connect(
-        hubUrl: _chatHubUrl,
-        accessToken: accessToken,
+        hubUrl: ChatApiService.chatHubUrl,
+        accessTokenFactory: ChatSession.accessToken,
+        configure: () {
+          _signalRService.on(_newMessageEventName, _onRealtimeMessage);
+          _signalRService.onReconnecting(({error}) {
+            _isRealtimeConnected = false;
+            _isRealtimeConnecting = true;
+            safeNotify();
+          });
+          _signalRService.onReconnected(({connectionId}) async {
+            await _joinAndSync(convId);
+          });
+          _signalRService.onClose(({error}) {
+            _isRealtimeConnected = false;
+            _isRealtimeConnecting = false;
+            safeNotify();
+            Future<void>.delayed(const Duration(seconds: 1), connectRealtime);
+          });
+        },
       );
-      _log(
-        'SignalR connected. state=${_signalRService.state}, connectionId=${_signalRService.connectionId}',
-      );
-
-      if (!_hasRegisteredConnectionLifecycleListeners) {
-        _log('Registering SignalR lifecycle listeners...');
-        _registerConnectionLifecycleListeners(accessToken);
-        _hasRegisteredConnectionLifecycleListeners = true;
-        _log('SignalR lifecycle listeners registered');
-      }
-
-      if (!_hasRegisteredRealtimeListeners) {
-        _log('Registering SignalR listeners...');
-        _registerRealtimeListeners(accessToken);
-        _hasRegisteredRealtimeListeners = true;
-        _log('SignalR listeners registered');
-      }
-
-      _log('Invoking $_joinConversationMethod with conversationId=$convId');
-      await _signalRService.invoke(
-        _joinConversationMethod,
-        args: [convId],
-      );
-      _log('JoinConversation success for conversationId=$convId');
-
-      _isRealtimeConnected = true;
+      await _joinAndSync(convId);
+    } catch (error) {
+      _log('connectRealtime failed: ${error.runtimeType}');
+    } finally {
       _isRealtimeConnecting = false;
-      safeNotify();
-    } catch (e) {
-      _isRealtimeConnected = false;
-      _isRealtimeConnecting = false;
-      _log('connectRealtime error: $e');
       safeNotify();
     }
   }
 
-  void _registerConnectionLifecycleListeners(String accessToken) {
-    _signalRService.onReconnecting(({error}) {
-      _log('SignalR reconnecting... error=$error');
+  Future<void> _joinAndSync(int conversationId) async {
+    if (_isDisposed) return;
+    try {
+      await _signalRService.invoke(
+        _joinConversationMethod,
+        args: [conversationId],
+      );
+      if (_isDisposed) return;
+      _isRealtimeConnected = true;
+      await loadMessages(autoMarkRead: true);
+    } catch (error) {
       _isRealtimeConnected = false;
-      _isRealtimeConnecting = true;
-      safeNotify();
-    });
-
-    _signalRService.onReconnected(({connectionId}) async {
-      _log('SignalR reconnected. connectionId=$connectionId');
-
-      if (_isDisposed || _conversationId == null) {
-        _log('Skip rejoin after reconnect because provider disposed or conversation missing');
-        return;
-      }
-
-      try {
-        await _signalRService.invoke(
-          _joinConversationMethod,
-          args: [_conversationId!],
-        );
-        _log('Rejoined conversationId=$_conversationId after reconnect');
-
-        _isRealtimeConnected = true;
-        _isRealtimeConnecting = false;
-        safeNotify();
-
-        await loadMessages(
-          accessToken: accessToken,
-          autoMarkRead: false,
-        );
-      } catch (e) {
-        _isRealtimeConnected = false;
-        _isRealtimeConnecting = false;
-        _log('Rejoin after reconnect error: $e');
-        safeNotify();
-      }
-    });
-
-    _signalRService.onClose(({error}) {
-      _log('SignalR closed. error=$error');
-      _isRealtimeConnected = false;
+      _log('JoinConversation failed: ${error.runtimeType}');
+    } finally {
       _isRealtimeConnecting = false;
       safeNotify();
-    });
+    }
   }
 
-  void _registerRealtimeListeners(String accessToken) {
-    _signalRService.off(_newMessageEventName);
-    _signalRService.off(_conversationChangedEventName);
-
-    _signalRService.on(_newMessageEventName, (arguments) async {
-      _log('EVENT $_newMessageEventName received: $arguments');
-
-      if (_isDisposed) {
-        _log('Ignore $_newMessageEventName because provider disposed');
+  Future<void> _onRealtimeMessage(List<Object?>? arguments) async {
+    if (_isDisposed || arguments == null || arguments.isEmpty) return;
+    try {
+      final raw = arguments.first;
+      final data = raw is String ? jsonDecode(raw) : raw;
+      if (data is! Map) return;
+      final message = MessageModel.fromJson(Map<String, dynamic>.from(data));
+      if (message.id <= 0 ||
+          message.conversationId != _conversationId ||
+          _messages.any((item) => item.id == message.id))
         return;
-      }
-      if (arguments == null || arguments.isEmpty) {
-        _log('Ignore $_newMessageEventName because arguments empty');
-        return;
-      }
-
-      try {
-        final raw = arguments.first;
-        _log('Raw event payload type=${raw.runtimeType}');
-
-        if (raw is Map) {
-          final message = MessageModel.fromJson(
-            Map<String, dynamic>.from(raw),
-          );
-
-          _log(
-            'Parsed message: id=${message.id}, conversationId=${message.conversationId}',
-          );
-
-          addIncomingMessage(message);
-
-          if (message.conversationId == _conversationId) {
-            await markAsRead(
-              accessToken: accessToken,
-              silent: true,
-            );
-          }
-        } else if (raw is String) {
-          final decoded = jsonDecode(raw);
-          if (decoded is! Map) {
-            _log('Unsupported string payload for $_newMessageEventName: ${decoded.runtimeType}');
-            return;
-          }
-
-          final message = MessageModel.fromJson(
-            Map<String, dynamic>.from(decoded),
-          );
-
-          _log(
-            'Parsed string message: id=${message.id}, conversationId=${message.conversationId}',
-          );
-
-          addIncomingMessage(message);
-
-          if (message.conversationId == _conversationId) {
-            await markAsRead(
-              accessToken: accessToken,
-              silent: true,
-            );
-          }
-        } else {
-          _log('Unsupported payload for $_newMessageEventName: ${raw.runtimeType}');
-        }
-      } catch (e) {
-        _log('Parse $_newMessageEventName error: $e');
-      }
-    });
-
-    _signalRService.on(_conversationChangedEventName, (arguments) async {
-      _log('EVENT $_conversationChangedEventName received: $arguments');
-
-      if (_isDisposed) {
-        _log('Ignore $_conversationChangedEventName because provider disposed');
-        return;
-      }
-      if (_conversationId == null) {
-        _log('Ignore $_conversationChangedEventName because no conversationId');
-        return;
-      }
-
-      await loadMessages(
-        accessToken: accessToken,
-        autoMarkRead: false,
-      );
-    });
+      addIncomingMessage(message);
+      await markAsRead(silent: true);
+    } catch (error) {
+      _log('Invalid chat event: ${error.runtimeType}');
+    }
   }
 
   Future<void> disconnectRealtime() async {
-    _log('disconnectRealtime start');
-
-    try {
-      _signalRService.off(_newMessageEventName);
-      _signalRService.off(_conversationChangedEventName);
-      await _signalRService.disconnect();
-    } catch (e) {
-      _log('disconnectRealtime error: $e');
-    }
-
-    _hasRegisteredRealtimeListeners = false;
-    _hasRegisteredConnectionLifecycleListeners = false;
+    _signalRService.off(_newMessageEventName);
+    await _signalRService.disconnect();
     _isRealtimeConnected = false;
     _isRealtimeConnecting = false;
-    _log('disconnectRealtime done');
     safeNotify();
   }
 
-  Future<bool> sendMessage({
-    required String accessToken,
-    required String content,
-  }) async {
+  Future<bool> sendMessage({required String content}) async {
     final trimmed = content.trim();
 
     if (trimmed.isEmpty) {
@@ -451,7 +307,7 @@ class ChatProvider extends ChangeNotifier {
       return false;
     }
 
-    final convId = await ensureConversation(accessToken: accessToken);
+    final convId = await ensureConversation();
     if (convId == null) {
       _error = 'Không tạo được cuộc trò chuyện.';
       safeNotify();
@@ -464,7 +320,6 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final sent = await ChatApiService.sendMessage(
-        accessToken: accessToken,
         conversationId: convId,
         content: trimmed,
       );
@@ -495,10 +350,7 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> markAsRead({
-    required String accessToken,
-    bool silent = false,
-  }) async {
+  Future<bool> markAsRead({bool silent = false}) async {
     if (_conversationId == null) return false;
 
     if (!silent) {
@@ -509,7 +361,6 @@ class ChatProvider extends ChangeNotifier {
 
     try {
       final ok = await ChatApiService.markAsRead(
-        accessToken: accessToken,
         conversationId: _conversationId!,
       );
 
@@ -534,9 +385,7 @@ class ChatProvider extends ChangeNotifier {
 
   void addIncomingMessage(MessageModel message) {
     if (_conversationId != null && message.conversationId != _conversationId) {
-      _log(
-        'Skip incoming message id=${message.id} because conversation mismatch: ${message.conversationId} != $_conversationId',
-      );
+      _log('Ignore message from another conversation');
       return;
     }
 
@@ -546,8 +395,10 @@ class ChatProvider extends ChangeNotifier {
       return;
     }
 
-    _messages = [..._messages, message];
-    _log('Incoming message appended: id=${message.id}, total=${_messages.length}');
+    _messages = [..._messages, message]..sort((a, b) => a.id.compareTo(b.id));
+    _log(
+      'Incoming message appended: id=${message.id}, total=${_messages.length}',
+    );
     safeNotify();
   }
 
@@ -562,8 +413,7 @@ class ChatProvider extends ChangeNotifier {
       map[msg.id] = msg;
     }
 
-    final merged = map.values.toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
+    final merged = map.values.toList()..sort((a, b) => a.id.compareTo(b.id));
 
     _messages = merged;
     safeNotify();

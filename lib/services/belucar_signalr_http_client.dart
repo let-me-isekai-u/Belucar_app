@@ -1,130 +1,73 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:http/http.dart';
-import 'package:logging/logging.dart';
-import 'package:signalr_netcore/signalr_client.dart';
 import 'package:signalr_netcore/errors.dart';
-import 'package:signalr_netcore/ihub_protocol.dart';
+import 'package:signalr_netcore/signalr_client.dart';
 
 class BeluCarSignalRHttpClient extends SignalRHttpClient {
-  final Logger? _logger;
-
-  BeluCarSignalRHttpClient(this._logger);
+  Future<void>? _handshakePost;
 
   @override
-  Future<SignalRHttpResponse> send(SignalRHttpRequest request) {
-    if ((request.abortSignal != null) && request.abortSignal!.aborted!) {
-      return Future.error(AbortError());
-    }
+  Future<SignalRHttpResponse> send(SignalRHttpRequest request) async {
+    final abortSignal = request.abortSignal;
+    if (abortSignal?.aborted == true) throw AbortError();
 
-    if ((request.method == null) || request.method!.isEmpty) {
-      return Future.error(ArgumentError('No method defined.'));
-    }
+    final client = Client();
+    final aborted = Completer<Response>();
+    abortSignal?.onabort = () {
+      if (!aborted.isCompleted) aborted.completeError(AbortError());
+    };
 
-    if ((request.url == null) || request.url!.isEmpty) {
-      return Future.error(ArgumentError('No url defined.'));
-    }
-
-    return Future<SignalRHttpResponse>(() async {
-      final uri = Uri.parse(request.url!);
-      final httpClient = Client();
-
-      final abortFuture = Future<void>(() {
-        final completer = Completer<void>();
-        if (request.abortSignal != null) {
-          request.abortSignal!.onabort = () {
-            if (!completer.isCompleted) {
-              completer.completeError(AbortError());
-            }
-          };
-        }
-        return completer.future;
+    try {
+      final outgoing = Request(request.method!, Uri.parse(request.url!));
+      final content = request.content;
+      final handshake = outgoing.method == 'POST' &&
+              content is String &&
+              content.startsWith('{"protocol":')
+          ? Completer<void>()
+          : null;
+      if (handshake != null) _handshakePost = handshake.future;
+      outgoing.headers.addAll({
+        'X-Requested-With': 'FlutterHttpClient',
+        'content-type': 'text/plain; charset=utf-8',
+        ...?request.headers?.asMap,
       });
+      if (content is String) outgoing.body = content;
 
-      final requestContent = request.content;
-      final requestText = requestContent?.toString() ?? '';
-      final isJson =
-          requestContent is String && requestContent.trimLeft().startsWith('{');
-
-      final headers = MessageHeaders();
-      headers.setHeaderValue('X-Requested-With', 'FlutterHttpClient');
-      headers.setHeaderValue(
-        'content-type',
-        isJson ? 'application/json;charset=UTF-8' : 'text/plain;charset=UTF-8',
-      );
-      headers.addMessageHeaders(request.headers);
-
-      _logger?.finest(
-        "HTTP send: url '${request.url}', method: '${request.method}' content: '$requestText' content length = '${requestText.length}' headers: '$headers'",
-      );
-
-      final httpRespFuture = await Future.any(
-        [_sendHttpRequest(httpClient, request, uri, headers), abortFuture],
-      );
-      final httpResp = httpRespFuture as Response;
-
-      if (request.abortSignal != null) {
-        request.abortSignal!.onabort = null;
-      }
-
-      if (httpResp.statusCode >= 200 && httpResp.statusCode < 300) {
-        final contentTypeHeader = httpResp.headers['content-type'];
-        final isJsonContent = contentTypeHeader == null ||
-            contentTypeHeader.startsWith('application/json');
-
-        final content = httpResp.body;
-        if (!isJsonContent && uri.queryParameters['id'] == null) {
-          throw ArgumentError(
-            'Response Content-Type not supported: $contentTypeHeader',
-          );
-        }
-
-        return SignalRHttpResponse(
-          httpResp.statusCode,
-          statusText: httpResp.reasonPhrase,
-          content: content,
+      var pending = Future.any([
+        client.send(outgoing).then(Response.fromStream),
+        aborted.future,
+      ]);
+      final timeout = request.timeout;
+      if (timeout != null && timeout > 0) {
+        pending = pending.timeout(
+          Duration(milliseconds: timeout),
+          onTimeout: () => throw TimeoutError(),
         );
       }
-
-      throw HttpError(httpResp.reasonPhrase, httpResp.statusCode);
-    });
-  }
-
-  Future<Response> _sendHttpRequest(
-    Client httpClient,
-    SignalRHttpRequest request,
-    Uri uri,
-    MessageHeaders headers,
-  ) {
-    Future<Response> httpResponse;
-
-    switch (request.method!.toLowerCase()) {
-      case 'post':
-        httpResponse =
-            httpClient.post(uri, body: request.content, headers: headers.asMap);
-        break;
-      case 'put':
-        httpResponse =
-            httpClient.put(uri, body: request.content, headers: headers.asMap);
-        break;
-      case 'delete':
-        httpResponse = httpClient.delete(
-          uri,
-          body: request.content,
-          headers: headers.asMap,
-        );
-        break;
-      case 'get':
-      default:
-        httpResponse = httpClient.get(uri, headers: headers.asMap);
+      final Response response;
+      try {
+        response = await pending;
+      } finally {
+        // The SDK starts waiting for the handshake after its POST completes.
+        // Deliver a parallel poll's handshake frame after that continuation.
+        if (handshake != null) Timer.run(handshake.complete);
+      }
+      if (outgoing.method == 'GET' && response.bodyBytes.isNotEmpty) {
+        await _handshakePost;
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw HttpError(response.reasonPhrase, response.statusCode);
+      }
+      return SignalRHttpResponse(
+        response.statusCode,
+        statusText: response.reasonPhrase,
+        content: utf8.decode(response.bodyBytes),
+      );
+    } finally {
+      abortSignal?.onabort = null;
+      client.close();
     }
-
-    final hasTimeout = (request.timeout != null) && (request.timeout! > 0);
-    if (hasTimeout) {
-      httpResponse =
-          httpResponse.timeout(Duration(milliseconds: request.timeout!));
-    }
-
-    return httpResponse;
   }
 }

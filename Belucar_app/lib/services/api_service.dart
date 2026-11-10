@@ -2,6 +2,7 @@
 ///https://docs.google.com/document/d/1MD5Tx42I-CpFgTNwrrwUhB8FsdQFhiiqAN_Xy0kUfAc/edit?tab=t.d9q2g56xpd8j
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config/api_config.dart';
 
 class ApiService {
   static dynamic safeDecode(String? body) {
@@ -20,7 +21,7 @@ class ApiService {
   // BASE URL CHUẨN
   // -----------------------------------------------------------
   static const String _baseUrl =
-      "https://belucar.belugaexpress.com/api/accountcustomerapi";
+      "$apiOrigin/api/accountcustomerapi";
 
   // Default headers
   static Map<String, String> _defaultHeaders() => {
@@ -278,7 +279,7 @@ class ApiService {
     required String oldPassword,
     required String newPassword,
   }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/accountcustomerapi/change-password");
+    final url = Uri.parse("$_baseUrl/change-password");
 
     print("🔵 [API] CALL CHANGE PASSWORD → $url");
     print("📌 oldPassword: $oldPassword");
@@ -316,7 +317,7 @@ class ApiService {
 // =============================
   static Future<List<dynamic>> getProvinces() async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/provinceapi/active",
+      "$apiOrigin/api/provinceapi/active",
     );
 
     try {
@@ -347,7 +348,7 @@ class ApiService {
     required String pickupTime,
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/tripapi/getprice",
+      "$apiOrigin/api/tripapi/getprice",
     ).replace(queryParameters: {
       "fromProvinceId": fromProvinceId.toString(),
       "toProvinceId": toProvinceId.toString(),
@@ -386,7 +387,7 @@ class ApiService {
     String content = "", // Để mặc định là rỗng nếu không truyền
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/rideapi/create",
+      "$apiOrigin/api/rideapi/create",
     );
 
     // --- LỖI TẠI ĐÂY TRƯỚC ĐÓ: Bạn không được khai báo 'String content = ""' bên trong Map ---
@@ -432,7 +433,7 @@ class ApiService {
       "Authorization": "Bearer $accessToken",
     };
     return await http.get(
-        Uri.parse("https://belucar.belugaexpress.com/api/rideapi/current"),
+        Uri.parse("$apiOrigin/api/rideapi/current"),
         headers: headers);
   }
 
@@ -445,7 +446,7 @@ class ApiService {
       "Authorization": "Bearer $accessToken",
     };
     return await http.get(
-        Uri.parse("https://belucar.belugaexpress.com/api/rideapi/history"),
+        Uri.parse("$apiOrigin/api/rideapi/history"),
         headers: headers);
   }
 
@@ -455,7 +456,7 @@ class ApiService {
     required int rideId,
   }) async {
     final uri = Uri.parse(
-      'https://belucar.belugaexpress.com/api/rideapi/ride-detail/$rideId',
+      '$apiOrigin/api/rideapi/ride-detail/$rideId',
     );
 
     try {
@@ -495,7 +496,7 @@ class ApiService {
     required String accessToken,
     required int rideId,
 }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/rideapi/cancel/$rideId",);
+    final url = Uri.parse("$apiOrigin/api/rideapi/cancel/$rideId",);
     final headers = {
       "Authorization": "Bearer $accessToken",
     };
@@ -510,7 +511,7 @@ class ApiService {
     required String accessToken,
     required int rideId,
   }) async {
-    final url = Uri.parse("https://belucar.belugaexpress.com/api/rideapi/cancel-confirmed/$rideId",);
+    final url = Uri.parse("$apiOrigin/api/rideapi/cancel-confirmed/$rideId",);
     final headers = {
       "Authorization": "Bearer $accessToken",
     };
@@ -528,7 +529,7 @@ class ApiService {
     required String content,
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/paymentapi/deposite",
+      "$apiOrigin/api/paymentapi/deposite",
     );
 
     try {
@@ -563,7 +564,7 @@ class ApiService {
     required String accessToken,
   }) async {
     final url = Uri.parse(
-      "https://belucar.belugaexpress.com/api/paymentapi/history",
+      "$apiOrigin/api/paymentapi/history",
     );
 
     print("🔵 [API] WALLET HISTORY → $url");

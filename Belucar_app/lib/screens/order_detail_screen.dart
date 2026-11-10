@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart';
 import '../models/trip_detail_model.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -11,8 +12,6 @@ class OrderDetailScreen extends StatelessWidget {
     super.key,
     required this.rideId,
   });
-
-  static const String _baseUrl = "https://belucar.belugaexpress.com";
 
   Future<String?> _getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -63,7 +62,7 @@ class OrderDetailScreen extends StatelessWidget {
   String? _buildAvatarUrl(String? avatar) {
     if (avatar == null || avatar.isEmpty) return null;
     if (avatar.startsWith('http')) return avatar;
-    return '$_baseUrl$avatar';
+    return Uri.parse(apiOrigin).resolve(avatar).toString();
   }
 
   @override

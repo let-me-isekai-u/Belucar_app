@@ -794,6 +794,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Future<void> _handleCreateRide(BookingModel model) async {
+    if (_isCalculatingPrice || _isCreatingRide || model.isLoadingPrice) return;
     dismissBookingKeyboard();
 
     if (!_validate(model)) return;
@@ -1113,7 +1114,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _isCalculatingPrice || _isCreatingRide
+                    onPressed: _isCalculatingPrice || _isCreatingRide || model.isLoadingPrice
                         ? null
                         : () => _handleCreateRide(model),
                     style: ElevatedButton.styleFrom(

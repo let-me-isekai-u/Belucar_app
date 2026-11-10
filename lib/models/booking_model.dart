@@ -715,17 +715,19 @@ class BookingModel extends ChangeNotifier {
         );
 
         final parsed = ResolveRoutePreviewResponse.fromRawJson(response.body);
+        final quote = parsed.data;
         if (response.statusCode >= 200 &&
             response.statusCode < 300 &&
             parsed.success &&
-            parsed.data != null) {
-          routePreview = parsed.data;
-          currentTripId = parsed.data!.tripId;
-          basePrice = parsed.data!.basePrice.toDouble();
-          discount = parsed.data!.discount.toDouble();
-          surcharge = parsed.data!.surcharge.toDouble();
-          tripPrice = parsed.data!.finalPrice.toDouble();
-          isHoliday = parsed.data!.isHoliday;
+            quote != null &&
+            quote.tripId > 0) {
+          routePreview = quote;
+          currentTripId = quote.tripId;
+          basePrice = quote.basePrice.toDouble();
+          discount = quote.discount.toDouble();
+          surcharge = quote.surcharge.toDouble();
+          tripPrice = quote.finalPrice.toDouble();
+          isHoliday = quote.isHoliday;
           priceErrorMessage = null;
         } else {
           routePreview = null;
@@ -787,8 +789,14 @@ class BookingModel extends ChangeNotifier {
       throw Exception(routeValidationMessage);
     }
 
+    final tripId = currentTripId;
+    if (tripId == null || tripId <= 0 || isLoadingPrice) {
+      throw 'Chưa có bảng giá cho chuyến này. Vui lòng tính giá lại.';
+    }
+
     final response = await ApiService.createRide(
       accessToken: accessToken,
+      tripId: tripId,
       from: selectedPickupPoint!,
       to: selectedDropPoint!,
       type: _selectedRideType,
@@ -800,12 +808,30 @@ class BookingModel extends ChangeNotifier {
       content: content,
     );
 
-    final data = ApiService.safeDecode(response.body);
-    if (response.statusCode != 200 || data['success'] == false) {
-      throw data['message'] ?? 'Lỗi không xác định khi tạo chuyến';
+    final status = response.statusCode;
+    if (status == 401) {
+      throw 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đặt xe.';
     }
-
-    return Map<String, dynamic>.from(data);
+    if (status >= 500) {
+      throw 'Chưa xác nhận được kết quả (HTTP $status). '
+          'Vui lòng kiểm tra Hoạt động trước khi đặt lại.';
+    }
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException {
+      throw 'Máy chủ trả phản hồi không hợp lệ (HTTP $status). '
+          'Vui lòng kiểm tra Hoạt động trước khi đặt lại.';
+    }
+    if (status == 200 &&
+        decoded is Map<String, dynamic> &&
+        decoded['success'] == true) {
+      return decoded;
+    }
+    final message = decoded is Map ? decoded['message'] ?? decoded['title'] : null;
+    throw message is String && message.isNotEmpty
+        ? message
+        : 'Không thể tạo chuyến (HTTP $status).';
   }
 
   void resetForm() {
