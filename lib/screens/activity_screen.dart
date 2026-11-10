@@ -28,6 +28,8 @@ class ActivityScreenState extends State<ActivityScreen>
   late Future<List<TripItemModel>> _historyFuture;
 
   bool _isHistoryLoaded = false;
+  final Set<int> _cancellingRides = {};
+  final Map<(int, bool), String> _cancellationKeys = {};
 
   // ✅ NEW: Expose a method for parent (BottomNav) to force refresh after booking
   void refreshOngoing() {
@@ -134,43 +136,43 @@ class ActivityScreenState extends State<ActivityScreen>
     return [];
   }
 
-  Future<void> _callCancelTrip(int rideId) async {
-    final token = await _getAccessToken();
-    if (token == null) return;
+  Future<void> _cancelTrip(int rideId, {required bool confirmed}) async {
+    if (_cancellingRides.contains(rideId)) return;
+    setState(() => _cancellingRides.add(rideId));
 
+    final request = (rideId, confirmed);
     try {
-      await ApiService.cancelTrip(accessToken: token, rideId: rideId);
-      _onActionSuccess("Huỷ chuyến thành công");
-    } catch (e) {
-      _showErrorSnackBar(e.toString());
-    }
-  }
-
-  Future<void> _callConfirmCancelTrip(int rideId) async {
-    final token = await _getAccessToken();
-    if (token == null) return;
-
-    try {
-      await ApiService.confirmCancelTrip(accessToken: token, rideId: rideId);
-      _onActionSuccess("Huỷ chuyến thành công");
-    } catch (e) {
-      _showErrorSnackBar(e.toString());
-    }
-  }
-
-  void _onActionSuccess(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-    setState(() {
-      _ongoingFuture = _fetchOngoingTrips();
-      if (_isHistoryLoaded) {
-        _historyFuture = _fetchHistoryTrips();
+      final token = await _getAccessToken();
+      if (!mounted) return;
+      if (token == null || token.isEmpty) {
+        _showCancellationMessage('Vui lòng đăng nhập lại để hủy chuyến.');
+        return;
       }
-    });
+      final key = _cancellationKeys.putIfAbsent(
+        request,
+        ApiService.newIdempotencyKey,
+      );
+      await ApiService.cancelTrip(
+        accessToken: token,
+        rideId: rideId,
+        idempotencyKey: key,
+        confirmed: confirmed,
+      );
+      _cancellationKeys.remove(request);
+      if (!mounted) return;
+      _showCancellationMessage('Huỷ chuyến thành công');
+      refreshOngoing();
+    } on RideCancellationException catch (error) {
+      if (error.wasRejected) _cancellationKeys.remove(request);
+      if (!mounted) return;
+      _showCancellationMessage(error.message);
+      if (error.wasRejected) refreshOngoing();
+    } finally {
+      if (mounted) setState(() => _cancellingRides.remove(rideId));
+    }
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showCancellationMessage(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
@@ -201,11 +203,7 @@ class ActivityScreenState extends State<ActivityScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              if (isConfirmCancel) {
-                _callConfirmCancelTrip(rideId);
-              } else {
-                _callCancelTrip(rideId);
-              }
+              _cancelTrip(rideId, confirmed: isConfirmCancel);
             },
             child: const Text(
               "Huỷ chuyến",
@@ -554,10 +552,12 @@ class ActivityScreenState extends State<ActivityScreen>
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  onPressed: () => _showCancelTripDialog(
-                    rideId: trip.rideId,
-                    isConfirmCancel: trip.status == 2,
-                  ),
+                  onPressed: _cancellingRides.contains(trip.rideId)
+                      ? null
+                      : () => _showCancelTripDialog(
+                          rideId: trip.rideId,
+                          isConfirmCancel: trip.status == 2,
+                        ),
                   icon: const Icon(Icons.cancel, color: Brand.danger, size: 18),
                   label: const Text(
                     "Huỷ chuyến",

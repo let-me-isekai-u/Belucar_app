@@ -1,7 +1,6 @@
 // Module Nhà xe (Xe limousine / Xe khách) — gọi /api/carrier/* bằng JWT khách hiện có.
 // Contract: docs/api/carrier-module-api.md (mục 1) của backend. Giá luôn do server tính.
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,10 +21,7 @@ class CarrierApi {
   static const String base = '$apiOrigin/api/carrier';
 
   /// Khóa chống trùng cho lệnh tạo vé: bấm lại/mạng chập chờn sẽ nhận lại đúng kết quả cũ.
-  static String newIdempotencyKey() {
-    final r = Random.secure();
-    return List.generate(16, (_) => r.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
-  }
+  static String newIdempotencyKey() => ApiService.newIdempotencyKey();
 
   static Future<dynamic> _call(String method, String path, {Object? body, bool auth = false, String? idempotencyKey}) async {
     final prefs = await SharedPreferences.getInstance();

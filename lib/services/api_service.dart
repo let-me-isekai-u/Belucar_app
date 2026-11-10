@@ -2,6 +2,7 @@
 ///https://docs.google.com/document/d/1MD5Tx42I-CpFgTNwrrwUhB8FsdQFhiiqAN_Xy0kUfAc/edit?tab=t.d9q2g56xpd8j
 ///API 21, 22 TẠM chưa dùng tới
 import 'dart:convert';
+import 'dart:math';
 import '../config/api_config.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,7 +10,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/deposit_model.dart';
 import '../models/location_models.dart';
 
+class RideCancellationException implements Exception {
+  const RideCancellationException(this.message, {this.status = 0});
+
+  final String message;
+  final int status;
+  bool get wasRejected => status >= 400 && status < 500 && status != 401 && status != 409;
+
+  @override
+  String toString() => message;
+}
+
 class ApiService {
+  static String newIdempotencyKey() {
+    final random = Random.secure();
+    return List.generate(
+      16,
+      (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+    ).join();
+  }
+
   static http.Response _jsonResponse(
     Map<String, dynamic> payload,
     int statusCode,
@@ -267,6 +287,17 @@ class ApiService {
     } catch (_) {
       return null;
     }
+  }
+
+  static Future<http.Response> _withCustomerSession(
+    String accessToken,
+    Future<http.Response> Function(String token) send,
+  ) async {
+    final response = await send(accessToken);
+    if (response.statusCode != 401) return response;
+
+    final renewedAccess = await refreshRejectedAccessToken(accessToken);
+    return renewedAccess == null ? response : await send(renewedAccess);
   }
 
   // -----------------------------------------------------------
@@ -646,12 +677,7 @@ class ApiService {
         .timeout(const Duration(seconds: 15));
 
     try {
-      final response = await send(accessToken);
-      if (response.statusCode == 401) {
-        final renewedAccess = await refreshRejectedAccessToken(accessToken);
-        if (renewedAccess != null) return await send(renewedAccess);
-      }
-      return response;
+      return await _withCustomerSession(accessToken, send);
     } catch (_) {
       return _jsonResponse({
         "success": false,
@@ -663,28 +689,19 @@ class ApiService {
   //Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 14)
   static Future<http.Response> getTripCurrent({
     required String accessToken,
-  }) async {
-    final headers = {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer $accessToken",
-    };
-    return await http.get(
-      Uri.parse("$apiOrigin/api/rideapi/current"),
-      headers: headers,
-    );
-  }
+  }) => _getTripList(accessToken, 'current');
 
   //Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 15)
   static Future<http.Response> getTripHistory({
     required String accessToken,
-  }) async {
-    final headers = {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer $accessToken",
-    };
-    return await http.get(
-      Uri.parse("$apiOrigin/api/rideapi/history"),
-      headers: headers,
+  }) => _getTripList(accessToken, 'history');
+
+  static Future<http.Response> _getTripList(String accessToken, String action) {
+    final uri = Uri.parse("$apiOrigin/api/rideapi/$action");
+    return _withCustomerSession(
+      accessToken,
+      (token) => http.get(uri, headers: _authHeaders(token))
+          .timeout(const Duration(seconds: 15)),
     );
   }
 
@@ -726,39 +743,55 @@ class ApiService {
     }
   }
 
-  //API 17: Cho phép người dùng huỷ cuốc đã đặt nhưng chưa có tài xế nhận (trạng thái 1)
   static Future<void> cancelTrip({
     required String accessToken,
     required int rideId,
+    required String idempotencyKey,
+    required bool confirmed,
   }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/rideapi/cancel/$rideId",
-    );
-    final headers = {"Authorization": "Bearer $accessToken"};
-    final response = await http.put(url, headers: headers);
+    final action = confirmed ? 'cancel-confirmed' : 'cancel';
+    final url = Uri.parse("$apiOrigin/api/rideapi/$action/$rideId");
+    const uncertain =
+        'Chưa xác nhận được kết quả hủy. Vui lòng kiểm tra Hoạt động trước khi thử lại.';
 
-    if (response.statusCode != 200) {
-      throw Exception(
-        "Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh",
+    final http.Response response;
+    try {
+      response = await _withCustomerSession(
+        accessToken,
+        (token) => http.put(url, headers: {
+          ..._authHeaders(token),
+          "Idempotency-Key": idempotencyKey,
+        }).timeout(const Duration(seconds: 20)),
+      );
+    } catch (_) {
+      throw const RideCancellationException(uncertain);
+    }
+
+    final status = response.statusCode;
+    if (status == 200) return;
+    if (status == 401) {
+      throw const RideCancellationException(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để hủy chuyến.',
+        status: 401,
       );
     }
-  }
-
-  static Future<void> confirmCancelTrip({
-    required String accessToken,
-    required int rideId,
-  }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/rideapi/cancel-confirmed/$rideId",
-    );
-    final headers = {"Authorization": "Bearer $accessToken"};
-    final response = await http.put(url, headers: headers);
-
-    if (response.statusCode != 200) {
-      throw Exception(
-        "Huỷ chuyến không thành công,thử lại sau hoặc liên hệ với cskh",
-      );
+    if (status >= 500) {
+      throw RideCancellationException(uncertain, status: status);
     }
+
+    String? message;
+    try {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body is Map && body['message'] is String) {
+        message = body['message'] as String;
+      }
+    } on FormatException {
+      // A non-JSON error still has an HTTP status.
+    }
+    throw RideCancellationException(
+      message ?? 'Không thể hủy chuyến (HTTP $status).',
+      status: status,
+    );
   }
 
   //nạp tiền vào ví
