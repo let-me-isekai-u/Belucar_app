@@ -213,7 +213,7 @@ class _HomeViewState extends State<HomeView> {
           builder: (context, setDialogState) {
             return Dialog(
               insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -237,6 +237,7 @@ class _HomeViewState extends State<HomeView> {
                     ]),
                     const SizedBox(height: 16),
                     Container(
+                      
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -245,7 +246,7 @@ class _HomeViewState extends State<HomeView> {
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(qrUrl, height: 220, width: 220, fit: BoxFit.cover),
+                        child: Image.network(qrUrl, height: 220, width: 220, fit: BoxFit.contain),
                       ),
                     ),
                     const SizedBox(height: 10),

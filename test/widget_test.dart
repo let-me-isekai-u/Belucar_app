@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 
 import 'package:belucar_app/screens/login_screen.dart';
 import 'package:belucar_app/screens/register_screen.dart';
+import 'package:belucar_app/screens/terms_screen.dart';
 
 Widget _host(Widget child) => MaterialApp(home: child);
 
@@ -52,6 +53,22 @@ void main() {
     expect(find.text('Họ và tên'), findsOneWidget);
     expect(find.text('Nhập lại mật khẩu'), findsOneWidget);
     expect(find.text('GỬI MÃ XÁC MINH'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('terms screen scrolls on a short display without overflow', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 480));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_host(const TermsScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Điều khoản BeluCar'), findsOneWidget);
+    expect(find.text('XÁC NHẬN'), findsOneWidget);
+    await tester.ensureVisible(find.text('XÁC NHẬN'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 

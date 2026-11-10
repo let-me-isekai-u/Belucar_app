@@ -49,7 +49,7 @@ Email: beluga.fintech@gmail.com
         ),
         centerTitle: true,
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
           children: [

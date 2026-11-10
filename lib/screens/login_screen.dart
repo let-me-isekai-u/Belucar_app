@@ -118,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToForgotPassword() {
-    Navigator.pushReplacement(
+    Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
     );
