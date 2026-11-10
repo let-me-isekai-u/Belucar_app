@@ -381,6 +381,13 @@ class OrderDetailScreen extends StatelessWidget {
             ),
             Divider(height: 20, color: Brand.navy.withOpacity(0.3)),
             _infoRow("Số lượng người", "${trip.quantity}", icon: Icons.people, theme: theme), // ✅ NEW
+            if (trip.customerPhone case final phone? when phone.isNotEmpty)
+              _infoRow(
+                "Số điện thoại người đi",
+                phone,
+                icon: Icons.phone_outlined,
+                theme: theme,
+              ),
             _infoRow("Ngày đón", DateFormat('dd/MM/yyyy').format(trip.pickupTime),
                 icon: Icons.calendar_today, theme: theme),
             _infoRow("Giờ đón", DateFormat('HH:mm').format(trip.pickupTime),

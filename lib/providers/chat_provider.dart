@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import '../models/message_model.dart';
+import '../services/api_service.dart';
 import '../services/chat_to_order_api_service.dart';
 import '../services/signalr_service.dart';
 import '../services/chat_session.dart';
@@ -342,7 +343,7 @@ class ChatProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      _error = 'Không thể gửi tin nhắn.';
+      _error = e is ApiResponseFailure ? e.message : 'Không thể gửi tin nhắn.';
       _isSending = false;
       _log('sendMessage error: $e');
       safeNotify();

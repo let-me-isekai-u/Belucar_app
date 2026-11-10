@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../models/message_model.dart';
 import '../models/chat_message_page.dart';
 import 'chat_session.dart';
+import 'api_service.dart';
 
 class ChatApiService {
   static const String chatHubUrl = '$apiOrigin/hubs/chat';
@@ -47,9 +48,11 @@ class ChatApiService {
         }
       }
 
-      return null;
-    } catch (e) {
-      throw Exception("Lỗi kết nối: $e");
+      throw ApiResponseFailure(ApiService.responseError(response, 'Không mở được đoạn chat.'));
+    } on ApiResponseFailure {
+      rethrow;
+    } catch (_) {
+      throw const ApiResponseFailure('Không mở được đoạn chat. Vui lòng thử lại.');
     }
   }
 
@@ -93,9 +96,11 @@ class ChatApiService {
         }
       }
 
-      throw StateError('Không thể tải tin nhắn (HTTP ${response.statusCode}).');
-    } catch (e) {
-      throw Exception("Lỗi kết nối: $e");
+      throw ApiResponseFailure(ApiService.responseError(response, 'Không thể tải tin nhắn.'));
+    } on ApiResponseFailure {
+      rethrow;
+    } catch (_) {
+      throw const ApiResponseFailure('Không thể tải tin nhắn. Vui lòng thử lại.');
     }
   }
 
@@ -129,9 +134,11 @@ class ChatApiService {
         }
       }
 
-      return null;
-    } catch (e) {
-      throw Exception("Lỗi kết nối: $e");
+      throw ApiResponseFailure(ApiService.responseError(response, 'Không thể gửi tin nhắn.'));
+    } on ApiResponseFailure {
+      rethrow;
+    } catch (_) {
+      throw const ApiResponseFailure('Không thể gửi tin nhắn. Vui lòng thử lại.');
     }
   }
 
@@ -159,9 +166,11 @@ class ChatApiService {
         return true;
       }
 
-      return false;
-    } catch (e) {
-      throw Exception("Lỗi kết nối: $e");
+      throw ApiResponseFailure(ApiService.responseError(response, 'Không thể đánh dấu đã đọc.'));
+    } on ApiResponseFailure {
+      rethrow;
+    } catch (_) {
+      throw const ApiResponseFailure('Không thể đánh dấu đã đọc. Vui lòng thử lại.');
     }
   }
 }

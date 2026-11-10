@@ -101,38 +101,17 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     _didSeedControllers = true;
     _noteController.text = model.note ?? '';
     _quantityController.text = model.quantity.toString();
-    _phoneController.text = model.customerPhone ?? '';
 
-    if (_userPhone.isNotEmpty && model.customerPhone == _userPhone) {
-      _isBookingForOther = false;
-    } else if (_userPhone.isNotEmpty &&
-        (model.customerPhone?.trim().isNotEmpty ?? false)) {
-      _isBookingForOther = model.customerPhone!.trim() != _userPhone;
-      if (_isBookingForOther) {
-        _proxyPhoneDraft = model.customerPhone!.trim();
-      }
+    _isBookingForOther = model.isBookingForOther;
+    if (_isBookingForOther) {
+      _proxyPhoneDraft = model.customerPhone?.trim() ?? '';
     }
 
     _applyPhoneMode();
   }
 
   void _applyPhoneMode() {
-    if (_isBookingForOther) {
-      final nextPhone = _proxyPhoneDraft.isNotEmpty
-          ? _proxyPhoneDraft
-          : (_phoneController.text.trim() == _userPhone
-                ? ''
-                : _phoneController.text.trim());
-      _phoneController.value = TextEditingValue(
-        text: nextPhone,
-        selection: TextSelection.collapsed(offset: nextPhone.length),
-      );
-      return;
-    }
-
-    final nextPhone = _userPhone.isNotEmpty
-        ? _userPhone
-        : _phoneController.text.trim();
+    final nextPhone = _isBookingForOther ? _proxyPhoneDraft : _userPhone;
     _phoneController.value = TextEditingValue(
       text: nextPhone,
       selection: TextSelection.collapsed(offset: nextPhone.length),
@@ -360,7 +339,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             readOnly: !_isBookingForOther,
             enableInteractiveSelection: _isBookingForOther,
             keyboardType: TextInputType.phone,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             style: TextStyle(
               color: !_isBookingForOther
                   ? Brand.inkMuted
@@ -368,8 +346,10 @@ class _Booking2ScreenState extends State<Booking2Screen> {
             ),
             decoration: bookingInputDecoration(
               context,
-              label: 'Số điện thoại',
-              hint: '09xxxxxxxx',
+              label: _isBookingForOther
+                  ? 'Số điện thoại người đi'
+                  : 'Số điện thoại',
+              hint: _isBookingForOther ? 'Nhập đúng 10 chữ số' : '09xxxxxxxx',
               icon: Icons.phone_outlined,
             ),
             onChanged: _isBookingForOther
@@ -756,10 +736,14 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   bool _validate(BookingModel model) {
-    if (_phoneController.text.trim().isEmpty) {
+    final phoneError = BookingModel.bookingPhoneError(
+      _phoneController.text,
+      forOther: _isBookingForOther,
+    );
+    if (phoneError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập số điện thoại'),
+        SnackBar(
+          content: Text(phoneError),
           backgroundColor: Brand.danger,
         ),
       );
@@ -800,6 +784,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     if (!_validate(model)) return;
 
     model.customerPhone = _phoneController.text.trim();
+    model.isBookingForOther = _isBookingForOther;
     model.note = _noteController.text.trim();
 
     if (model.tripPrice == null || model.routePreview == null) {

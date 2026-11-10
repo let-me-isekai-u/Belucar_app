@@ -24,6 +24,7 @@ class TripDetailModel {
   final int status;
 
   final String? note;
+  final String? customerPhone;
   final DateTime pickupTime;
 
   final String? driverName;
@@ -50,6 +51,7 @@ class TripDetailModel {
     required this.surcharge,
     required this.status,
     this.note,
+    this.customerPhone,
     required this.pickupTime,
     this.driverName,
     this.avatar,
@@ -84,6 +86,7 @@ class TripDetailModel {
 
       status: (json['status'] as num).toInt(),
       note: json['note']?.toString(),
+      customerPhone: json['customerPhone']?.toString().trim(),
       pickupTime: DateTime.parse(json['pickupTime']),
 
       driverName: json['driverName']?.toString(),

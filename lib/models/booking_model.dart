@@ -268,6 +268,7 @@ class BookingModel extends ChangeNotifier {
       <TrackAsiaAutocompleteSuggestion>[];
 
   String? customerPhone;
+  bool isBookingForOther = false;
   String? note;
 
   ResolveRoutePreviewData? routePreview;
@@ -775,10 +776,22 @@ class BookingModel extends ChangeNotifier {
     priceErrorMessage = null;
   }
 
+  static String? bookingPhoneError(String phone, {required bool forOther}) {
+    final value = phone.trim();
+    if (forOther && !RegExp(r'^[0-9]{10}$').hasMatch(value)) {
+      return 'Số điện thoại người được đặt hộ phải gồm đúng 10 chữ số.';
+    }
+    return value.isEmpty ? 'Vui lòng nhập số điện thoại' : null;
+  }
+
   Future<Map<String, dynamic>> createRide(
     String accessToken, {
     String? content,
   }) async {
+    final phone = customerPhone?.trim() ?? '';
+    final phoneError = bookingPhoneError(phone, forOther: isBookingForOther);
+    if (phoneError != null) throw phoneError;
+
     final pickupIso = buildPickupIso();
     if (!hasPickupSelection || !hasDropSelection || pickupIso == null) {
       throw Exception('Thông tin chuyến đi chưa đầy đủ');
@@ -800,7 +813,8 @@ class BookingModel extends ChangeNotifier {
       from: selectedPickupPoint!,
       to: selectedDropPoint!,
       type: _selectedRideType,
-      customerPhone: customerPhone ?? '',
+      customerPhone: phone,
+      isBookingForOther: isBookingForOther,
       pickupTime: pickupIso,
       paymentMethod: _paymentMethod,
       quantity: normalizedQuantity,
@@ -812,26 +826,22 @@ class BookingModel extends ChangeNotifier {
     if (status == 401) {
       throw 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đặt xe.';
     }
+    final decoded = ApiService.responseJson(response);
     if (status >= 500) {
+      final code = decoded?['code'];
+      if (code == 'map_provider_unavailable' || code == 'bank_transfer_unavailable') {
+        throw ApiService.responseError(response, 'Dịch vụ đặt chuyến tạm thời không khả dụng.');
+      }
       throw 'Chưa xác nhận được kết quả (HTTP $status). '
           'Vui lòng kiểm tra Hoạt động trước khi đặt lại.';
     }
-    final Object? decoded;
-    try {
-      decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    } on FormatException {
-      throw 'Máy chủ trả phản hồi không hợp lệ (HTTP $status). '
-          'Vui lòng kiểm tra Hoạt động trước khi đặt lại.';
-    }
-    if (status == 200 &&
-        decoded is Map<String, dynamic> &&
-        decoded['success'] == true) {
+    if (status == 200 && decoded != null && decoded['success'] == true) {
       return decoded;
     }
-    final message = decoded is Map ? decoded['message'] ?? decoded['title'] : null;
-    throw message is String && message.isNotEmpty
-        ? message
-        : 'Không thể tạo chuyến (HTTP $status).';
+    if (status == 200 && decoded == null) {
+      throw 'Máy chủ trả phản hồi không hợp lệ. Vui lòng kiểm tra Hoạt động trước khi đặt lại.';
+    }
+    throw ApiService.responseError(response, 'Không thể tạo chuyến (HTTP $status).');
   }
 
   void resetForm() {
@@ -845,6 +855,7 @@ class BookingModel extends ChangeNotifier {
     goDate = null;
     goTime = null;
     customerPhone = null;
+    isBookingForOther = false;
     note = null;
 
     routePreview = null;

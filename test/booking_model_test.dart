@@ -53,6 +53,48 @@ void main() {
     expect(jsonDecode(requests.last.body), containsPair('paymentMethod', 2));
   });
 
+  test('booking for another passenger sends their ten-digit phone', () async {
+    model
+      ..currentTripId = 4321
+      ..isBookingForOther = true
+      ..customerPhone = ' 0900000000 ';
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body);
+      expect(body, containsPair('customerPhone', '0900000000'));
+      expect(body, containsPair('isBookingForOther', true));
+      return http.Response('{"success":true}', 200);
+    });
+
+    await http.runWithClient(() async {
+      expect((await model.createRide('test-token'))['success'], true);
+    }, () => client);
+  });
+
+  test('invalid passenger phones are rejected before sending', () async {
+    model
+      ..currentTripId = 4321
+      ..isBookingForOther = true;
+    final client = MockClient(
+      (_) async => throw StateError('Unexpected request'),
+    );
+
+    await http.runWithClient(() async {
+      for (final phone in [
+        '090000000',
+        '09000000000',
+        '09000 00000',
+        '090000000x',
+        '０９００００００００',
+      ]) {
+        model.customerPhone = phone;
+        await expectLater(
+          model.createRide('test-token'),
+          throwsA(contains('đúng 10 chữ số')),
+        );
+      }
+    }, () => client);
+  });
+
   test('booking without a quoted trip is stopped before sending', () async {
     var requestCount = 0;
     final client = MockClient((request) async {
@@ -98,6 +140,9 @@ void main() {
       expect(bookings.first.headers['Authorization'], 'Bearer expired');
       expect(bookings.last.headers['Authorization'], 'Bearer renewed');
       expect(bookings.last.body, bookings.first.body);
+      final key = bookings.first.headers['Idempotency-Key'];
+      expect(key, matches(RegExp(r'^[0-9a-f]{32}$')));
+      expect(bookings.last.headers['Idempotency-Key'], key);
       expect(prefs.getString('accessToken'), 'renewed');
       expect(prefs.getString('refreshToken'), 'refresh-after');
     },
@@ -132,4 +177,31 @@ void main() {
     }, () => client);
     expect(requests, 1);
   });
+
+  test(
+    'wallet shortfall displays the server message without resending',
+    () async {
+      model.currentTripId = 4321;
+      const message = 'Số dư ví không đủ. Vui lòng nạp thêm tiền.';
+      var requests = 0;
+      final client = MockClient((_) async {
+        requests++;
+        return http.Response.bytes(
+          utf8.encode(
+            jsonEncode({
+              'success': false,
+              'code': 'insufficient_wallet_balance',
+              'message': message,
+              'statusCode': 409,
+            }),
+          ),
+          409,
+        );
+      });
+      await http.runWithClient(() async {
+        await expectLater(model.createRide('active'), throwsA(message));
+      }, () => client);
+      expect(requests, 1);
+    },
+  );
 }

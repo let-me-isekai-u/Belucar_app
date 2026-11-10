@@ -2,6 +2,7 @@
 ///https://docs.google.com/document/d/1MD5Tx42I-CpFgTNwrrwUhB8FsdQFhiiqAN_Xy0kUfAc/edit?tab=t.d9q2g56xpd8j
 ///API 21, 22 TẠM chưa dùng tới
 import 'dart:convert';
+import 'dart:async';
 import 'dart:math';
 import '../config/api_config.dart';
 import 'package:http/http.dart' as http;
@@ -11,11 +12,22 @@ import '../models/deposit_model.dart';
 import '../models/location_models.dart';
 
 class RideCancellationException implements Exception {
-  const RideCancellationException(this.message, {this.status = 0});
+  const RideCancellationException(this.message, {this.status = 0, this.code});
 
   final String message;
   final int status;
-  bool get wasRejected => status >= 400 && status < 500 && status != 401 && status != 409;
+  final String? code;
+  bool get wasRejected => code == 'ride_not_cancellable' ||
+      (status >= 400 && status < 500 && status != 401 && status != 409);
+
+  @override
+  String toString() => message;
+}
+
+class ApiResponseFailure implements Exception {
+  const ApiResponseFailure(this.message);
+
+  final String message;
 
   @override
   String toString() => message;
@@ -47,11 +59,30 @@ class ApiService {
 
     try {
       return jsonDecode(body);
-    } catch (e) {
-      print("⚠️ safeDecode() JSON lỗi: $e");
-      print("⚠️ raw body: $body");
+    } on FormatException {
       return {};
     }
+  }
+
+  static Map<String, dynamic>? responseJson(http.Response response) {
+    try {
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data is Map<String, dynamic> ? data : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  static String responseError(http.Response response, String fallback) {
+    final body = responseJson(response);
+    final message = body?['message'] ?? body?['title'];
+    if (message is String && message.trim().isNotEmpty) return message;
+    return switch (response.statusCode) {
+      401 => 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      403 => 'Bạn không có quyền thực hiện thao tác này.',
+      429 => 'Bạn thao tác quá nhanh. Vui lòng thử lại sau ít phút.',
+      _ => fallback,
+    };
   }
 
   // -----------------------------------------------------------
@@ -74,10 +105,14 @@ class ApiService {
 
   // Lỗi fallback
   static http.Response _errorResponse(Object e) {
+    final timedOut = e is TimeoutException;
     return _jsonResponse({
       "success": false,
-      "message": "Lỗi kết nối tới server: $e",
-    }, 500);
+      "code": timedOut ? "connection_timeout" : "connection_failed",
+      "message": timedOut
+          ? "Máy chủ phản hồi quá chậm. Vui lòng thử lại."
+          : "Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.",
+    }, timedOut ? 504 : 503);
   }
 
   // -----------------------------------------------------------
@@ -104,7 +139,7 @@ class ApiService {
           .timeout(const Duration(seconds: 20));
     } catch (e) {
       // Trả về một Response lỗi giả lập nếu có sự cố kết nối để tránh Crash App
-      return _jsonResponse({"message": "Lỗi kết nối mạng: $e"}, 500);
+      return _errorResponse(e);
     }
   }
 
@@ -635,7 +670,7 @@ class ApiService {
       print("📥 Body: ${res.body}");
       return res;
     } catch (e) {
-      return http.Response('{"error":"$e"}', 500);
+      return _errorResponse(e);
     }
   }
 
@@ -647,6 +682,7 @@ class ApiService {
     required RidePointPayload to,
     required int type,
     required String customerPhone,
+    required bool isBookingForOther,
     required String pickupTime,
     required int paymentMethod,
     required int quantity,
@@ -654,6 +690,7 @@ class ApiService {
     String? content,
   }) async {
     final url = Uri.parse("$apiOrigin/api/v2/ride/create");
+    final idempotencyKey = newIdempotencyKey();
 
     final body = jsonEncode({
       "tripId": tripId,
@@ -661,6 +698,7 @@ class ApiService {
       "to": to.toJson(),
       "type": type,
       "customerPhone": customerPhone,
+      "isBookingForOther": isBookingForOther,
       "pickupTime": pickupTime,
       "note": note,
       "paymentMethod": paymentMethod,
@@ -673,6 +711,7 @@ class ApiService {
         .post(url, headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token",
+          "Idempotency-Key": idempotencyKey,
         }, body: body)
         .timeout(const Duration(seconds: 15));
 
@@ -714,33 +753,22 @@ class ApiService {
       '$apiOrigin/api/rideapi/ride-detail/$rideId',
     );
 
+    final http.Response response;
     try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'Authorization': 'Bearer $accessToken',
-          'Content-Type': 'application/json',
-        },
+      response = await _withCustomerSession(
+        accessToken,
+        (token) => http.get(uri, headers: _authHeaders(token))
+            .timeout(const Duration(seconds: 15)),
       );
-
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-
-      if (response.statusCode == 200) {
-        if (body['success'] == true && body['data'] != null) {
-          return body['data'] as Map<String, dynamic>;
-        } else {
-          throw Exception('API success = false');
-        }
-      }
-
-      if (response.statusCode == 401) {
-        throw Exception('Unauthorized - Token hết hạn');
-      }
-
-      throw Exception('Lỗi API ${response.statusCode}: ${response.body}');
-    } catch (e) {
-      throw Exception('getTripDetail error: $e');
+    } catch (error) {
+      throw ApiResponseFailure(responseError(_errorResponse(error), 'Không tải được chi tiết chuyến.'));
     }
+    final body = responseJson(response);
+    final data = body?['data'];
+    if (response.statusCode == 200 && body?['success'] == true && data is Map<String, dynamic>) {
+      return data;
+    }
+    throw ApiResponseFailure(responseError(response, 'Không tải được chi tiết chuyến.'));
   }
 
   static Future<void> cancelTrip({
@@ -779,18 +807,10 @@ class ApiService {
       throw RideCancellationException(uncertain, status: status);
     }
 
-    String? message;
-    try {
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body is Map && body['message'] is String) {
-        message = body['message'] as String;
-      }
-    } on FormatException {
-      // A non-JSON error still has an HTTP status.
-    }
     throw RideCancellationException(
-      message ?? 'Không thể hủy chuyến (HTTP $status).',
+      responseError(response, 'Không thể hủy chuyến (HTTP $status).'),
       status: status,
+      code: responseJson(response)?['code']?.toString(),
     );
   }
 
@@ -883,7 +903,7 @@ class ApiService {
       final res = await http.get(url).timeout(const Duration(seconds: 15));
       return res;
     } catch (e) {
-      return http.Response('{"error":"$e"}', 500);
+      return _errorResponse(e);
     }
   }
 
@@ -928,10 +948,7 @@ class ApiService {
           .timeout(const Duration(seconds: 15));
       return response;
     } catch (e) {
-      return _jsonResponse({
-        "success": false,
-        "message": "Lỗi kết nối hệ thống: $e",
-      }, 500);
+      return _errorResponse(e);
     }
   }
 
