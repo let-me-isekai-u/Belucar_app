@@ -312,6 +312,7 @@ class _HomeViewState extends State<HomeView> {
           value: SystemUiOverlayStyle.dark,
           child: Scaffold(
             backgroundColor: Brand.canvas,
+            extendBody: homeProvider.selectedIndex == 0,
             body: IndexedStack(
               index: homeProvider.selectedIndex,
               children: [
@@ -526,7 +527,7 @@ class _HomeSheet extends StatelessWidget {
     final recent = context.watch<BookingModel>().recentPlaces.take(4).toList();
     return ListView(
       controller: controller,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, 10, 16, 24 + MediaQuery.paddingOf(context).bottom),
       children: [
         const SheetHandle(),
         const SizedBox(height: 14),
@@ -695,17 +696,20 @@ class _BottomNav extends StatelessWidget {
       return Expanded(
         child: InkWell(
           onTap: onTap,
+          borderRadius: BorderRadius.circular(28),
           child: SizedBox(
-            height: 62,
+            height: 58,
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-                decoration: BoxDecoration(color: selected ? Brand.b50 : Colors.transparent, borderRadius: BorderRadius.circular(999)),
-                child: Icon(selected ? active : icon, color: selected ? Brand.navy : Brand.inkMuted, size: 23),
+                decoration: BoxDecoration(color: selected ? Brand.navy : Colors.transparent, borderRadius: BorderRadius.circular(999)),
+                child: Icon(selected ? active : icon, color: selected ? Colors.white : Brand.inkMuted, size: 23),
               ),
               const SizedBox(height: 3),
               Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
@@ -717,17 +721,41 @@ class _BottomNav extends StatelessWidget {
       );
     }
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Brand.lineSoft))),
-      child: SafeArea(
-        top: false,
-        child: Row(children: [
-          item(0, Icons.home_outlined, Icons.home_rounded, 'Trang chủ', () => onSelect(0)),
-          item(1, Icons.directions_car_outlined, Icons.directions_car_rounded, 'Đặt xe', () => onSelect(1)),
-          item(null, Icons.confirmation_number_outlined, Icons.confirmation_number_rounded, 'Vé của tôi', onTickets),
-          item(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Hoạt động', () => onSelect(2)),
-          item(3, Icons.person_outline_rounded, Icons.person_rounded, 'Tài khoản', () => onSelect(3)),
-        ]),
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+      child: Center(
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(36),
+              boxShadow: const [
+                BoxShadow(color: Color(0x24041565), blurRadius: 28, offset: Offset(0, 10)),
+                BoxShadow(color: Color(0x0A041565), blurRadius: 6, offset: Offset(0, 2)),
+              ],
+            ),
+            child: Material(
+              color: Brand.b50.withValues(alpha: 0.97),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(36),
+                side: const BorderSide(color: Brand.b100),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                child: Row(children: [
+                  item(0, Icons.home_outlined, Icons.home_rounded, 'Trang chủ', () => onSelect(0)),
+                  item(1, Icons.directions_car_outlined, Icons.directions_car_rounded, 'Đặt xe', () => onSelect(1)),
+                  item(null, Icons.confirmation_number_outlined, Icons.confirmation_number_rounded, 'Vé của tôi', onTickets),
+                  item(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Hoạt động', () => onSelect(2)),
+                  item(3, Icons.person_outline_rounded, Icons.person_rounded, 'Tài khoản', () => onSelect(3)),
+                ]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
