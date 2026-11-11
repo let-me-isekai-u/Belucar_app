@@ -29,7 +29,7 @@ class TestHub {
   }
 
   Future<http.Response> handle(http.Request request) async {
-    expect(request.url.host, 'xeghepdongduong.com');
+    expect(request.url.host, 'datxedongduong.com');
     expect(request.headers['Authorization'], 'Bearer fixture-access');
     if (request.url.path.endsWith('/negotiate')) {
       _firstPoll = true;

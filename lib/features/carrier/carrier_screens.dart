@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/map_config.dart';
@@ -674,6 +675,7 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
   @override
   void initState() {
     super.initState();
+    _prefillContact();
     CarrierApi.refundPolicy()
         .then((t) {
           if (mounted && t.isNotEmpty) setState(() => _policy = refundPolicyText(t));
@@ -698,6 +700,16 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
   }
 
   List<Map> get _stops => ((_run?['stops'] as List?) ?? []).cast<Map>();
+
+  /// Điền sẵn tên/SĐT của tài khoản đang đăng nhập; khách vẫn sửa được nếu đặt hộ.
+  Future<void> _prefillContact() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final name = prefs.getString('fullName') ?? '';
+    final phone = prefs.getString('phone') ?? '';
+    if (_name.text.isEmpty && name.isNotEmpty) _name.text = name;
+    if (_phone.text.isEmpty && phone.isNotEmpty) _phone.text = phone;
+  }
 
   Future<void> _requote() async {
     if (!mounted) return;
