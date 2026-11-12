@@ -102,8 +102,9 @@ class _CarrierBadge extends StatelessWidget {
 
 // ------------------------------------------------------------------------- search
 class CarrierSearchScreen extends StatefulWidget {
-  const CarrierSearchScreen({super.key, required this.category});
+  const CarrierSearchScreen({super.key, required this.category, this.onTickets});
   final String category;
+  final VoidCallback? onTickets;
   @override
   State<CarrierSearchScreen> createState() => _CarrierSearchScreenState();
 }
@@ -297,7 +298,7 @@ class _CarrierSearchScreenState extends State<CarrierSearchScreen> {
                               IconButton(
                                 tooltip: 'Vé của tôi',
                                 style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.12)),
-                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyCarrierTicketsScreen())),
+                                onPressed: widget.onTickets ?? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyCarrierTicketsScreen())),
                                 icon: const Icon(Icons.confirmation_number_outlined, color: Colors.white),
                               ),
                             ],
@@ -1399,13 +1400,22 @@ class _TrackingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final stops = ((track['stops'] as List?) ?? []).cast<Map>();
+    bool hasMapCoordinates(Map point) {
+      final latitude = point['latitude'];
+      final longitude = point['longitude'];
+      return latitude is num && longitude is num &&
+          isValidMapCoordinate(latitude.toDouble(), longitude.toDouble());
+    }
+    final stops = ((track['stops'] as List?) ?? [])
+        .whereType<Map>()
+        .where(hasMapCoordinates)
+        .toList();
     if (stops.isEmpty) return const SizedBox.shrink();
     final loc = track['location'] as Map?;
     final signal = '${track['signal']}';
     final pickup = stops.firstWhere((s) => s['id'] == pickupId, orElse: () => stops.first);
     LatLng at(Map m) => LatLng((m['latitude'] as num).toDouble(), (m['longitude'] as num).toDouble());
-    final vehicle = loc != null ? at(loc) : null;
+    final vehicle = loc != null && hasMapCoordinates(loc) ? at(loc) : null;
     final delay = (track['delayMinutes'] as num?) ?? 0;
     final pickupEta = pickup['actualArrivalAt'] == null ? _dt(pickup['estimatedArrivalAt'] ?? pickup['plannedArrivalAt']) : null;
     final minutes = pickupEta?.difference(DateTime.now()).inMinutes;
@@ -1423,6 +1433,9 @@ class _TrackingView extends StatelessWidget {
                   options: MapOptions(
                     initialCenter: vehicle ?? at(pickup),
                     initialZoom: 13,
+                    minZoom: mapMinZoom,
+                    maxZoom: mapMaxZoom,
+                    cameraConstraint: const FiniteMapCameraConstraint(),
                     backgroundColor: Brand.mapLand,
                     interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
                   ),
@@ -1619,7 +1632,9 @@ class _StopRow extends StatelessWidget {
 
 // ------------------------------------------------------------------------- my tickets
 class MyCarrierTicketsScreen extends StatefulWidget {
-  const MyCarrierTicketsScreen({super.key});
+  const MyCarrierTicketsScreen({super.key, this.embedded = false, this.isActive = true});
+  final bool embedded;
+  final bool isActive;
   @override
   State<MyCarrierTicketsScreen> createState() => _MyCarrierTicketsScreenState();
 }
@@ -1634,6 +1649,12 @@ class _MyCarrierTicketsScreenState extends State<MyCarrierTicketsScreen> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant MyCarrierTicketsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive && !oldWidget.isActive) _load();
+  }
+
   Future<void> _load() async {
     try {
       final r = await CarrierApi.myBookings(1);
@@ -1645,7 +1666,7 @@ class _MyCarrierTicketsScreenState extends State<MyCarrierTicketsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Vé của tôi')),
+    appBar: AppBar(title: const Text('Vé của tôi'), automaticallyImplyLeading: !widget.embedded),
     body: _items == null
         ? Center(
             child: _error != null
@@ -1658,7 +1679,8 @@ class _MyCarrierTicketsScreenState extends State<MyCarrierTicketsScreen> {
         : RefreshIndicator(
             onRefresh: _load,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(16, 8, 16, widget.embedded ? 118 + MediaQuery.viewPaddingOf(context).bottom : 24),
               children: [
                 if (_items!.isEmpty)
                   const EmptyState(

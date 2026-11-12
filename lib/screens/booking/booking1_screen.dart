@@ -12,8 +12,9 @@ import '../../ui/ui.dart';
 
 class Booking1Screen extends StatefulWidget {
   final Function(int) onRideBooked;
+  final VoidCallback? onTickets;
 
-  const Booking1Screen({super.key, required this.onRideBooked});
+  const Booking1Screen({super.key, required this.onRideBooked, this.onTickets});
 
   @override
   State<Booking1Screen> createState() => _Booking1ScreenState();
@@ -692,7 +693,13 @@ class _Booking1ScreenState extends State<Booking1Screen> {
                             ? (_) {}
                             : (_) => Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (_) => CarrierSearchScreen(category: category)),
+                                  MaterialPageRoute(builder: (_) => CarrierSearchScreen(
+                                    category: category,
+                                    onTickets: widget.onTickets == null ? null : () {
+                                      Navigator.pop(context);
+                                      widget.onTickets!();
+                                    },
+                                  )),
                                 ),
                       ),
                     ),

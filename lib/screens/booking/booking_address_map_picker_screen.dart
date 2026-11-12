@@ -13,11 +13,15 @@ import '../../ui/ui.dart';
 class BookingAddressMapPickerScreen extends StatefulWidget {
   final String title;
   final RidePointPayload? initialPoint;
+  final bool showSelectionAction;
+  final ValueChanged<latlng.LatLng>? onPointChanged;
 
   const BookingAddressMapPickerScreen({
     super.key,
     required this.title,
     this.initialPoint,
+    this.showSelectionAction = true,
+    this.onPointChanged,
   });
 
   @override
@@ -41,28 +45,29 @@ class _BookingAddressMapPickerScreenState
   bool _isResolving = false;
   bool _isResolvingPreview = false;
   bool _isLocating = false;
+  bool _mapReady = false;
+  int _cameraRequestId = 0;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _mapCenter = _initialCenter();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _initializeMapCenter();
-      }
-    });
   }
 
   @override
   void dispose() {
+    _mapReady = false;
+    _cameraRequestId++;
     _resolveDebounce?.cancel();
+    _mapController.dispose();
     super.dispose();
   }
 
   latlng.LatLng _initialCenter() {
     final point = widget.initialPoint;
-    if (point != null && point.isCoordinates) {
+    if (point != null && point.isCoordinates &&
+        isValidMapCoordinate(point.lat, point.lng)) {
       return latlng.LatLng(point.lat!, point.lng!);
     }
     return _defaultCenter;
@@ -79,11 +84,12 @@ class _BookingAddressMapPickerScreenState
   }
 
   Future<void> _moveToPlaceId(String placeId) async {
+    final requestId = ++_cameraRequestId;
     try {
       final response = await ApiService.getTrackAsiaPlaceDetail(
         placeId: placeId,
       );
-      if (!mounted) return;
+      if (!mounted || requestId != _cameraRequestId || !_mapReady) return;
 
       final parsed = TrackAsiaPlaceDetailResponse.fromRawJson(response.body);
       final detail = parsed.data;
@@ -91,8 +97,12 @@ class _BookingAddressMapPickerScreenState
           response.statusCode < 300 &&
           parsed.success &&
           detail != null) {
+        if (!isValidMapCoordinate(detail.lat, detail.lng)) {
+          _locationSnack('Tọa độ địa chỉ không hợp lệ. Vui lòng chọn lại.');
+          return;
+        }
         final nextCenter = latlng.LatLng(detail.lat, detail.lng);
-        _mapController.move(nextCenter, 16);
+        if (!moveMapTo(_mapController, nextCenter, 16)) return;
         setState(() {
           _mapCenter = nextCenter;
           _resolvedLocation = null;
@@ -102,14 +112,24 @@ class _BookingAddressMapPickerScreenState
     } catch (_) {
       if (!mounted) return;
     } finally {
-      if (mounted) {
+      if (mounted && requestId == _cameraRequestId) {
         _schedulePreviewResolve();
       }
     }
   }
 
+  void _locationSnack(String message) {
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _tryMoveToCurrentLocation() async {
-    if (_isLocating) return;
+    if (!mounted || _isLocating) return;
+    if (!_mapReady) {
+      _locationSnack('Bản đồ chưa sẵn sàng, vui lòng thử lại.');
+      return;
+    }
+    ++_cameraRequestId; // Ignore an older place-detail response after GPS is requested.
 
     setState(() {
       _isLocating = true;
@@ -118,24 +138,42 @@ class _BookingAddressMapPickerScreenState
 
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
+      if (!mounted) return;
+      if (!serviceEnabled) {
+        _locationSnack('Hãy bật định vị (GPS) trên điện thoại.');
+        return;
+      }
 
       var permission = await Geolocator.checkPermission();
+      if (!mounted) return;
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
 
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      if (permission != LocationPermission.whileInUse &&
+          permission != LocationPermission.always) {
+        _locationSnack('Chưa có quyền vị trí. Bạn vẫn có thể kéo bản đồ để chọn địa chỉ.');
         return;
       }
 
-      final position = await Geolocator.getCurrentPosition();
-      final nextCenter = latlng.LatLng(position.latitude, position.longitude);
-
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
       if (!mounted) return;
-
-      _mapController.move(nextCenter, 16);
+      if (!isValidMapCoordinate(position.latitude, position.longitude)) {
+        _locationSnack('Vị trí nhận được không hợp lệ. Vui lòng thử lại.');
+        return;
+      }
+      if (!_mapReady || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
+      final nextCenter = latlng.LatLng(position.latitude, position.longitude);
+      if (!moveMapTo(_mapController, nextCenter, 16)) {
+        _locationSnack('Bản đồ chưa sẵn sàng, vui lòng thử lại.');
+        return;
+      }
       setState(() {
         _mapCenter = nextCenter;
         _resolvedLocation = null;
@@ -143,7 +181,7 @@ class _BookingAddressMapPickerScreenState
       });
       _schedulePreviewResolve();
     } catch (_) {
-      if (!mounted) return;
+      _locationSnack('Không lấy được vị trí hiện tại.');
     } finally {
       if (mounted) {
         setState(() => _isLocating = false);
@@ -171,6 +209,8 @@ class _BookingAddressMapPickerScreenState
   }
 
   void _schedulePreviewResolve() {
+    if (!mounted || !isValidMapPoint(_mapCenter)) return;
+    ++_previewRequestId; // Invalidate in-flight results immediately on movement.
     _resolveDebounce?.cancel();
     _resolveDebounce = Timer(const Duration(milliseconds: 350), () {
       _resolvePreviewPoint();
@@ -178,6 +218,7 @@ class _BookingAddressMapPickerScreenState
   }
 
   Future<void> _resolvePreviewPoint() async {
+    if (!mounted || !isValidMapPoint(_mapCenter)) return;
     final requestId = ++_previewRequestId;
     final target = _mapCenter;
 
@@ -186,19 +227,18 @@ class _BookingAddressMapPickerScreenState
       _errorMessage = null;
     });
 
-    final response = await ApiService.resolveAddressPoint(
-      lat: target.latitude,
-      lng: target.longitude,
-    );
-
-    if (!mounted || requestId != _previewRequestId) return;
-
     try {
+      final response = await ApiService.resolveAddressPoint(
+        lat: target.latitude,
+        lng: target.longitude,
+      );
+      if (!mounted || requestId != _previewRequestId) return;
       final parsed = ResolvePointResponse.fromRawJson(response.body);
       if (response.statusCode >= 200 &&
           response.statusCode < 300 &&
           parsed.success &&
-          parsed.data != null) {
+          parsed.data != null &&
+          isValidMapCoordinate(parsed.data!.lat, parsed.data!.lng)) {
         setState(() {
           _resolvedLocation = parsed.data;
           _errorMessage = null;
@@ -210,9 +250,10 @@ class _BookingAddressMapPickerScreenState
         });
       }
     } catch (_) {
+      if (!mounted || requestId != _previewRequestId) return;
       setState(() {
         _resolvedLocation = null;
-        _errorMessage = _extractMessage(response.body, response.statusCode);
+        _errorMessage = 'Không thể lấy địa chỉ, vui lòng thử lại';
       });
     } finally {
       if (mounted && requestId == _previewRequestId) {
@@ -222,8 +263,10 @@ class _BookingAddressMapPickerScreenState
   }
 
   Future<void> _confirmSelection() async {
+    if (!mounted || _isResolving || !isValidMapPoint(_mapCenter)) return;
     final cachedLocation = _resolvedLocation;
     if (cachedLocation != null &&
+        isValidMapCoordinate(cachedLocation.lat, cachedLocation.lng) &&
         _coordinateKey(latlng.LatLng(cachedLocation.lat, cachedLocation.lng)) ==
             _coordinateKey(_mapCenter)) {
       Navigator.pop(context, cachedLocation);
@@ -235,19 +278,23 @@ class _BookingAddressMapPickerScreenState
       _errorMessage = null;
     });
 
-    final response = await ApiService.resolveAddressPoint(
-      lat: _mapCenter.latitude,
-      lng: _mapCenter.longitude,
-    );
-
-    if (!mounted) return;
-
+    final target = _mapCenter;
     try {
+      final response = await ApiService.resolveAddressPoint(
+        lat: target.latitude,
+        lng: target.longitude,
+      );
+      if (!mounted) return;
+      if (_coordinateKey(target) != _coordinateKey(_mapCenter)) {
+        setState(() => _errorMessage = 'Vị trí đã thay đổi. Vui lòng chọn lại.');
+        return;
+      }
       final parsed = ResolvePointResponse.fromRawJson(response.body);
       if (response.statusCode >= 200 &&
           response.statusCode < 300 &&
           parsed.success &&
-          parsed.data != null) {
+          parsed.data != null &&
+          isValidMapCoordinate(parsed.data!.lat, parsed.data!.lng)) {
         Navigator.pop(context, parsed.data);
         return;
       }
@@ -256,8 +303,9 @@ class _BookingAddressMapPickerScreenState
         _errorMessage = _extractMessage(response.body, response.statusCode);
       });
     } catch (_) {
+      if (!mounted) return;
       setState(() {
-        _errorMessage = _extractMessage(response.body, response.statusCode);
+        _errorMessage = 'Không thể lấy địa chỉ, vui lòng thử lại';
       });
     } finally {
       if (mounted) {
@@ -286,18 +334,30 @@ class _BookingAddressMapPickerScreenState
             options: MapOptions(
               initialCenter: _mapCenter,
               initialZoom: 16,
-              minZoom: 5,
-              maxZoom: 18,
+              minZoom: mapMinZoom,
+              maxZoom: mapMaxZoom,
+              cameraConstraint: const FiniteMapCameraConstraint(),
+              onMapReady: () {
+                _mapReady = true;
+                // Start async initialization after the map's first build.
+                scheduleMicrotask(() {
+                  if (mounted && _mapReady) _initializeMapCenter();
+                });
+              },
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
               ),
               onPositionChanged: (camera, hasGesture) {
+                if (!mounted || !isValidMapPoint(camera.center) ||
+                    !isValidMapZoom(camera.zoom)) return;
+                if (hasGesture) ++_cameraRequestId;
                 final center = camera.center;
                 setState(() {
                   _mapCenter = center;
                   _resolvedLocation = null;
                   _errorMessage = null;
                 });
+                widget.onPointChanged?.call(center);
                 _schedulePreviewResolve();
               },
             ),
@@ -463,37 +523,39 @@ class _BookingAddressMapPickerScreenState
                         ),
                       ),
                     ],
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _isResolving ? null : _confirmSelection,
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(double.infinity, 52),
-                          backgroundColor: Brand.navy,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
+                    if (widget.showSelectionAction) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: _isResolving ? null : _confirmSelection,
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 52),
+                            backgroundColor: Brand.navy,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
                           ),
+                          child: _isResolving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'CHỌN ĐIỂM NÀY',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                         ),
-                        child: _isResolving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'CHỌN ĐIỂM NÀY',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -12,16 +13,16 @@ import '../config/map_config.dart';
 import '../features/carrier/carrier_screens.dart';
 import '../models/booking_model.dart';
 import '../models/deposit_model.dart';
+import '../models/location_models.dart';
 import '../providers/home_provider.dart';
 import '../ui/ui.dart';
 import '../utils/currency_format.dart';
 import 'activity_screen.dart';
 import 'booking/booking1_screen.dart';
+import 'booking/booking_address_map_picker_screen.dart';
 import 'chat_to_order/chat_screen.dart';
 import 'profile_screen.dart';
 
-/// Trang chủ khách: bản đồ toàn màn + bottom sheet (điểm đến, 3 dịch vụ, tiện ích, đi gần đây)
-/// và thanh điều hướng đáy. Tab: 0 trang chủ, 1 đặt xe ghép, 2 hoạt động, 3 tài khoản.
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
 
@@ -37,10 +38,16 @@ class _HomeViewState extends State<HomeView> {
   late final HomeProvider _homeProvider;
   final GlobalKey<ActivityScreenState> _activityScreenKey = GlobalKey<ActivityScreenState>();
   final MapController _mapController = MapController();
+  final DraggableScrollableController _homeSheetController = DraggableScrollableController();
+  final Completer<void> _mapReadySignal = Completer<void>();
 
   Timer? _weatherTimer;
-  LatLng? _myLocation;
+  LatLng? _mapPinLocation;
+  int _mapGestureRevision = 0;
   bool _locating = false;
+  bool _mapReady = false;
+  bool _openingMapPicker = false;
+  bool _ticketsOpened = false;
 
   @override
   void initState() {
@@ -48,13 +55,16 @@ class _HomeViewState extends State<HomeView> {
     _homeProvider = context.read<HomeProvider>();
     _homeProvider.initialize();
     _weatherTimer = Timer.periodic(const Duration(minutes: 10), (_) => _homeProvider.fetchWeather());
-    // Chỉ lấy vị trí nếu đã được cấp quyền; không bật hộp xin quyền ngay khi mở app.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _locate(requestPermission: false));
   }
 
   @override
   void dispose() {
+    _mapReady = false;
+    // Release a pending readiness wait; mounted is checked before using the map.
+    if (!_mapReadySignal.isCompleted) _mapReadySignal.complete();
+    _homeSheetController.dispose();
     _weatherTimer?.cancel();
+    _mapController.dispose();
     super.dispose();
   }
 
@@ -67,34 +77,176 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  Future<void> _locate({bool requestPermission = true}) async {
-    if (_locating) return;
-    setState(() => _locating = true);
+  void _locationLog(String message) {
+    if (kDebugMode) debugPrint('[HOME_LOCATION] $message');
+  }
+
+  Offset _currentLocationOffset({MapCamera? camera}) {
+    final height = (camera ?? _mapController.camera).nonRotatedSize.height;
+    final fraction = _homeSheetController.isAttached ? _homeSheetController.size : 0.5;
+    if (!height.isFinite || height <= 0 || !fraction.isFinite ||
+        fraction < 0 || fraction > 1) {
+      throw StateError('Invalid Home map viewport');
+    }
+    final sheetTop = height * (1 - fraction);
+    // Keep the pin above the sheet, below the greeting when space permits.
+    final visibleBottom = (sheetTop - 18).clamp(0.0, height).toDouble();
+    final visibleTop = MediaQuery.paddingOf(context).top + 10 + 48 + 46;
+    final targetY = visibleBottom > visibleTop
+        ? (visibleTop + visibleBottom) / 2
+        : sheetTop / 2;
+    return Offset(0, targetY - height / 2);
+  }
+
+  Future<void> _openMapPicker() async {
+    if (!mounted || _openingMapPicker) return;
+    final center = _mapPinLocation ??
+        (_mapReady ? _mapController.camera.center : _defaultCenter);
+    if (!isValidMapPoint(center)) return;
+    _openingMapPicker = true;
+    ++_mapGestureRevision; // Supersede a pending automatic startup locate.
     try {
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        if (requestPermission) _snack('Hãy bật định vị (GPS) trên điện thoại.');
+      // Keep the last viewed coordinate when leaving by either back gesture
+      // or the app bar. Home viewing does not need address confirmation.
+      var point = center;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => BookingAddressMapPickerScreen(
+            title: 'Bản đồ',
+            showSelectionAction: false,
+            onPointChanged: (nextPoint) {
+              if (isValidMapPoint(nextPoint)) point = nextPoint;
+            },
+            initialPoint: RidePointPayload.coordinates(
+              lat: center.latitude,
+              lng: center.longitude,
+            ),
+          ),
+        ),
+      );
+      if (!mounted || !isValidMapPoint(point)) return;
+      setState(() => _mapPinLocation = point);
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !_mapReady || _homeProvider.selectedIndex != 0 ||
+          !(ModalRoute.of(context)?.isCurrent ?? true)) return;
+      final moved = moveMapTo(_mapController, point, 16,
+          offset: _currentLocationOffset());
+      _locationLog('Camera move ${moved ? 'success' : 'failure'}: map selection');
+    } catch (error, stackTrace) {
+      _locationLog('Camera move failure: map picker ${error.runtimeType}');
+      if (kDebugMode) debugPrintStack(stackTrace: stackTrace);
+      _locationSnack('Không mở được vị trí trên bản đồ. Vui lòng thử lại.');
+    } finally {
+      _openingMapPicker = false;
+    }
+  }
+
+  void _onHomeMapPositionChanged(MapCamera camera, bool hasGesture) {
+    if (!mounted || !hasGesture || !isValidMapPoint(camera.center) ||
+        !isValidMapZoom(camera.zoom) || !camera.rotation.isFinite) return;
+    final size = camera.nonRotatedSize;
+    if (!size.width.isFinite || !size.height.isFinite ||
+        size.width <= 0 || size.height <= 0) return;
+
+    // The pin selects the location in the visible viewport as the user pans
+    // or zooms. A controller move must not overwrite the GPS locate result.
+    final anchor = size.center(Offset.zero) + _currentLocationOffset(camera: camera);
+    if (!anchor.dx.isFinite || !anchor.dy.isFinite) return;
+    final point = camera.screenOffsetToLatLng(anchor);
+    if (!isValidMapPoint(point)) return;
+    ++_mapGestureRevision;
+    if (point != _mapPinLocation) setState(() => _mapPinLocation = point);
+  }
+
+  Future<void> _locate({bool requestPermission = true}) async {
+    if (!mounted || _locating) return;
+    setState(() => _locating = true);
+    final gestureRevision = _mapGestureRevision;
+    var stage = 'Permission';
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!mounted) return;
+      if (!serviceEnabled) {
+        _locationLog('GPS result: service disabled');
+        if (requestPermission) _locationSnack('Hãy bật định vị (GPS) trên điện thoại.');
         return;
       }
       var permission = await Geolocator.checkPermission();
+      if (!mounted) return;
+      _locationLog('Permission: ${permission.name}');
       if (permission == LocationPermission.denied && requestPermission) {
         permission = await Geolocator.requestPermission();
+        if (!mounted) return;
+        _locationLog('Permission: ${permission.name}');
       }
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-        if (requestPermission) _snack('Chưa có quyền vị trí. Bạn vẫn đặt xe được bằng cách nhập địa chỉ.');
+      if (permission != LocationPermission.whileInUse && permission != LocationPermission.always) {
+        if (requestPermission) {
+          _locationSnack(permission == LocationPermission.deniedForever
+              ? 'Quyền vị trí đã bị chặn. Hãy bật quyền trong Cài đặt của điện thoại.'
+              : 'Chưa có quyền vị trí. Bạn vẫn đặt xe được bằng cách nhập địa chỉ.');
+        }
         return;
       }
+      // Same fresh GPS request/settings as the booking map picker.
+      stage = 'GPS result';
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, timeLimit: Duration(seconds: 12)),
       );
       if (!mounted) return;
+      _locationLog('GPS result: received');
+      final valid = isValidMapCoordinate(pos.latitude, pos.longitude);
+      _locationLog('Coordinate ${valid ? 'valid' : 'invalid'}');
+      if (!valid) {
+        if (requestPermission) _locationSnack('Vị trí nhận được không hợp lệ. Vui lòng thử lại.');
+        return;
+      }
+      stage = 'Map ready';
+      if (!_mapReady) {
+        _locationLog('Map ready: waiting');
+        await _mapReadySignal.future.timeout(const Duration(seconds: 4));
+      }
+      if (!mounted) return;
+      // Use the current sheet size/layout, including changes made during GPS.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      _locationLog('Map ready: $_mapReady');
+      // IndexedStack keeps Home mounted while another tab is active.
+      if (!_mapReady || _homeProvider.selectedIndex != 0 ||
+          !(ModalRoute.of(context)?.isCurrent ?? true)) {
+        _locationLog('Camera move failure: Home inactive or map unavailable');
+        return;
+      }
+      if (!requestPermission && gestureRevision != _mapGestureRevision) {
+        _locationLog('Camera move skipped: startup superseded by map gesture');
+        return;
+      }
+      stage = 'Camera move';
       final here = LatLng(pos.latitude, pos.longitude);
-      setState(() => _myLocation = here);
-      _mapController.move(here, 15);
-    } catch (_) {
-      if (requestPermission) _snack('Không lấy được vị trí hiện tại.');
+      final moved = moveMapTo(_mapController, here, 16, offset: _currentLocationOffset());
+      _locationLog('Camera move ${moved ? 'success' : 'failure'}');
+      if (!moved) {
+        if (requestPermission) _locationSnack('Bản đồ chưa sẵn sàng, vui lòng thử lại.');
+        return;
+      }
+      setState(() => _mapPinLocation = here);
+    } catch (error, stackTrace) {
+      // Log the type and stack only: platform error text can include coordinates.
+      _locationLog('$stage failure: ${error.runtimeType}');
+      if (kDebugMode) debugPrintStack(stackTrace: stackTrace, label: '[HOME_LOCATION] Diagnostic');
+      if (requestPermission) {
+        _locationSnack(stage == 'Map ready' || stage == 'Camera move'
+            ? 'Bản đồ chưa sẵn sàng, vui lòng thử lại.'
+            : 'Không lấy được vị trí hiện tại. Vui lòng thử lại.');
+      }
     } finally {
       if (mounted) setState(() => _locating = false);
     }
+  }
+
+  void _locationSnack(String message) {
+    if (!mounted || _homeProvider.selectedIndex != 0 ||
+        !(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    _snack(message);
   }
 
   void _snack(String msg, {Color? color}) {
@@ -103,7 +255,13 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _openCarrier(String category) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => CarrierSearchScreen(category: category)));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => CarrierSearchScreen(
+      category: category,
+      onTickets: () {
+        Navigator.pop(context);
+        _openTickets();
+      },
+    )));
   }
 
   void _openChat() {
@@ -111,7 +269,8 @@ class _HomeViewState extends State<HomeView> {
   }
 
   void _openTickets() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const MyCarrierTicketsScreen()));
+    _ticketsOpened = true;
+    _homeProvider.selectTab(4);
   }
 
   // ───────────────────────────── Nạp ví ─────────────────────────────
@@ -237,7 +396,6 @@ class _HomeViewState extends State<HomeView> {
                     ]),
                     const SizedBox(height: 16),
                     Container(
-                      
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -271,22 +429,22 @@ class _HomeViewState extends State<HomeView> {
                         onPressed: isCancelling
                             ? null
                             : () async {
-                                String message;
-                                Color color;
-                                setDialogState(() => isCancelling = true);
-                                if (depositData.depositId == null) {
-                                  message = 'QR đã đóng, nhưng hệ thống chưa trả mã yêu cầu nên chưa xác nhận huỷ được.';
-                                  color = Brand.warning;
-                                } else {
-                                  final result = await _homeProvider.cancelDepositRequest(depositId: depositData.depositId);
-                                  message = result.success
-                                      ? 'Huỷ yêu cầu nạp tiền thành công'
-                                      : (result.message ?? 'Không thể huỷ yêu cầu nạp tiền');
-                                  color = result.success ? Brand.success : Brand.warning;
-                                }
-                                if (dialogContext.mounted) Navigator.pop(dialogContext);
-                                _snack(message, color: color);
-                              },
+                          String message;
+                          Color color;
+                          setDialogState(() => isCancelling = true);
+                          if (depositData.depositId == null) {
+                            message = 'QR đã đóng, nhưng hệ thống chưa trả mã yêu cầu nên chưa xác nhận huỷ được.';
+                            color = Brand.warning;
+                          } else {
+                            final result = await _homeProvider.cancelDepositRequest(depositId: depositData.depositId);
+                            message = result.success
+                                ? 'Huỷ yêu cầu nạp tiền thành công'
+                                : (result.message ?? 'Không thể huỷ yêu cầu nạp tiền');
+                            color = result.success ? Brand.success : Brand.warning;
+                          }
+                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+                          _snack(message, color: color);
+                        },
                         child: isCancelling
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Text('Huỷ yêu cầu'),
@@ -312,14 +470,18 @@ class _HomeViewState extends State<HomeView> {
           value: SystemUiOverlayStyle.dark,
           child: Scaffold(
             backgroundColor: Brand.canvas,
-            extendBody: homeProvider.selectedIndex == 0,
+            extendBody: true,
             body: IndexedStack(
               index: homeProvider.selectedIndex,
               children: [
                 _buildMapHome(homeProvider),
-                Booking1Screen(onRideBooked: _handleRideBooked),
+                Booking1Screen(onRideBooked: _handleRideBooked, onTickets: _openTickets),
                 ActivityScreen(key: _activityScreenKey),
                 const ProfileScreen(),
+                if (_ticketsOpened)
+                  MyCarrierTicketsScreen(embedded: true, isActive: homeProvider.selectedIndex == 4)
+                else
+                  const SizedBox.shrink(),
               ],
             ),
             bottomNavigationBar: _BottomNav(
@@ -334,81 +496,127 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildMapHome(HomeProvider homeProvider) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: FlutterMap(
-            mapController: _mapController,
-            options: const MapOptions(
-              initialCenter: _defaultCenter,
-              initialZoom: 13,
-              backgroundColor: Brand.mapLand,
-              interactionOptions: InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+    return LayoutBuilder(builder: (context, constraints) {
+      return Stack(
+        children: [
+          Positioned.fill(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _defaultCenter,
+                initialZoom: 13,
+                minZoom: mapMinZoom,
+                maxZoom: mapMaxZoom,
+                cameraConstraint: const FiniteMapCameraConstraint(),
+                onMapReady: () {
+                  _mapReady = true;
+                  if (!_mapReadySignal.isCompleted) _mapReadySignal.complete();
+                  _locationLog('Map ready: true');
+                  // Keep startup silent and wait until the map is attached.
+                  scheduleMicrotask(() {
+                    if (mounted && _mapReady) _locate(requestPermission: false);
+                  });
+                },
+                onPositionChanged: _onHomeMapPositionChanged,
+                backgroundColor: Brand.mapLand,
+                interactionOptions: const InteractionOptions(flags: InteractiveFlag.all & ~InteractiveFlag.rotate),
+              ),
+              children: [
+                trackAsiaTileLayer(),
+                if (_mapPinLocation != null && isValidMapPoint(_mapPinLocation!))
+                  MarkerLayer(markers: [
+                    // Pan/zoom selects a new coordinate; locate restores GPS.
+                    // Keep this geographic marker validated before rendering.
+                    Marker(
+                      point: _mapPinLocation!,
+                      width: 46,
+                      height: 46,
+                      alignment: Alignment.topCenter,
+                      child: const Icon(
+                        Icons.location_on_rounded,
+                        size: 46,
+                        color: Color(0xFFE53935),
+                      ),
+                    ),
+                  ]),
+                trackAsiaAttribution(),
+              ],
             ),
-            children: [
-              trackAsiaTileLayer(),
-              if (_myLocation != null)
-                MarkerLayer(markers: [
-                  Marker(point: _myLocation!, width: 36, height: 36, child: const MyLocationDot()),
-                ]),
-              trackAsiaAttribution(),
-            ],
           ),
-        ),
-        // Thanh trên: chào + ví + chat hỗ trợ
-        Positioned(
-          left: 16,
-          right: 16,
-          top: MediaQuery.of(context).padding.top + 10,
-          child: Row(children: [
-            Expanded(child: _GreetingPill(homeProvider: homeProvider, onTap: () => homeProvider.selectTab(3))),
-            const SizedBox(width: 8),
-            _WalletPill(amount: homeProvider.wallet, onTap: _showDepositAmountDialog),
-            const SizedBox(width: 8),
-            MapRoundButton(icon: Icons.support_agent_rounded, tooltip: 'Chat hỗ trợ', onPressed: _openChat, size: 48),
-          ]),
-        ),
-        DraggableScrollableSheet(
-          initialChildSize: 0.5,
-          minChildSize: 0.34,
-          maxChildSize: 0.9,
-          snap: true,
-          snapSizes: const [0.5],
-          builder: (context, scrollController) {
-            return Stack(clipBehavior: Clip.none, children: [
-              Positioned(
+          // Thanh trên: chào + ví (đã bỏ nút chat; chat nằm ở tiện ích trong sheet)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: MediaQuery.of(context).padding.top + 10,
+            child: Row(children: [
+              Expanded(child: _GreetingPill(homeProvider: homeProvider, onTap: () => homeProvider.selectTab(3))),
+              const SizedBox(width: 10),
+              _WalletPill(amount: homeProvider.wallet, onTap: _showDepositAmountDialog),
+            ]),
+          ),
+          DraggableScrollableSheet(
+            controller: _homeSheetController,
+            initialChildSize: 0.5,
+            minChildSize: 0.34,
+            maxChildSize: 0.9,
+            snap: true,
+            snapSizes: const [0.5],
+            builder: (context, scrollController) {
+              return Stack(clipBehavior: Clip.none, children: [
+                Positioned.fill(
+                  child: SheetPanel(
+                    padding: EdgeInsets.zero,
+                    child: _HomeSheet(
+                      controller: scrollController,
+                      onBookRide: () => homeProvider.selectTab(1),
+                      onCarrier: _openCarrier,
+                      onDeposit: _showDepositAmountDialog,
+                      onTickets: _openTickets,
+                      onChat: _openChat,
+                      onActivity: () => homeProvider.selectTab(2),
+                      onRecentPlace: (place) {
+                        context.read<BookingModel>().applySavedPlace(place, isPickup: false);
+                        homeProvider.selectTab(1);
+                      },
+                    ),
+                  ),
+                ),
+              ]);
+            },
+          ),
+          // A sibling of the sheet keeps the button inside the hit-test bounds.
+          AnimatedBuilder(
+            animation: _homeSheetController,
+            builder: (context, child) {
+              final fraction = _homeSheetController.isAttached ? _homeSheetController.size : 0.5;
+              return Positioned(
+                left: 16,
                 right: 16,
-                top: -60,
-                child: MapRoundButton(
+                top: constraints.maxHeight * (1 - fraction) - 60,
+                child: child!,
+              );
+            },
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                MapRoundButton(
+                  icon: Icons.fullscreen_rounded,
+                  tooltip: 'Mở rộng bản đồ',
+                  square: true,
+                  onPressed: _openMapPicker,
+                ),
+                MapRoundButton(
                   icon: _locating ? Icons.more_horiz_rounded : Icons.my_location_rounded,
                   tooltip: 'Về vị trí của tôi',
                   square: true,
-                  onPressed: () => _locate(),
+                  onPressed: _locating ? null : () => _locate(),
                 ),
-              ),
-              Positioned.fill(
-                child: SheetPanel(
-                  padding: EdgeInsets.zero,
-                  child: _HomeSheet(
-                    controller: scrollController,
-                    onBookRide: () => homeProvider.selectTab(1),
-                    onCarrier: _openCarrier,
-                    onDeposit: _showDepositAmountDialog,
-                    onTickets: _openTickets,
-                    onChat: _openChat,
-                    onActivity: () => homeProvider.selectTab(2),
-                    onRecentPlace: (place) {
-                      context.read<BookingModel>().applySavedPlace(place, isPickup: false);
-                      homeProvider.selectTab(1);
-                    },
-                  ),
-                ),
-              ),
-            ]);
-          },
-        ),
-      ],
-    );
+              ],
+            ),
+          ),
+        ],
+      );
+    });
   }
 }
 
@@ -484,13 +692,21 @@ class _WalletPill extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              padding: const EdgeInsets.only(left: 14, right: 8),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.account_balance_wallet_outlined, color: Brand.lane, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   amount == null ? 'Ví' : formatWalletAmount(amount!).replaceAll(' đ', 'đ'),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+                const SizedBox(width: 8),
+                // Gợi ý: chạm vào ví để nạp tiền.
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: const BoxDecoration(color: Brand.lane, shape: BoxShape.circle),
+                  child: const Icon(Icons.add_rounded, size: 18, color: Brand.navy),
                 ),
               ]),
             ),
@@ -531,6 +747,7 @@ class _HomeSheet extends StatelessWidget {
       children: [
         const SheetHandle(),
         const SizedBox(height: 14),
+        // Ô chọn điểm đến
         Material(
           color: Brand.canvas,
           borderRadius: BorderRadius.circular(16),
@@ -559,6 +776,7 @@ class _HomeSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+        // 3 dịch vụ chính
         Row(children: [
           Expanded(
             child: _ServiceTile(
@@ -588,14 +806,27 @@ class _HomeSheet extends StatelessWidget {
             ),
           ),
         ]),
-        const SizedBox(height: 18),
-        Row(children: [
-          Expanded(child: _QuickAction(icon: Icons.add_card_rounded, label: 'Nạp ví', onTap: onDeposit)),
-          Expanded(child: _QuickAction(icon: Icons.confirmation_number_outlined, label: 'Vé của tôi', onTap: onTickets)),
-          Expanded(child: _QuickAction(icon: Icons.receipt_long_outlined, label: 'Chuyến đi', onTap: onActivity)),
-          Expanded(child: _QuickAction(icon: Icons.support_agent_rounded, label: 'Hỗ trợ', onTap: onChat)),
-        ]),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
+        // Tiện ích: gộp trong một thẻ riêng cho gọn mắt
+        Material(
+          color: Colors.white,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: const BorderSide(color: Brand.line),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+            child: Row(children: [
+              Expanded(child: _QuickAction(icon: Icons.add_card_rounded, label: 'Nạp ví', onTap: onDeposit)),
+              Expanded(child: _QuickAction(icon: Icons.confirmation_number_outlined, label: 'Vé của tôi', onTap: onTickets)),
+              Expanded(child: _QuickAction(icon: Icons.receipt_long_outlined, label: 'Chuyến đi', onTap: onActivity)),
+              // Đây là nhắn tin (chat), khác với "Liên hệ hỗ trợ" trong Tài khoản.
+              Expanded(child: _QuickAction(icon: Icons.chat_bubble_outline_rounded, label: 'Nhắn tin', onTap: onChat)),
+            ]),
+          ),
+        ),
+        const SizedBox(height: 20),
         if (recent.isNotEmpty) ...[
           const SectionHeader('Đi gần đây'),
           for (final place in recent)
@@ -674,9 +905,13 @@ class _QuickAction extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(children: [
-          IconTile(icon, size: 48, radius: 16, bg: Brand.canvas),
+          IconTile(icon, size: 48, radius: 16, bg: Brand.b50),
           const SizedBox(height: 6),
-          Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         ]),
       ),
     );
@@ -748,7 +983,7 @@ class _BottomNav extends StatelessWidget {
                 child: Row(children: [
                   item(0, Icons.home_outlined, Icons.home_rounded, 'Trang chủ', () => onSelect(0)),
                   item(1, Icons.directions_car_outlined, Icons.directions_car_rounded, 'Đặt xe', () => onSelect(1)),
-                  item(null, Icons.confirmation_number_outlined, Icons.confirmation_number_rounded, 'Vé của tôi', onTickets),
+                  item(4, Icons.confirmation_number_outlined, Icons.confirmation_number_rounded, 'Vé của tôi', onTickets),
                   item(2, Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Hoạt động', () => onSelect(2)),
                   item(3, Icons.person_outline_rounded, Icons.person_rounded, 'Tài khoản', () => onSelect(3)),
                 ]),
@@ -773,9 +1008,9 @@ class _DepositInfoTile extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       onTap: copyable
           ? () {
-              Clipboard.setData(ClipboardData(text: value));
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã chép nội dung chuyển khoản')));
-            }
+        Clipboard.setData(ClipboardData(text: value));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã chép nội dung chuyển khoản')));
+      }
           : null,
       child: Container(
         width: double.infinity,
