@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:math';
 import '../config/api_config.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'customer_session.dart';
 
 import '../models/deposit_model.dart';
 import '../models/location_models.dart';
@@ -17,7 +17,8 @@ class RideCancellationException implements Exception {
   final String message;
   final int status;
   final String? code;
-  bool get wasRejected => code == 'ride_not_cancellable' ||
+  bool get wasRejected =>
+      code == 'ride_not_cancellable' ||
       (status >= 400 && status < 500 && status != 401 && status != 409);
 
   @override
@@ -88,8 +89,7 @@ class ApiService {
   // -----------------------------------------------------------
   // BASE URL CHUẨN
   // -----------------------------------------------------------
-  static const String _baseUrl =
-      "$apiOrigin/api/accountcustomerapi";
+  static const String _baseUrl = "$apiOrigin/api/accountcustomerapi";
 
   // Default headers
   static Map<String, String> _defaultHeaders() => {
@@ -134,9 +134,11 @@ class ApiService {
       });
 
       // Thực hiện gọi POST
-      return await http
-          .post(url, headers: _defaultHeaders(), body: body)
-          .timeout(const Duration(seconds: 20));
+      return await customerHttp.post(
+        url,
+        headers: _defaultHeaders(),
+        body: body,
+      );
     } catch (e) {
       // Trả về một Response lỗi giả lập nếu có sự cố kết nối để tránh Crash App
       return _errorResponse(e);
@@ -166,20 +168,20 @@ class ApiService {
     required String phone,
   }) async {
     try {
-      return await http
-          .post(
-            Uri.parse('$apiOrigin/api/identity/challenges'),
-            headers: _defaultHeaders(),
-            body: jsonEncode({
-              'ownerType': 1,
-              'purpose': 'register',
-              'email': email,
-              'phone': phone,
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
+      return await customerHttp.post(
+        Uri.parse('$apiOrigin/api/identity/challenges'),
+        headers: _defaultHeaders(),
+        body: jsonEncode({
+          'ownerType': 1,
+          'purpose': 'register',
+          'email': email,
+          'phone': phone,
+        }),
+      );
     } catch (_) {
-      return _jsonResponse({'message': 'Không thể kết nối. Vui lòng thử lại.'}, 503);
+      return _jsonResponse({
+        'message': 'Không thể kết nối. Vui lòng thử lại.',
+      }, 503);
     }
   }
 
@@ -221,119 +223,18 @@ class ApiService {
           .then(http.Response.fromStream)
           .timeout(const Duration(seconds: 30));
     } catch (_) {
-      return _jsonResponse({'message': 'Không thể kết nối. Vui lòng thử lại.'}, 503);
-    }
-  }
-
-  // -----------------------------------------------------------
-  // 4️⃣ REFRESH TOKEN
-  // -----------------------------------------------------------
-  static Future<http.Response> refreshToken({
-    required String refreshToken,
-  }) async {
-    final url = Uri.parse("$_baseUrl/refresh-token");
-
-    try {
-      final body = jsonEncode({"refreshToken": refreshToken});
-
-      return await http
-          .post(url, headers: _defaultHeaders(), body: body)
-          .timeout(const Duration(seconds: 20));
-    } catch (e) {
-      return _errorResponse(e);
-    }
-  }
-
-  static Future<String?>? _refreshInFlight;
-  static (String, String)? _lastRefreshedAccess;
-  static String? _lastAttemptedRefresh;
-
-  /// A refresh token rotates on use. Share refreshes between the booking flows.
-  static Future<String?> refreshRejectedAccessToken(String rejectedToken) async {
-    final prefs = await SharedPreferences.getInstance();
-    final currentAccess = prefs.getString('accessToken');
-    if (currentAccess != rejectedToken) {
-      final last = _lastRefreshedAccess;
-      return last?.$1 == rejectedToken && last?.$2 == currentAccess
-          ? currentAccess
-          : null;
-    }
-
-    final activeRefresh = _refreshInFlight;
-    if (activeRefresh != null) {
-      await activeRefresh;
-      final last = _lastRefreshedAccess;
-      return last != null &&
-              last.$1 == rejectedToken &&
-              last.$2 == prefs.getString('accessToken')
-          ? last.$2
-          : null;
-    }
-
-    final currentRefresh = prefs.getString('refreshToken');
-    if (currentRefresh == null ||
-        currentRefresh.isEmpty ||
-        currentRefresh == _lastAttemptedRefresh) {
-      return null;
-    }
-
-    _lastAttemptedRefresh = currentRefresh;
-    final refresh = _refreshCustomerSession(prefs, rejectedToken, currentRefresh);
-    _refreshInFlight = refresh;
-    try {
-      return await refresh;
-    } finally {
-      _refreshInFlight = null;
-    }
-  }
-
-  static Future<String?> _refreshCustomerSession(
-    SharedPreferences prefs,
-    String previousAccess,
-    String previousRefresh,
-  ) async {
-    try {
-      final response = await refreshToken(refreshToken: previousRefresh);
-      if (response.statusCode != 200) return null;
-
-      final body = jsonDecode(utf8.decode(response.bodyBytes));
-      if (body is! Map<String, dynamic>) return null;
-      final nested = body['data'];
-      final data = nested is Map<String, dynamic> ? nested : body;
-      final access = data['accessToken'];
-      final refresh = data['refreshToken'];
-      if (access is! String ||
-          access.isEmpty ||
-          refresh is! String ||
-          refresh.isEmpty ||
-          prefs.getString('accessToken') != previousAccess ||
-          prefs.getString('refreshToken') != previousRefresh) {
-        return null;
-      }
-
-      if (!await prefs.setString('refreshToken', refresh)) return null;
-      if (prefs.getString('accessToken') != previousAccess ||
-          prefs.getString('refreshToken') != refresh) {
-        return null;
-      }
-      if (!await prefs.setString('accessToken', access)) return null;
-      _lastRefreshedAccess = (previousAccess, access);
-      return access;
-    } catch (_) {
-      return null;
+      return _jsonResponse({
+        'message': 'Không thể kết nối. Vui lòng thử lại.',
+      }, 503);
     }
   }
 
   static Future<http.Response> _withCustomerSession(
     String accessToken,
     Future<http.Response> Function(String token) send,
-  ) async {
-    final response = await send(accessToken);
-    if (response.statusCode != 401) return response;
-
-    final renewedAccess = await refreshRejectedAccessToken(accessToken);
-    return renewedAccess == null ? response : await send(renewedAccess);
-  }
+  ) => send(
+    accessToken,
+  ); // Authentication and replay live in CustomerHttpClient.
 
   // -----------------------------------------------------------
   // 5️⃣ UPDATE PROFILE (PUT – FORM-DATA)
@@ -361,7 +262,7 @@ class ApiService {
         );
       }
 
-      final responseStream = await request.send();
+      final responseStream = await customerHttp.send(request);
       return await http.Response.fromStream(responseStream);
     } catch (e) {
       return _errorResponse(e);
@@ -379,9 +280,11 @@ class ApiService {
     try {
       final body = jsonEncode({"email": email});
 
-      return await http
-          .post(url, headers: _defaultHeaders(), body: body)
-          .timeout(const Duration(seconds: 20));
+      return await customerHttp.post(
+        url,
+        headers: _defaultHeaders(),
+        body: body,
+      );
     } catch (e) {
       return _errorResponse(e);
     }
@@ -406,9 +309,11 @@ class ApiService {
         "newPassword": newPassword,
       });
 
-      return await http
-          .post(url, headers: _defaultHeaders(), body: body)
-          .timeout(const Duration(seconds: 20));
+      return await customerHttp.post(
+        url,
+        headers: _defaultHeaders(),
+        body: body,
+      );
     } catch (e) {
       return _errorResponse(e);
     }
@@ -423,9 +328,7 @@ class ApiService {
     final url = Uri.parse("$_baseUrl/profile");
 
     try {
-      return await http
-          .get(url, headers: _authHeaders(accessToken))
-          .timeout(const Duration(seconds: 20));
+      return await customerHttp.get(url, headers: _authHeaders(accessToken));
     } catch (e) {
       return _errorResponse(e);
     }
@@ -440,15 +343,13 @@ class ApiService {
     print("🔵 [API] CALL DELETE ACCOUNT → $url");
 
     try {
-      final res = await http
-          .post(
-            url,
-            headers: {
-              "Authorization": "Bearer $accessToken",
-              "Accept": "application/json",
-            },
-          )
-          .timeout(const Duration(seconds: 30));
+      final res = await customerHttp.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Accept": "application/json",
+        },
+      );
 
       print("📥 [API] Status: ${res.statusCode}");
       print("📥 [API] Body: ${res.body}");
@@ -466,13 +367,9 @@ class ApiService {
     required String oldPassword,
     required String newPassword,
   }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/accountcustomerapi/change-password",
-    );
+    final url = Uri.parse("$apiOrigin/api/accountcustomerapi/change-password");
 
     print("🔵 [API] CALL CHANGE PASSWORD → $url");
-    print("📌 oldPassword: $oldPassword");
-    print("📌 newPassword: $newPassword");
 
     try {
       final body = jsonEncode({
@@ -480,17 +377,15 @@ class ApiService {
         "newPassword": newPassword,
       });
 
-      final res = await http
-          .post(
-            url,
-            headers: {
-              "Authorization": "Bearer $accessToken",
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: body,
-          )
-          .timeout(const Duration(seconds: 20));
+      final res = await customerHttp.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: body,
+      );
 
       print("📥 [API] Status: ${res.statusCode}");
       print("📥 [API] Body: ${res.body}");
@@ -509,7 +404,7 @@ class ApiService {
     final url = Uri.parse("$apiOrigin/api/provinceapi/active");
 
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 15));
+      final response = await customerHttp.get(url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -528,12 +423,10 @@ class ApiService {
 
   //Lấy huyện theo tỉnh
   static Future<List<dynamic>> getDistricts({required int provinceId}) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/provinceapi/district/$provinceId",
-    );
+    final url = Uri.parse("$apiOrigin/api/provinceapi/district/$provinceId");
 
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 15));
+      final response = await customerHttp.get(url);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -555,22 +448,20 @@ class ApiService {
     String? location,
     int size = 10,
   }) async {
-    final url =
-        Uri.parse(
-          "$apiOrigin/api/track-asia/autocomplete",
-        ).replace(
-          queryParameters: {
-            "input": input,
-            "size": size.toString(),
-            if (location != null && location.trim().isNotEmpty)
-              "location": location.trim(),
-          },
-        );
+    final url = Uri.parse("$apiOrigin/api/track-asia/autocomplete").replace(
+      queryParameters: {
+        "input": input,
+        "size": size.toString(),
+        if (location != null && location.trim().isNotEmpty)
+          "location": location.trim(),
+      },
+    );
 
     try {
-      return await http
-          .get(url, headers: {"Accept": "application/json"})
-          .timeout(const Duration(seconds: 20));
+      return await customerHttp.get(
+        url,
+        headers: {"Accept": "application/json"},
+      );
     } catch (e) {
       return _errorResponse(e);
     }
@@ -584,9 +475,10 @@ class ApiService {
     ).replace(queryParameters: {"placeId": placeId});
 
     try {
-      return await http
-          .get(url, headers: {"Accept": "application/json"})
-          .timeout(const Duration(seconds: 20));
+      return await customerHttp.get(
+        url,
+        headers: {"Accept": "application/json"},
+      );
     } catch (e) {
       return _errorResponse(e);
     }
@@ -596,15 +488,15 @@ class ApiService {
     required double lat,
     required double lng,
   }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/v2/address/resolve-point",
-    );
+    final url = Uri.parse("$apiOrigin/api/v2/address/resolve-point");
 
     try {
       final body = jsonEncode({"lat": lat, "lng": lng});
-      return await http
-          .post(url, headers: _defaultHeaders(), body: body)
-          .timeout(const Duration(seconds: 30));
+      return await customerHttp.post(
+        url,
+        headers: _defaultHeaders(),
+        body: body,
+      );
     } catch (e) {
       return _errorResponse(e);
     }
@@ -618,9 +510,7 @@ class ApiService {
     required int paymentMethod,
     required int quantity,
   }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/v2/address/resolve-route",
-    );
+    final url = Uri.parse("$apiOrigin/api/v2/address/resolve-route");
 
     try {
       final body = jsonEncode({
@@ -632,9 +522,11 @@ class ApiService {
         "quantity": quantity,
       });
 
-      return await http
-          .post(url, headers: _defaultHeaders(), body: body)
-          .timeout(const Duration(seconds: 30));
+      return await customerHttp.post(
+        url,
+        headers: _defaultHeaders(),
+        body: body,
+      );
     } catch (e) {
       return _errorResponse(e);
     }
@@ -649,22 +541,21 @@ class ApiService {
     required String pickupTime,
     required int quantity,
   }) async {
-    final url = Uri.parse("$apiOrigin/api/tripapi/getprice")
-        .replace(
-          queryParameters: <String, String>{
-            "fromDistrictId": fromDistrictId.toString(),
-            "toDistrictId": toDistrictId.toString(),
-            "type": type.toString(),
-            "paymentMethod": paymentMethod.toString(),
-            "pickupTime": pickupTime,
-            "quantity": quantity.toString(),
-          },
-        );
+    final url = Uri.parse("$apiOrigin/api/tripapi/getprice").replace(
+      queryParameters: <String, String>{
+        "fromDistrictId": fromDistrictId.toString(),
+        "toDistrictId": toDistrictId.toString(),
+        "type": type.toString(),
+        "paymentMethod": paymentMethod.toString(),
+        "pickupTime": pickupTime,
+        "quantity": quantity.toString(),
+      },
+    );
 
     print("🔵 [PRICE] GET $url");
 
     try {
-      final res = await http.get(url).timeout(const Duration(seconds: 15));
+      final res = await customerHttp.get(url);
 
       print("📥 Status: ${res.statusCode}");
       print("📥 Body: ${res.body}");
@@ -707,40 +598,40 @@ class ApiService {
       "quantity": quantity,
     });
 
-    Future<http.Response> send(String token) => http
-        .post(url, headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $token",
-          "Idempotency-Key": idempotencyKey,
-        }, body: body)
-        .timeout(const Duration(seconds: 15));
+    Future<http.Response> send(String token) => customerHttp.post(
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $token",
+        "Idempotency-Key": idempotencyKey,
+      },
+      body: body,
+    );
 
     try {
       return await _withCustomerSession(accessToken, send);
     } catch (_) {
       return _jsonResponse({
         "success": false,
-        "message": "Chưa xác nhận được kết quả. Vui lòng kiểm tra Hoạt động trước khi đặt lại.",
+        "message":
+            "Chưa xác nhận được kết quả. Vui lòng kiểm tra Hoạt động trước khi đặt lại.",
       }, 500);
     }
   }
 
   //Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 14)
-  static Future<http.Response> getTripCurrent({
-    required String accessToken,
-  }) => _getTripList(accessToken, 'current');
+  static Future<http.Response> getTripCurrent({required String accessToken}) =>
+      _getTripList(accessToken, 'current');
 
   //Lấy chuyến đi đang diễn ra ở trạng thái 1 và 2 (api 15)
-  static Future<http.Response> getTripHistory({
-    required String accessToken,
-  }) => _getTripList(accessToken, 'history');
+  static Future<http.Response> getTripHistory({required String accessToken}) =>
+      _getTripList(accessToken, 'history');
 
   static Future<http.Response> _getTripList(String accessToken, String action) {
     final uri = Uri.parse("$apiOrigin/api/rideapi/$action");
     return _withCustomerSession(
       accessToken,
-      (token) => http.get(uri, headers: _authHeaders(token))
-          .timeout(const Duration(seconds: 15)),
+      (token) => customerHttp.get(uri, headers: _authHeaders(token)),
     );
   }
 
@@ -749,26 +640,29 @@ class ApiService {
     required String accessToken,
     required int rideId,
   }) async {
-    final uri = Uri.parse(
-      '$apiOrigin/api/rideapi/ride-detail/$rideId',
-    );
+    final uri = Uri.parse('$apiOrigin/api/rideapi/ride-detail/$rideId');
 
     final http.Response response;
     try {
       response = await _withCustomerSession(
         accessToken,
-        (token) => http.get(uri, headers: _authHeaders(token))
-            .timeout(const Duration(seconds: 15)),
+        (token) => customerHttp.get(uri, headers: _authHeaders(token)),
       );
     } catch (error) {
-      throw ApiResponseFailure(responseError(_errorResponse(error), 'Không tải được chi tiết chuyến.'));
+      throw ApiResponseFailure(
+        responseError(_errorResponse(error), 'Không tải được chi tiết chuyến.'),
+      );
     }
     final body = responseJson(response);
     final data = body?['data'];
-    if (response.statusCode == 200 && body?['success'] == true && data is Map<String, dynamic>) {
+    if (response.statusCode == 200 &&
+        body?['success'] == true &&
+        data is Map<String, dynamic>) {
       return data;
     }
-    throw ApiResponseFailure(responseError(response, 'Không tải được chi tiết chuyến.'));
+    throw ApiResponseFailure(
+      responseError(response, 'Không tải được chi tiết chuyến.'),
+    );
   }
 
   static Future<void> cancelTrip({
@@ -786,10 +680,10 @@ class ApiService {
     try {
       response = await _withCustomerSession(
         accessToken,
-        (token) => http.put(url, headers: {
-          ..._authHeaders(token),
-          "Idempotency-Key": idempotencyKey,
-        }).timeout(const Duration(seconds: 20)),
+        (token) => customerHttp.put(
+          url,
+          headers: {..._authHeaders(token), "Idempotency-Key": idempotencyKey},
+        ),
       );
     } catch (_) {
       throw const RideCancellationException(uncertain);
@@ -820,22 +714,18 @@ class ApiService {
     required double amount,
     required String content,
   }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/paymentapi/deposite",
-    );
+    final url = Uri.parse("$apiOrigin/api/paymentapi/deposite");
 
     try {
-      final res = await http
-          .post(
-            url,
-            headers: {
-              "Authorization": "Bearer $accessToken",
-              "Accept": "application/json",
-              "Content-Type": "application/json",
-            },
-            body: jsonEncode({"amount": amount, "content": content}),
-          )
-          .timeout(const Duration(seconds: 20));
+      final res = await customerHttp.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"amount": amount, "content": content}),
+      );
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
@@ -859,15 +749,13 @@ class ApiService {
     print("🔵 [API] WALLET HISTORY → $url");
 
     try {
-      final res = await http
-          .get(
-            url,
-            headers: {
-              "Authorization": "Bearer $accessToken",
-              "Accept": "application/json",
-            },
-          )
-          .timeout(const Duration(seconds: 20));
+      final res = await customerHttp.get(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Accept": "application/json",
+        },
+      );
 
       print("📥 [API] STATUS: ${res.statusCode}");
       print("📥 [API] BODY: ${res.body}");
@@ -888,19 +776,18 @@ class ApiService {
     required int paymentMethod,
     required String pickupTime,
   }) async {
-    final url = Uri.parse("$apiOrigin/api/tetapi/getprice")
-        .replace(
-          queryParameters: {
-            "fromDistrictId": fromDistrictId.toString(),
-            "toDistrictId": toDistrictId.toString(),
-            "type": type.toString(),
-            "paymentMethod": paymentMethod.toString(),
-            "pickupTime": pickupTime,
-          },
-        );
+    final url = Uri.parse("$apiOrigin/api/tetapi/getprice").replace(
+      queryParameters: {
+        "fromDistrictId": fromDistrictId.toString(),
+        "toDistrictId": toDistrictId.toString(),
+        "type": type.toString(),
+        "paymentMethod": paymentMethod.toString(),
+        "pickupTime": pickupTime,
+      },
+    );
 
     try {
-      final res = await http.get(url).timeout(const Duration(seconds: 15));
+      final res = await customerHttp.get(url);
       return res;
     } catch (e) {
       return _errorResponse(e);
@@ -936,16 +823,14 @@ class ApiService {
     });
 
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": "Bearer $accessToken",
-            },
-            body: body,
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await customerHttp.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $accessToken",
+        },
+        body: body,
+      );
       return response;
     } catch (e) {
       return _errorResponse(e);
@@ -959,12 +844,10 @@ class ApiService {
     required String pickupTime,
     required String voucherCode,
   }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/tetapi/apply-voucher",
-    );
+    final url = Uri.parse("$apiOrigin/api/tetapi/apply-voucher");
 
     try {
-      final response = await http.post(
+      final response = await customerHttp.post(
         url,
         headers: {
           'Authorization': 'Bearer $accessToken',
@@ -1001,17 +884,15 @@ class ApiService {
   }) async {
     final url = Uri.parse("$apiOrigin/api/depositapi/create");
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {
-              "Authorization": "Bearer $accessToken",
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: jsonEncode({"amount": amount}),
-          )
-          .timeout(const Duration(seconds: 20));
+      final response = await customerHttp.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: jsonEncode({"amount": amount}),
+      );
 
       final data = safeDecode(response.body);
       if (data is Map<String, dynamic>) {
@@ -1039,19 +920,15 @@ class ApiService {
     required String accessToken,
     required int depositId,
   }) async {
-    final url = Uri.parse(
-      "$apiOrigin/api/depositapi/cancel/$depositId",
-    );
+    final url = Uri.parse("$apiOrigin/api/depositapi/cancel/$depositId");
     try {
-      final response = await http
-          .put(
-            url,
-            headers: {
-              "Authorization": "Bearer $accessToken",
-              "Accept": "application/json",
-            },
-          )
-          .timeout(const Duration(seconds: 15));
+      final response = await customerHttp.put(
+        url,
+        headers: {
+          "Authorization": "Bearer $accessToken",
+          "Accept": "application/json",
+        },
+      );
 
       if (response.body.isEmpty) {
         return CancelDepositResponse(success: response.statusCode == 200);

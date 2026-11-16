@@ -1,3 +1,4 @@
+import '../services/customer_session.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -153,11 +154,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     final accessToken = prefs.getString('accessToken');
 
+    await CustomerSession.clear();
     if (accessToken != null) {
       await ApiService.logout(accessToken);
     }
-
-    await prefs.clear();
     if (!mounted) return;
     _goToLogin();
   }
@@ -649,8 +649,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (!mounted) return;
 
               if (res.statusCode == 200) {
-                await prefs.remove('accessToken');
-                await prefs.remove('refreshToken');
+                await CustomerSession.clear();
                 if (!mounted) return;
                 messenger.showSnackBar(
                   const SnackBar(content: Text('Tài khoản đã bị xoá')),

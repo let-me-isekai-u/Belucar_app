@@ -1,6 +1,6 @@
 import 'dart:convert';
 import '../config/api_config.dart';
-import 'package:http/http.dart' as http;
+import 'customer_session.dart';
 import '../models/message_model.dart';
 import '../models/chat_message_page.dart';
 import 'chat_session.dart';
@@ -30,7 +30,7 @@ class ChatApiService {
     try {
       final accessToken = await ChatSession.accessToken();
       if (accessToken.isEmpty) throw StateError('Phiên đăng nhập đã hết hạn.');
-      final response = await http.post(
+      final response = await customerHttp.post(
         url,
         headers: {
           "Authorization": "Bearer $accessToken",
@@ -48,11 +48,15 @@ class ChatApiService {
         }
       }
 
-      throw ApiResponseFailure(ApiService.responseError(response, 'Không mở được đoạn chat.'));
+      throw ApiResponseFailure(
+        ApiService.responseError(response, 'Không mở được đoạn chat.'),
+      );
     } on ApiResponseFailure {
       rethrow;
     } catch (_) {
-      throw const ApiResponseFailure('Không mở được đoạn chat. Vui lòng thử lại.');
+      throw const ApiResponseFailure(
+        'Không mở được đoạn chat. Vui lòng thử lại.',
+      );
     }
   }
 
@@ -77,7 +81,7 @@ class ChatApiService {
     try {
       final accessToken = await ChatSession.accessToken();
       if (accessToken.isEmpty) throw StateError('Phiên đăng nhập đã hết hạn.');
-      final response = await http.get(
+      final response = await customerHttp.get(
         url,
         headers: {"Authorization": "Bearer $accessToken"},
       );
@@ -96,11 +100,15 @@ class ChatApiService {
         }
       }
 
-      throw ApiResponseFailure(ApiService.responseError(response, 'Không thể tải tin nhắn.'));
+      throw ApiResponseFailure(
+        ApiService.responseError(response, 'Không thể tải tin nhắn.'),
+      );
     } on ApiResponseFailure {
       rethrow;
     } catch (_) {
-      throw const ApiResponseFailure('Không thể tải tin nhắn. Vui lòng thử lại.');
+      throw const ApiResponseFailure(
+        'Không thể tải tin nhắn. Vui lòng thử lại.',
+      );
     }
   }
 
@@ -116,7 +124,7 @@ class ChatApiService {
     try {
       final accessToken = await ChatSession.accessToken();
       if (accessToken.isEmpty) throw StateError('Phiên đăng nhập đã hết hạn.');
-      final response = await http.post(
+      final response = await customerHttp.post(
         url,
         headers: {
           "Authorization": "Bearer $accessToken",
@@ -134,11 +142,15 @@ class ChatApiService {
         }
       }
 
-      throw ApiResponseFailure(ApiService.responseError(response, 'Không thể gửi tin nhắn.'));
+      throw ApiResponseFailure(
+        ApiService.responseError(response, 'Không thể gửi tin nhắn.'),
+      );
     } on ApiResponseFailure {
       rethrow;
     } catch (_) {
-      throw const ApiResponseFailure('Không thể gửi tin nhắn. Vui lòng thử lại.');
+      throw const ApiResponseFailure(
+        'Không thể gửi tin nhắn. Vui lòng thử lại.',
+      );
     }
   }
 
@@ -151,7 +163,7 @@ class ChatApiService {
     try {
       final accessToken = await ChatSession.accessToken();
       if (accessToken.isEmpty) throw StateError('Phiên đăng nhập đã hết hạn.');
-      final response = await http.post(
+      final response = await customerHttp.post(
         url,
         headers: {
           "Authorization": "Bearer $accessToken",
@@ -166,11 +178,15 @@ class ChatApiService {
         return true;
       }
 
-      throw ApiResponseFailure(ApiService.responseError(response, 'Không thể đánh dấu đã đọc.'));
+      throw ApiResponseFailure(
+        ApiService.responseError(response, 'Không thể đánh dấu đã đọc.'),
+      );
     } on ApiResponseFailure {
       rethrow;
     } catch (_) {
-      throw const ApiResponseFailure('Không thể đánh dấu đã đọc. Vui lòng thử lại.');
+      throw const ApiResponseFailure(
+        'Không thể đánh dấu đã đọc. Vui lòng thử lại.',
+      );
     }
   }
 }

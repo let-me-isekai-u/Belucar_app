@@ -10,6 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  video_player: 2.10.0
   http: ^1.5.0
   shared_preferences: ^2.5.3
   intl: ^0.20.2
@@ -54,6 +55,7 @@ flutter:
           weight: 800
   generate: true
   assets:
+    - assets/videos/intro_splash.mp4
     - lib/assets/icons/icons8-zalo-100.png
     - lib/assets/icons/united-states.png
     - lib/assets/icons/vietnam.png

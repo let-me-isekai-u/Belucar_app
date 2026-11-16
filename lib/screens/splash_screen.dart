@@ -1,13 +1,12 @@
-import 'dart:convert';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:video_player/video_player.dart';
+
 import '../services/api_service.dart';
 import '../services/firebase_notification_service.dart';
-import '../ui/ui.dart';
-
-void appLog(String tag, String msg) {
-  debugPrint('[$tag] $msg');
-}
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,242 +15,177 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
-  static const Duration _minDisplayDuration = Duration(milliseconds: 1500);
-  late final DateTime _splashStart;
-
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnimation;
-
-  late AnimationController _shimmerController;
-  late Animation<double> _shimmerAnimation;
+class _SplashScreenState extends State<SplashScreen> {
+  late final VideoPlayerController _video;
+  Timer? _watchdog;
+  bool _introDone = false;
+  bool _videoFailed = false;
+  bool _authDone = false;
+  bool _navigated = false;
+  String _destination = '/login';
 
   @override
   void initState() {
     super.initState();
-    _splashStart = DateTime.now();
-
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
+    _video = VideoPlayerController.asset(
+      'assets/videos/intro_splash.mp4',
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
     );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeIn,
-    );
-    _fadeController.forward();
-
-    _shimmerController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-    _shimmerAnimation = CurvedAnimation(
-      parent: _shimmerController,
-      curve: Curves.easeInOut,
-    );
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await FirebaseNotificationService.init();
-      } catch (e, s) {
-        debugPrint('NOTI INIT ERROR: $e');
-        debugPrint('$s');
-      }
-      _checkAuth();
+    _video.addListener(_onVideo);
+    _watchdog = Timer(const Duration(seconds: 20), _failVideo);
+    unawaited(_startVideo());
+    unawaited(_checkAuth());
+    // Notification permissions must not gate playback or session validation.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        FirebaseNotificationService.init().catchError((Object error) {
+          debugPrint(
+            'Notification initialization unavailable: ${error.runtimeType}',
+          );
+        }),
+      );
     });
+  }
+
+  Future<void> _startVideo() async {
+    try {
+      await _video.initialize().timeout(const Duration(seconds: 8));
+      if (!mounted || _videoFailed) return;
+      await _video.setVolume(0);
+      await _video.setLooping(false);
+      if (!mounted || _videoFailed) return;
+      setState(() {});
+      await _video.play();
+      if (!mounted || _introDone) return;
+      _watchdog?.cancel();
+      // Handles a decoder that stalls without reporting an error.
+      _watchdog = Timer(
+        _video.value.duration + const Duration(seconds: 8),
+        _failVideo,
+      );
+    } catch (_) {
+      _failVideo();
+    }
+  }
+
+  void _onVideo() {
+    if (!mounted || _introDone) return;
+    final value = _video.value;
+    if (value.hasError) {
+      _failVideo();
+    } else if (value.isInitialized &&
+        value.duration > Duration.zero &&
+        value.position >= value.duration) {
+      _watchdog?.cancel();
+      setState(() => _introDone = true);
+      _navigateIfReady();
+    }
+  }
+
+  void _failVideo() {
+    if (!mounted || _introDone) return;
+    _watchdog?.cancel();
+    unawaited(_video.pause().catchError((Object _) {}));
+    setState(() {
+      _videoFailed = true;
+      _introDone = true;
+    });
+    _navigateIfReady();
+  }
+
+  Future<void> _checkAuth() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final access = prefs.getString('accessToken');
+      if (access != null && access.isNotEmpty) {
+        // Shared HTTP client owns refresh. Temporary failure retains the session
+        // and opens Home, whose existing error UI lets the user retry.
+        final response = await ApiService.getCustomerProfile(
+          accessToken: access,
+        );
+        if (prefs.getString('accessToken')?.isNotEmpty == true &&
+            response.statusCode != 401) {
+          _destination = '/home';
+          await prefs.setBool('showEventBanner', true);
+        }
+      }
+    } catch (_) {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getString('accessToken')?.isNotEmpty == true) {
+        _destination = '/home';
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _authDone = true);
+        _navigateIfReady();
+      }
+    }
+  }
+
+  void _navigateIfReady() {
+    if (!mounted || !_introDone || !_authDone || _navigated) return;
+    _navigated = true;
+    Navigator.pushReplacementNamed(context, _destination);
   }
 
   @override
   void dispose() {
-    _fadeController.dispose();
-    _shimmerController.dispose();
+    _watchdog?.cancel();
+    _video.removeListener(_onVideo);
+    unawaited(_video.dispose());
     super.dispose();
   }
 
-  Future<void> _ensureMinDisplay() async {
-    final elapsed = DateTime.now().difference(_splashStart);
-    if (elapsed < _minDisplayDuration) {
-      await Future.delayed(_minDisplayDuration - elapsed);
-    }
-  }
-
-  Future<void> _checkAuth() async {
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('accessToken');
-    final refreshToken = prefs.getString('refreshToken');
-
-    if (accessToken == null || accessToken.isEmpty) {
-      _goLogin();
-      return;
-    }
-
-    try {
-      final res = await ApiService.getCustomerProfile(accessToken: accessToken);
-
-      if (!mounted) return;
-
-      if (res.statusCode == 200) {
-        await prefs.setBool('showEventBanner', true);
-        await _ensureMinDisplay();
-        _goHome();
-        return;
-      }
-
-      if (res.statusCode == 401) {
-        await prefs.remove('accessToken');
-      }
-    } catch (_) {
-      await prefs.remove('accessToken');
-    }
-
-    if (refreshToken == null || refreshToken.isEmpty) {
-      _clearAndLogin();
-      return;
-    }
-
-    try {
-      final res = await ApiService.refreshToken(refreshToken: refreshToken);
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final newAccess = data['accessToken'];
-        final newRefresh = data['refreshToken'];
-
-        if (newAccess != null && newRefresh != null) {
-          await prefs.setString('accessToken', newAccess);
-          await prefs.setString('refreshToken', newRefresh);
-          await prefs.setBool('showEventBanner', true);
-          await _ensureMinDisplay();
-          _goHome();
-          return;
-        }
-      }
-    } catch (_) {}
-
-    _clearAndLogin();
-  }
-
-  Future<void> _clearAndLogin() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('accessToken');
-    await prefs.remove('refreshToken');
-    _goLogin();
-  }
-
-  void _goHome() {
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/home');
-  }
-
-  void _goLogin() {
-    if (!mounted) return;
-    Navigator.pushReplacementNamed(context, '/login');
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Brand.navy,
-      body: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            const Align(
-              alignment: Alignment(0, 0.18),
-              child: Opacity(
-                opacity: 0.35,
-                child: SizedBox(height: 3, child: DashedLine(axis: Axis.horizontal, color: Brand.lane, dash: 16, gap: 10, thickness: 3)),
-              ),
-            ),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 112,
-                    height: 112,
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(32)),
-                    alignment: Alignment.center,
-                    child: const BrandMark(size: 54),
-                  ),
-                  const SizedBox(height: 22),
-                  const Text('ĐÔNG DƯƠNG',
-                      style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 4)),
-                  const SizedBox(height: 6),
-                  const Text('Xe ghép · Limousine · Xe khách',
-                      style: TextStyle(color: Brand.b200, fontSize: 13, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 48,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 72),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _ShimmerLoadingBar(animation: _shimmerAnimation),
-                    const SizedBox(height: 10),
-                    const Text('Đang tải...', style: TextStyle(color: Brand.b200, fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.6)),
-                  ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: const Color(0xFFECEDE8),
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFECEDE8),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: Center(
+                  child: !_videoFailed && _video.value.isInitialized
+                      ? SizedBox.expand(
+                          child: FittedBox(
+                            fit: BoxFit.contain,
+                            child: SizedBox(
+                              width: _video.value.size.width,
+                              height: _video.value.size.height,
+                              child: VideoPlayer(_video),
+                            ),
+                          ),
+                        )
+                      // Match the native launch screen and the video's first
+                      // frame while loading or if playback is unavailable.
+                      : const SizedBox.expand(),
                 ),
               ),
-            ),
-          ],
+              // Reserve space: loading never overlays any part of the video.
+              SizedBox(
+                height: 28,
+                child: _introDone && !_authDone
+                    ? const Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _ShimmerLoadingBar extends StatelessWidget {
-  final Animation<double> animation;
-
-  const _ShimmerLoadingBar({required this.animation});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, _) {
-        return Container(
-          height: 4,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: 1.0,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Stack(
-                children: [
-                  Container(color: Colors.white.withOpacity(0.25)),
-                  FractionallySizedBox(
-                    alignment: Alignment((animation.value * 3.0) - 1.5, 0),
-                    widthFactor: 0.35,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Colors.white.withOpacity(0.75),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

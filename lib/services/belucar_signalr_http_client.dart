@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'customer_session.dart';
 
 import 'package:http/http.dart';
 import 'package:signalr_netcore/errors.dart';
@@ -13,7 +14,7 @@ class BeluCarSignalRHttpClient extends SignalRHttpClient {
     final abortSignal = request.abortSignal;
     if (abortSignal?.aborted == true) throw AbortError();
 
-    final client = Client();
+    final client = CustomerHttpClient();
     final aborted = Completer<Response>();
     abortSignal?.onabort = () {
       if (!aborted.isCompleted) aborted.completeError(AbortError());
@@ -22,7 +23,8 @@ class BeluCarSignalRHttpClient extends SignalRHttpClient {
     try {
       final outgoing = Request(request.method!, Uri.parse(request.url!));
       final content = request.content;
-      final handshake = outgoing.method == 'POST' &&
+      final handshake =
+          outgoing.method == 'POST' &&
               content is String &&
               content.startsWith('{"protocol":')
           ? Completer<void>()

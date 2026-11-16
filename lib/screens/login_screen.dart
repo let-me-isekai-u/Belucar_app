@@ -1,3 +1,4 @@
+import '../services/customer_session.dart';
 import 'dart:convert';
 import 'dart:ui' show PathMetric;
 
@@ -77,8 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
 
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('accessToken', accessToken);
-          await prefs.setString('refreshToken', refreshToken);
+          await CustomerSession.login(accessToken, refreshToken);
           await prefs.setString('fullName', fullName);
           await prefs.setString('phone', phone);
           await prefs.setInt('id', userId);
