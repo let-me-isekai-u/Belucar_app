@@ -93,7 +93,7 @@ class _BelucarAppState extends State<BelucarApp> with WidgetsBindingObserver {
       navigatorKey: _navigatorKey,
       navigatorObservers: [_sessionObserver],
       debugShowCheckedModeBanner: false,
-      title: 'BeluCar',
+      title: 'Xe Đông Dương',
       theme: AppTheme.theme,
       initialRoute: "/splash",
       routes: {
