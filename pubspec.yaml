@@ -82,9 +82,9 @@ flutter:
 
 flutter_launcher_icons:
   android: "launcher_icon"
-  ios: true
-  image_path: "lib/assets/icons/dong_duong_logo.png"
+  # The iOS catalog uses ios/branding/generate_app_icon.swift.
+  ios: false
+  image_path: "ios/branding/customer-app-icon-1024.png"
   adaptive_icon_background: "#ffffff"
-  adaptive_icon_foreground: "lib/assets/icons/dong_duong_logo.png"
-  remove_alpha_ios: true
+  adaptive_icon_foreground: "ios/branding/customer-app-icon-1024.png"
   min_sdk_android: 21
