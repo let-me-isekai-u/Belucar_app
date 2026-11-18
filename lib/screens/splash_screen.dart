@@ -106,7 +106,6 @@ class _SplashScreenState extends State<SplashScreen> {
         if (prefs.getString('accessToken')?.isNotEmpty == true &&
             response.statusCode != 401) {
           _destination = '/home';
-          await prefs.setBool('showEventBanner', true);
         }
       }
     } catch (_) {
