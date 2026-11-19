@@ -8,12 +8,14 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/customer_http_fixture.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late BookingModel model;
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
+    SharedPreferences.setMockInitialValues({'accessToken': 'test-token'});
     model = BookingModel()
       ..selectedPickupPoint = RidePointPayload.placeId('fixture-pickup')
       ..selectedDropPoint = RidePointPayload.placeId('fixture-drop')
@@ -38,12 +40,12 @@ void main() {
       return http.Response('{"success":true,"data":{"id":1}}', 200);
     });
 
-    await http.runWithClient(() async {
+    await withCustomerHttp(() async {
       await model.fetchTripPrice();
       expect(model.tripPrice, 200000);
       final result = await model.createRide('test-token');
       expect(result['success'], true);
-    }, () => client);
+    }, client);
 
     expect(requests.map((request) => request.url.path), [
       '/api/v2/address/resolve-route',
@@ -65,9 +67,9 @@ void main() {
       return http.Response('{"success":true}', 200);
     });
 
-    await http.runWithClient(() async {
+    await withCustomerHttp(() async {
       expect((await model.createRide('test-token'))['success'], true);
-    }, () => client);
+    }, client);
   });
 
   test('invalid passenger phones are rejected before sending', () async {
@@ -78,7 +80,7 @@ void main() {
       (_) async => throw StateError('Unexpected request'),
     );
 
-    await http.runWithClient(() async {
+    await withCustomerHttp(() async {
       for (final phone in [
         '090000000',
         '09000000000',
@@ -92,7 +94,7 @@ void main() {
           throwsA(contains('đúng 10 chữ số')),
         );
       }
-    }, () => client);
+    }, client);
   });
 
   test('booking without a quoted trip is stopped before sending', () async {
@@ -101,9 +103,9 @@ void main() {
       requestCount++;
       return http.Response('{"success":true}', 200);
     });
-    await http.runWithClient(() async {
+    await withCustomerHttp(() async {
       await expectLater(model.createRide('test-token'), throwsA(isA<String>()));
-    }, () => client);
+    }, client);
     expect(requestCount, 0);
   });
 
@@ -131,9 +133,9 @@ void main() {
             : http.Response('{"success":true}', 200);
       });
 
-      await http.runWithClient(() async {
+      await withCustomerHttp(() async {
         expect((await model.createRide('expired'))['success'], true);
-      }, () => client);
+      }, client);
 
       expect(refreshCount, 1);
       expect(bookings, hasLength(2));
@@ -152,13 +154,19 @@ void main() {
     'empty 401 without a refresh token asks the customer to sign in',
     () async {
       model.currentTripId = 4321;
-      final client = MockClient((request) async => http.Response('', 401));
-      await http.runWithClient(() async {
+      var bookings = 0;
+      final client = MockClient((request) async {
+        expect(request.url.path, '/api/v2/ride/create');
+        bookings++;
+        return http.Response('', 401);
+      });
+      await withCustomerHttp(() async {
         await expectLater(
-          model.createRide('expired'),
+          model.createRide('test-token'),
           throwsA(contains('đăng nhập lại')),
         );
-      }, () => client);
+      }, client);
+      expect(bookings, 1);
     },
   );
 
@@ -169,12 +177,12 @@ void main() {
       requests++;
       return http.Response('', 502);
     });
-    await http.runWithClient(() async {
+    await withCustomerHttp(() async {
       await expectLater(
-        model.createRide('active'),
+        model.createRide('test-token'),
         throwsA(contains('kiểm tra Hoạt động')),
       );
-    }, () => client);
+    }, client);
     expect(requests, 1);
   });
 
@@ -198,9 +206,9 @@ void main() {
           409,
         );
       });
-      await http.runWithClient(() async {
-        await expectLater(model.createRide('active'), throwsA(message));
-      }, () => client);
+      await withCustomerHttp(() async {
+        await expectLater(model.createRide('test-token'), throwsA(message));
+      }, client);
       expect(requests, 1);
     },
   );

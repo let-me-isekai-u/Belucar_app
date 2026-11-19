@@ -107,6 +107,12 @@ class CarrierApi {
   static Future<Map<String, dynamic>> run(int runId) async =>
       Map<String, dynamic>.from(await _call('GET', '/runs/$runId') as Map);
 
+  static Future<Map<String, dynamic>> voucherQuote(int runId, int pickup, int dropoff, int pax, String code, int? replacementId) async =>
+      Map<String, dynamic>.from(await _call('POST', '/voucher-quote', auth: true, body: {
+        'runId': runId, 'pickupRunStopId': pickup, 'dropoffRunStopId': dropoff,
+        'passengerCount': pax, 'code': code, 'replacementId': replacementId,
+      }) as Map);
+
   static Future<Map<String, dynamic>> quote(
     int runId,
     int pickup,
@@ -151,7 +157,7 @@ class CarrierApi {
         await _call('GET', '/bookings?page=$page', auth: true) as Map,
       );
 
-  /// Trả vé đang chờ thanh toán bằng ví Beluga (đủ số dư, trả toàn bộ). Vé xác nhận ngay.
+  /// Trả vé đang chờ thanh toán bằng ví (đủ số dư, trả toàn bộ). Vé xác nhận ngay.
   static Future<Map<String, dynamic>> payWallet(String code) async =>
       Map<String, dynamic>.from(
         await _call(

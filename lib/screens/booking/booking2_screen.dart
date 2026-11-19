@@ -9,6 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/booking_model.dart';
 import '../../services/api_service.dart';
+import '../../widgets/trip_insurance_option.dart';
+import '../../widgets/checkout_totals.dart';
+import '../../widgets/platform_voucher_picker.dart';
 import 'booking_ui.dart';
 import '../../ui/ui.dart';
 
@@ -31,6 +34,9 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   bool _isCreatingRide = false;
   bool _isBookingForOther = false;
   bool _didRequestInitialPrice = false;
+  String? _voucherContext;
+  Map<String, dynamic>? _voucher;
+  String? _checkingVoucherContext;
   String _userFullName = '';
   String _userPhone = '';
   String _proxyPhoneDraft = '';
@@ -165,7 +171,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   String formatCurrency(double value) {
     final formatter = NumberFormat.currency(
       locale: 'vi_VN',
-      symbol: 'VND',
+      symbol: 'đ',
       decimalDigits: 0,
     );
     return formatter.format(value);
@@ -704,7 +710,6 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   Widget _buildPriceRow(
     String label,
     String value, {
-    bool isTotal = false,
     Color? valueColor,
   }) {
     return Padding(
@@ -714,20 +719,18 @@ class _Booking2ScreenState extends State<Booking2Screen> {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Brand.inkMuted,
-                fontWeight: isTotal ? FontWeight.w700 : FontWeight.w600,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
           Text(
             value,
             style: TextStyle(
-              color:
-                  valueColor ??
-                  (isTotal ? Brand.navy : Brand.ink),
-              fontWeight: isTotal ? FontWeight.w800 : FontWeight.w700,
-              fontSize: isTotal ? 18 : 15,
+              color: valueColor ?? Brand.ink,
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
             ),
           ),
         ],
@@ -778,7 +781,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
   }
 
   Future<void> _handleCreateRide(BookingModel model) async {
-    if (_isCalculatingPrice || _isCreatingRide || model.isLoadingPrice) return;
+    if (_isCalculatingPrice || _isCreatingRide || model.isLoadingPrice || _checkingVoucherContext == _voucherKey(model)) return;
     dismissBookingKeyboard();
 
     if (!_validate(model)) return;
@@ -828,7 +831,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     }
 
     try {
-      final result = await model.createRide(accessToken);
+      final result = await model.createRide(accessToken,
+        platformVoucherQuote: _selectedVoucher(model)?['token'] as String?);
 
       if (result['success'] == true) {
         if (!mounted) return;
@@ -873,10 +877,30 @@ class _Booking2ScreenState extends State<Booking2Screen> {
     }
   }
 
+  String _voucherKey(BookingModel model) => [
+    model.selectedPickupPoint?.identityKey, model.selectedDropPoint?.identityKey,
+    model.buildPickupIso(), model.selectedRideType, model.normalizedQuantity, model.paymentMethod,
+  ].join('|');
+
+  Map<String, dynamic>? _selectedVoucher(BookingModel model) =>
+      _voucherContext == _voucherKey(model) ? _voucher : null;
+
+  Future<Map<String, dynamic>> _quoteVoucher(BookingModel model, String code, int? replacementId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('accessToken');
+    if (token == null || token.isEmpty) throw 'Vui lòng đăng nhập để dùng ưu đãi.';
+    return ApiService.quoteRideVoucher(accessToken: token, from: model.selectedPickupPoint!, to: model.selectedDropPoint!,
+      type: model.selectedRideType, pickupTime: model.buildPickupIso()!, paymentMethod: model.paymentMethod,
+      quantity: model.normalizedQuantity, code: code, replacementId: replacementId);
+  }
+
   @override
   Widget build(BuildContext context) {
     final model = context.watch<BookingModel>();
     final showQuantityField = model.showQuantityField;
+    final tripPrice = model.tripPrice;
+    final voucher = _selectedVoucher(model);
+    final payable = (voucher?['payable'] as num?) ?? tripPrice;
 
     _seedControllers(model);
 
@@ -978,6 +1002,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+                const TripInsuranceOption(),
+                const SizedBox(height: 18),
                 BookingSectionCard(
                   title: 'Phương thức thanh toán',
                   icon: _getPaymentMethodIcon(model.paymentMethod),
@@ -1001,6 +1027,21 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                   ),
                 ),
                 const SizedBox(height: 18),
+                if (model.routePreview?.platformVouchersAvailable == true)
+                  BookingSectionCard(
+                    title: 'Ưu đãi',
+                    icon: Icons.local_offer_outlined,
+                    child: PlatformVoucherPicker(
+                      key: ValueKey(_voucherKey(model)),
+                      disabled: _isCreatingRide,
+                      preview: (code, id) => _quoteVoucher(model, code, id),
+                      onBusy: (busy) => setState(() => _checkingVoucherContext = busy ? _voucherKey(model) : null),
+                      onChange: (value) => setState(() {
+                        _voucherContext = _voucherKey(model);
+                        _voucher = value;
+                      }),
+                    ),
+                  ),
                 BookingSectionCard(
                   title: 'Chi tiết giá',
                   icon: Icons.receipt_long_outlined,
@@ -1009,17 +1050,12 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                           padding: EdgeInsets.all(20),
                           child: Center(child: CircularProgressIndicator()),
                         )
-                      : model.tripPrice != null
+                      : tripPrice != null
                       ? Column(
                           children: [
                             _buildPriceRow(
                               'Giá cước gốc',
                               formatCurrency(model.basePrice ?? 0),
-                            ),
-                            if (model.discount != 0) _buildPriceRow(
-                              'Ưu đãi giảm giá',
-                              formatCurrency(-(model.discount)),
-                              valueColor: Brand.success,
                             ),
                             if (model.surcharge != 0) _buildPriceRow(
                               'Phụ phí ngày lễ',
@@ -1037,10 +1073,10 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                                 alpha: 0.28,
                               ),
                             ),
-                            _buildPriceRow(
-                              'THÀNH TIỀN',
-                              formatCurrency(model.tripPrice!),
-                              isTotal: true,
+                            CheckoutTotals(
+                              gross: ((voucher?['gross'] as num?) ?? tripPrice) + model.discount,
+                              discount: model.discount + ((voucher?['discount'] as num?) ?? 0),
+                              payable: payable!,
                             ),
                           ],
                         )
@@ -1073,7 +1109,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tổng tiền',
+                        'Tổng thanh toán',
                         style: TextStyle(
                           color: Brand.inkMuted,
                           fontSize: 13,
@@ -1082,8 +1118,8 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        model.tripPrice != null
-                            ? formatCurrency(model.tripPrice!)
+                        payable != null
+                            ? formatCurrency(payable.toDouble())
                             : '--',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1099,7 +1135,7 @@ class _Booking2ScreenState extends State<Booking2Screen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _isCalculatingPrice || _isCreatingRide || model.isLoadingPrice
+                    onPressed: _isCalculatingPrice || _isCreatingRide || model.isLoadingPrice || _checkingVoucherContext == _voucherKey(model)
                         ? null
                         : () => _handleCreateRide(model),
                     style: ElevatedButton.styleFrom(

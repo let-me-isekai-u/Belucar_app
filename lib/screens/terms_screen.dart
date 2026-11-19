@@ -35,7 +35,7 @@ Các thay đổi về điều khoản sẽ được thông báo trong ứng dụ
 
 7. Hỗ trợ
 Số điện thoại: 0878 861 324
-Email: beluga.fintech@gmail.com
+Email: hotro@datxedongduong.com
 ''';
 
   @override

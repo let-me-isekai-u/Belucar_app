@@ -13,6 +13,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/map_config.dart';
 import '../../ui/ui.dart';
+import '../../widgets/checkout_totals.dart';
+import '../../widgets/trip_insurance_option.dart';
+import '../../widgets/platform_voucher_picker.dart';
 import 'carrier_api.dart';
 
 final _money = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ', decimalDigits: 0);
@@ -666,6 +669,8 @@ class CarrierCheckoutScreen extends StatefulWidget {
 
 class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
   Map<String, dynamic>? _run, _quote;
+  Map<String, dynamic>? _voucher;
+  bool _checkingVoucher = false;
   late int _pickup = widget.pickup, _dropoff = widget.dropoff, _pax = widget.pax;
   final _name = TextEditingController(), _phone = TextEditingController(), _note = TextEditingController();
   String? _error;
@@ -717,14 +722,17 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
     // Đổi điểm/số người = lệnh đặt khác → khóa chống trùng mới.
     setState(() {
       _quote = null;
+      _voucher = null;
+      _checkingVoucher = false;
       _error = null;
       _key = CarrierApi.newIdempotencyKey();
     });
+    final selection = (_pickup, _dropoff, _pax);
     try {
-      final q = await CarrierApi.quote(widget.runId, _pickup, _dropoff, _pax);
-      if (mounted) setState(() => _quote = q);
+      final q = await CarrierApi.quote(widget.runId, selection.$1, selection.$2, selection.$3);
+      if (mounted && selection == (_pickup, _dropoff, _pax)) setState(() => _quote = q);
     } on CarrierApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted && selection == (_pickup, _dropoff, _pax)) setState(() => _error = e.message);
     }
   }
 
@@ -739,7 +747,8 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
         if (_name.text.trim().isNotEmpty) 'contactName': _name.text.trim(),
         if (_phone.text.trim().isNotEmpty) 'contactPhone': _phone.text.trim(),
         if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
-        'expectedTotalAmount': _quote?['totalAmount'],
+        'expectedTotalAmount': _voucher?['payable'] ?? _quote?['totalAmount'],
+        if (_voucher != null) 'platformVoucherQuote': _voucher!['token'],
       }, _key);
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => CarrierTicketScreen(code: '${b['code']}')));
@@ -813,6 +822,9 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
     final pickups = _stops.where((s) => s['canPickup'] == true).toList();
     final dropoffs = _stops.where((s) => s['canDropoff'] == true && (s['sequence'] as int) > pickupSeq).toList();
     final name = '${_run!['carrierName']}';
+    final fare = _quote?['totalAmount'] as num?;
+    final payable = (_voucher?['payable'] as num?) ?? fare;
+    final bookingLabel = _voucher?['payable'] == 0 ? 'Xác nhận vé 0đ' : 'Đặt vé & thanh toán';
     return Scaffold(
       appBar: AppBar(title: const Text('Xác nhận đặt vé')),
       bottomNavigationBar: DecoratedBox(
@@ -844,10 +856,10 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
                     ),
                   ),
                 PrimaryCta(
-                  label: _busy ? 'Đang đặt...' : 'Đặt vé & thanh toán',
-                  trailing: _quote == null ? null : _vnd(_quote!['totalAmount']),
+                  label: _busy ? 'Đang đặt...' : bookingLabel,
+                  trailing: payable == null ? null : _vnd(payable),
                   loading: _busy,
-                  onPressed: _quote == null ? null : _book,
+                  onPressed: _quote == null || _checkingVoucher ? null : _book,
                 ),
               ],
             ),
@@ -921,6 +933,28 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
             ),
           ),
           const SizedBox(height: 18),
+          if (_quote?['platformVouchersAvailable'] == true)
+            PlatformVoucherPicker(
+              key: ValueKey('$_pickup/$_dropoff/$_pax'),
+              disabled: _busy,
+              preview: (code, id) => CarrierApi.voucherQuote(widget.runId, _pickup, _dropoff, _pax, code, id),
+              onBusy: (busy) => setState(() => _checkingVoucher = busy),
+              onChange: (value) => setState(() {
+                _voucher = value;
+                _key = CarrierApi.newIdempotencyKey();
+              }),
+            ),
+          if (fare != null) ...[
+            const SectionHeader('Chi tiết giá'),
+            BrandCard(
+              child: CheckoutTotals(
+                gross: (_voucher?['gross'] as num?) ?? fare,
+                discount: (_voucher?['discount'] as num?) ?? 0,
+                payable: payable!,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           const SectionHeader('Thông tin liên hệ'),
           TextField(
             controller: _name,
@@ -946,13 +980,15 @@ class _CarrierCheckoutScreenState extends State<CarrierCheckoutScreen> {
             decoration: const InputDecoration(labelText: 'Ghi chú cho nhà xe', prefixIcon: Icon(Icons.edit_note_rounded)),
           ),
           const SizedBox(height: 16),
+          const TripInsuranceOption(),
+          const SizedBox(height: 16),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: InfoBanner(_error!, tone: Tone.danger, icon: Icons.error_outline_rounded),
             ),
           if (_policy != null)
-            InfoBanner('Hủy vé trước giờ đón — $_policy. Tiền hoàn vào ví Beluga.', tone: Tone.warning, icon: Icons.policy_outlined),
+            InfoBanner('Hủy vé trước giờ đón — $_policy. Tiền hoàn vào ví.', tone: Tone.warning, icon: Icons.policy_outlined),
           const SizedBox(height: 8),
         ],
       ),
@@ -1045,10 +1081,17 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
   Future<void> _cancel() async {
     final b = _b!;
     final refund = b['cancelRefund'] as Map?;
-    final ok = b['status'] == 'CONFIRMED' && refund != null
+    final ok = b['paymentMethod'] == 'PROMOTION'
+        ? await _confirm(
+            'Hủy vé được tài trợ?',
+            'Đông Dương đã tài trợ toàn bộ giá vé. Hủy vé sẽ không phát sinh hoàn tiền vào ví.',
+            'Hủy vé',
+            danger: true,
+          )
+        : b['status'] == 'CONFIRMED' && refund != null
         ? await _confirm(
             'Hủy vé đã thanh toán?',
-            'Còn khoảng ${(refund['hoursBeforePickup'] as num).floor()} giờ đến giờ đón: bạn được hoàn ${_vnd(refund['refundAmount'])} (${_pct(refund['refundPercent'])}) vào ví Beluga ngay. Không thể hoàn tác.',
+            'Còn khoảng ${(refund['hoursBeforePickup'] as num).floor()} giờ đến giờ đón: bạn được hoàn ${_vnd(refund['refundAmount'])} (${_pct(refund['refundPercent'])}) vào ví ngay. Không thể hoàn tác.',
             'Hủy vé',
             danger: true,
           )
@@ -1057,7 +1100,7 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
     try {
       await CarrierApi.cancel(widget.code);
       await _load();
-      if (mounted) _toast(context, b['status'] == 'CONFIRMED' ? 'Đã hủy vé. Tiền hoàn (nếu có) đã vào ví Beluga.' : 'Đã hủy đơn.');
+      if (mounted) _toast(context, b['status'] == 'CONFIRMED' ? 'Đã hủy vé. Tiền hoàn (nếu có) đã vào ví.' : 'Đã hủy đơn.');
     } on CarrierApiException catch (e) {
       if (mounted) _toast(context, e.message);
     }
@@ -1066,7 +1109,7 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
   Future<void> _payWallet() async {
     final b = _b!;
     if (!await _confirm(
-      'Thanh toán bằng ví Beluga?',
+      'Thanh toán bằng ví?',
       'Trừ ${_vnd(b['totalAmount'])} từ ví (số dư ${_vnd(b['walletBalance'])}). Vé được xác nhận ngay; đừng chuyển khoản thêm.',
       'Thanh toán',
     )) {
@@ -1198,17 +1241,18 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
           const _TearLine(),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    '${b['passengerCount']} khách${b['paymentMethod'] == 'WALLET' ? ' · Ví Beluga' : ''}',
-                    style: const TextStyle(color: Brand.inkMuted, fontSize: 13),
-                  ),
-                ),
                 Text(
-                  _vnd(b['totalAmount']),
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Brand.navy),
+                  '${b['passengerCount']} khách${b['paymentMethod'] == 'WALLET' ? ' · Ví' : ''}',
+                  style: const TextStyle(color: Brand.inkMuted, fontSize: 13),
+                ),
+                const SizedBox(height: 6),
+                CheckoutTotals(
+                  gross: (b['subtotal'] as num?) ?? (b['totalAmount'] as num),
+                  discount: (b['discountAmount'] as num?) ?? 0,
+                  payable: b['totalAmount'] as num,
                 ),
               ],
             ),
@@ -1231,7 +1275,7 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
             ],
             ticket,
             const SizedBox(height: 12),
-            if (pay != null && b['walletBalance'] != null) ...[
+            if (status == 'PENDING_PAYMENT' && b['walletAllowed'] != false && b['walletBalance'] != null) ...[
               BrandCard(
                 child: Row(
                   children: [
@@ -1243,9 +1287,10 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
                         children: [
                           Text('Số dư ví: ${_vnd(b['walletBalance'])}', style: const TextStyle(fontWeight: FontWeight.w700)),
                           if ((b['walletBalance'] as num) < (b['totalAmount'] as num))
-                            const Text(
-                              'Chưa đủ để trả vé — vui lòng chuyển khoản bên dưới.',
-                              style: TextStyle(fontSize: 12, color: Brand.inkMuted),
+                            Text(
+                              pay != null ? 'Chưa đủ để trả vé. Bạn có thể chuyển khoản bên dưới.' :
+                                'Hãy nạp ví trước ${_dayTime(b['paymentExpiresAt'])}.',
+                              style: const TextStyle(fontSize: 12, color: Brand.inkMuted),
                             ),
                         ],
                       ),
@@ -1310,8 +1355,10 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
                 padding: const EdgeInsets.only(top: 4),
                 child: InfoBanner(
                   (b['refundAmount'] as num) > 0
-                      ? 'Đã hoàn ${_vnd(b['refundAmount'])} (${_pct(b['refundPercent'])}) vào ví Beluga.'
-                      : 'Vé hủy sát giờ đón nên không được hoàn tiền theo chính sách.',
+                      ? 'Đã hoàn ${_vnd(b['refundAmount'])} (${_pct(b['refundPercent'])}) vào ví.'
+                      : b['paymentMethod'] == 'PROMOTION'
+                          ? 'Vé này được Đông Dương tài trợ toàn bộ.'
+                          : 'Vé hủy sát giờ đón nên không được hoàn tiền theo chính sách.',
                   tone: Tone.info,
                   icon: Icons.undo_rounded,
                 ),
@@ -1332,9 +1379,9 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
                       label: const Text('Gọi nhà xe'),
                     ),
                   ),
-                if (run['carrierPhone'] != null && (pay != null || (status == 'CONFIRMED' && b['cancelRefund'] != null)))
+                if (run['carrierPhone'] != null && (status == 'PENDING_PAYMENT' || (status == 'CONFIRMED' && b['cancelRefund'] != null)))
                   const SizedBox(width: 10),
-                if (pay != null || (status == 'CONFIRMED' && b['cancelRefund'] != null))
+                if (status == 'PENDING_PAYMENT' || (status == 'CONFIRMED' && b['cancelRefund'] != null))
                   Expanded(
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
@@ -1343,7 +1390,7 @@ class _CarrierTicketScreenState extends State<CarrierTicketScreen> {
                         minimumSize: const Size(64, 52),
                       ),
                       onPressed: _cancel,
-                      child: Text(pay != null ? 'Hủy đơn' : 'Hủy vé'),
+                      child: Text(status == 'PENDING_PAYMENT' ? 'Hủy đơn' : 'Hủy vé'),
                     ),
                   ),
               ],

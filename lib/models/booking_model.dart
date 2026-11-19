@@ -787,6 +787,7 @@ class BookingModel extends ChangeNotifier {
   Future<Map<String, dynamic>> createRide(
     String accessToken, {
     String? content,
+    String? platformVoucherQuote,
   }) async {
     final phone = customerPhone?.trim() ?? '';
     final phoneError = bookingPhoneError(phone, forOther: isBookingForOther);
@@ -820,6 +821,7 @@ class BookingModel extends ChangeNotifier {
       quantity: normalizedQuantity,
       note: note ?? '',
       content: content,
+      platformVoucherQuote: platformVoucherQuote,
     );
 
     final status = response.statusCode;

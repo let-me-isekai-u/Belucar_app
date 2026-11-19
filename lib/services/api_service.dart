@@ -566,6 +566,53 @@ class ApiService {
   }
 
   // 13. API TẠO CHUYẾN ĐI
+  static Future<Map<String, dynamic>> quoteRideVoucher({
+    required String accessToken,
+    required RidePointPayload from,
+    required RidePointPayload to,
+    required int type,
+    required String pickupTime,
+    required int paymentMethod,
+    required int quantity,
+    required String code,
+    int? replacementId,
+  }) async {
+    final url = Uri.parse('$apiOrigin/api/v2/ride/voucher-quote').replace(
+      queryParameters: {
+        'code': code,
+        if (replacementId != null) 'replacementId': '$replacementId',
+      },
+    );
+    final response = await _withCustomerSession(
+      accessToken,
+      (token) => customerHttp.post(
+        url,
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+        body: jsonEncode({
+          'from': from.toJson(), 'to': to.toJson(), 'type': type,
+          'pickupTime': pickupTime, 'paymentMethod': paymentMethod, 'quantity': quantity,
+        }),
+      ),
+    );
+    return _voucherData(response);
+  }
+
+  static Future<Map<String, dynamic>> voucherData(String accessToken, String path, {bool post = false}) async {
+    final url = Uri.parse('$apiOrigin/api/v2/ride/$path');
+    final response = await _withCustomerSession(accessToken, (token) {
+      final headers = {'Authorization': 'Bearer $token'};
+      return post ? customerHttp.post(url, headers: headers) : customerHttp.get(url, headers: headers);
+    });
+    return _voucherData(response);
+  }
+
+  static Map<String, dynamic> _voucherData(http.Response response) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw responseError(response, 'Không tải được ưu đãi.');
+    }
+    return (responseJson(response)?['data'] as Map?)?.cast<String, dynamic>() ?? {};
+  }
+
   static Future<http.Response> createRide({
     required String accessToken,
     required int tripId,
@@ -579,6 +626,7 @@ class ApiService {
     required int quantity,
     String note = "",
     String? content,
+    String? platformVoucherQuote,
   }) async {
     final url = Uri.parse("$apiOrigin/api/v2/ride/create");
     final idempotencyKey = newIdempotencyKey();
@@ -595,6 +643,7 @@ class ApiService {
       "paymentMethod": paymentMethod,
       "content": content,
       "voucherCode": null,
+      if (platformVoucherQuote != null) "platformVoucherQuote": platformVoucherQuote,
       "quantity": quantity,
     });
 

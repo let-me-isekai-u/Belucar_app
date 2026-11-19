@@ -322,6 +322,7 @@ class ResolveRoutePreviewData {
     required this.discount,
     required this.finalPrice,
     required this.isHoliday,
+    this.platformVouchersAvailable = false,
   });
 
   final AddressResolvedLocation from;
@@ -336,6 +337,7 @@ class ResolveRoutePreviewData {
   final num discount;
   final num finalPrice;
   final bool isHoliday;
+  final bool platformVouchersAvailable;
 
   factory ResolveRoutePreviewData.fromJson(Map<String, dynamic> json) {
     return ResolveRoutePreviewData(
@@ -355,6 +357,7 @@ class ResolveRoutePreviewData {
       discount: json['discount'] as num? ?? 0,
       finalPrice: json['finalPrice'] as num? ?? 0,
       isHoliday: _boolValue(json['isHoliday']),
+      platformVouchersAvailable: _boolValue(json['platformVouchersAvailable']),
     );
   }
 }
