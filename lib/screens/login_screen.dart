@@ -82,7 +82,6 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.setString('fullName', fullName);
           await prefs.setString('phone', phone);
           await prefs.setInt('id', userId);
-          await prefs.setBool('showEventBanner', true);
 
           if (!mounted) return;
           Navigator.pushReplacement(
