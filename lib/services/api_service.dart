@@ -51,7 +51,7 @@ class ApiService {
     return http.Response.bytes(
       utf8.encode(body),
       statusCode,
-      headers: {"Content-Type": "application/json; charset=utf-8"},
+      headers: {"content-type": "application/json; charset=utf-8"},
     );
   }
 

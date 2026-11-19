@@ -27,6 +27,46 @@ void main() {
 
   tearDown(() => model.dispose());
 
+  test(
+    'shows a readable network error when the fare server is unreachable',
+    () async {
+      final client = MockClient(
+        (request) async =>
+            throw http.ClientException('Connection refused', request.url),
+      );
+
+      await withCustomerHttp(() async {
+        await model.fetchTripPrice();
+
+        expect(model.tripPrice, isNull);
+        expect(
+          model.priceErrorMessage,
+          'Không kết nối được máy chủ. Vui lòng kiểm tra mạng và thử lại.',
+        );
+      }, client);
+    },
+  );
+
+  test(
+    'decodes a UTF-8 fare error when the response omits its charset',
+    () async {
+      const message = 'Tuyến đường này chưa có bảng giá.';
+      final client = MockClient(
+        (_) async => http.Response.bytes(
+          utf8.encode(jsonEncode({'success': false, 'message': message})),
+          422,
+        ),
+      );
+
+      await withCustomerHttp(() async {
+        await model.fetchTripPrice();
+
+        expect(model.tripPrice, isNull);
+        expect(model.priceErrorMessage, message);
+      }, client);
+    },
+  );
+
   test('wallet booking sends the trip ID from the quote', () async {
     final requests = <http.Request>[];
     final client = MockClient((request) async {

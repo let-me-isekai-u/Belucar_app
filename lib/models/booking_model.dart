@@ -715,7 +715,9 @@ class BookingModel extends ChangeNotifier {
           quantity: normalizedQuantity,
         );
 
-        final parsed = ResolveRoutePreviewResponse.fromRawJson(response.body);
+        final parsed = ResolveRoutePreviewResponse.fromRawJson(
+          utf8.decode(response.bodyBytes),
+        );
         final quote = parsed.data;
         if (response.statusCode >= 200 &&
             response.statusCode < 300 &&
